@@ -7,6 +7,9 @@ const ESCENA := "res://escenas/calle_prueba/calle_prueba.tscn"
 const FPS := 60
 
 var _fallos: int = 0
+## Si se corren menos verificaciones que esto, algo se rompió antes de tiempo (un script que no compila).
+const VERIFICACIONES_MINIMAS := 17
+var _verificaciones: int = 0
 var camion: Camion
 var pista: PistaPrueba
 
@@ -37,6 +40,9 @@ func _ready() -> void:
 	await _prueba_volantazo()
 	await _prueba_reinicio()
 
+	if _verificaciones < VERIFICACIONES_MINIMAS:
+		printerr("  FALLO solo se corrieron %d verificaciones (se esperaban al menos %d)" % [_verificaciones, VERIFICACIONES_MINIMAS])
+		_fallos += 1
 	if _fallos == 0:
 		print("PRUEBAS ETAPA 1: todo pasó.")
 	else:
@@ -45,6 +51,7 @@ func _ready() -> void:
 
 
 func _verificar(condicion: bool, descripcion: String) -> void:
+	_verificaciones += 1
 	if condicion:
 		print("  ok    ", descripcion)
 	else:

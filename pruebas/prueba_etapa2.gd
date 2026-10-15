@@ -7,6 +7,9 @@ const ESCENA := "res://escenas/interior_prueba/interior_prueba.tscn"
 const FPS := 60
 
 var _fallos: int = 0
+## Si se corren menos verificaciones que esto, algo se rompió antes de tiempo (un script que no compila).
+const VERIFICACIONES_MINIMAS := 12
+var _verificaciones: int = 0
 var escena: Node
 var jugador: CuerpoPersonaje
 var interior: InteriorCamion
@@ -24,6 +27,9 @@ var _hundimiento: float = 0.0
 
 func _ready() -> void:
 	await _probar()
+	if _verificaciones < VERIFICACIONES_MINIMAS:
+		printerr("  FALLO solo se corrieron %d verificaciones (se esperaban al menos %d)" % [_verificaciones, VERIFICACIONES_MINIMAS])
+		_fallos += 1
 	if _fallos == 0:
 		print("PRUEBAS ETAPA 2: todo pasó.")
 	else:
@@ -32,6 +38,7 @@ func _ready() -> void:
 
 
 func _verificar(condicion: bool, descripcion: String) -> void:
+	_verificaciones += 1
 	if condicion:
 		print("  ok    ", descripcion)
 	else:
@@ -49,6 +56,11 @@ func _probar() -> void:
 	camion = escena.camion
 	piloto = escena.piloto
 	escena.set_physics_process(false)
+	piloto.fijar_semilla(2026)
+	# Esta prueba es del interior vacío: sin pasajeros ni paradas.
+	escena.pasajeros.vaciar()
+	escena.pasajeros.llegadas_activas = false
+	piloto.detenerse_en_paradas = false
 	piloto.cambiar_modo(PilotoAutomatico.Modo.PARADO)
 	await _esperar(1.0, func(): pass)
 
@@ -92,6 +104,18 @@ func _probar() -> void:
 	print("        se movió %.2f m del lugar donde estaba" % _local().distance_to(inicio))
 	_reportar()
 	_verificar(_salto_maximo < 0.25 and _hundimiento < 0.12, "sin fallos de física con sustos")
+
+	print("Frenazo en seco sin sujetarse:")
+	escena._reiniciar()
+	piloto.cambiar_modo(PilotoAutomatico.Modo.NORMAL)
+	await _esperar(4.0, func(): pass)
+	var desplomes_antes: int = escena.ragdolls.total_desplomes
+	var velocidad_frenazo := camion.velocidad_adelante * 3.6
+	piloto.cambiar_modo(PilotoAutomatico.Modo.PARADO)
+	await _esperar(2.0, func(): pass)
+	_verificar(escena.ragdolls.total_desplomes > desplomes_antes, "un frenazo a %.0f km/h lo tumba como ragdoll" % velocidad_frenazo)
+	await _esperar(7.0, func(): pass)
+	_verificar(not jugador.desplomado and jugador.is_on_floor(), "se vuelve a levantar (adentro: %s)" % interior.esta_dentro(jugador))
 
 	print("Lanzar una bolsa por la ventana:")
 	escena._reiniciar()
@@ -184,6 +208,10 @@ func _limpiar_medidas() -> void:
 
 func _medir() -> void:
 	var local := _local()
+	# Mientras anda hecho ragdoll (y al levantarse donde quedó) no cuenta como brinco de física.
+	if jugador.desplomado:
+		_posicion_anterior = Vector3.INF
+		return
 	if _posicion_anterior != Vector3.INF:
 		_salto_maximo = maxf(_salto_maximo, local.distance_to(_posicion_anterior))
 	_posicion_anterior = local

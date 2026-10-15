@@ -1,6 +1,7 @@
 extends Node3D
-## Escena de la etapa 2: caminar dentro del camión mientras lo maneja el piloto automático
-## (interior separado, DECISIONES.md, D35). Se puede bajar por la puerta y volver a subir.
+## Escena de prueba del interior (etapas 2 y 3): caminar dentro del camión mientras el piloto
+## automático maneja y se detiene en las paradas, donde suben y bajan pasajeros.
+## Interior separado (DECISIONES.md, D35). Se puede bajar por la puerta y volver a subir.
 
 const ESCENA_MENU := "res://escenas/principal.tscn"
 ## Dónde aparece el jugador: junto a la puerta, mirando hacia el fondo (coordenadas del camión).
@@ -14,6 +15,8 @@ const MANIQUI := "chavo_sudadera"
 @onready var hud: HudInterior = $Hud
 
 var interior: InteriorCamion
+var ragdolls: GestorRagdolls
+var pasajeros: GestorPasajeros
 var jugador: CuerpoPersonaje
 var objetos: Array[ObjetoSuelto] = []
 var _arranque: float = 1.5
@@ -26,6 +29,17 @@ func _ready() -> void:
 	interior.camion = camion
 	interior.mundo = mundo
 	add_child(interior)
+	ragdolls = GestorRagdolls.new()
+	ragdolls.name = "GestorRagdolls"
+	ragdolls.interior = interior
+	add_child(ragdolls)
+	pasajeros = GestorPasajeros.new()
+	pasajeros.name = "GestorPasajeros"
+	pasajeros.interior = interior
+	pasajeros.ragdolls = ragdolls
+	pasajeros.pista = pista
+	add_child(pasajeros)
+	piloto.esperar_mientras = pasajeros.hay_movimiento_en_puerta
 	piloto.cambiar_modo(PilotoAutomatico.Modo.PARADO)
 	piloto.susto.connect(hud.avisar_susto)
 
@@ -51,6 +65,7 @@ func _crear_jugador() -> CuerpoPersonaje:
 	cuerpo.orientar(PI)
 	cuerpo.configurar(visual.altura, visual.altura_ojos)
 	visual.ocultar_cabeza(true)
+	ragdolls.vigilar(cuerpo)
 	var entrada := EntradaJugador.new()
 	entrada.name = "EntradaJugador"
 	entrada.cuerpo = cuerpo
@@ -143,7 +158,8 @@ func _physics_process(delta: float) -> void:
 		_arranque -= delta
 		if _arranque <= 0.0:
 			piloto.cambiar_modo(PilotoAutomatico.Modo.NORMAL)
-	hud.mostrar_estado(camion.velocidad_adelante * 3.6, PilotoAutomatico.NOMBRES[piloto.modo], interior.esta_dentro(jugador), jugador.sujetado, jugador.tropezando > 0.0)
+	hud.mostrar_estado(camion.velocidad_adelante * 3.6, PilotoAutomatico.NOMBRES[piloto.modo], interior.esta_dentro(jugador) or jugador.desplomado, jugador.sujetado, jugador.tropezando > 0.0 or jugador.desplomado)
+	hud.mostrar_pasajeros(pasajeros.a_bordo())
 
 
 func _unhandled_input(evento: InputEvent) -> void:
@@ -166,6 +182,7 @@ func _unhandled_input(evento: InputEvent) -> void:
 
 ## Pone el camión sobre la calle y al jugador de vuelta junto a la puerta.
 func _reiniciar() -> void:
+	ragdolls.levantar_todos()
 	var i := pista.indice_cercano(camion.global_position)
 	camion.colocar(pista.transform_en_indice(i))
 	interior.inercia.reiniciar()

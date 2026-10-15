@@ -5,6 +5,9 @@ extends RigidBody3D
 ## camión desde su marco; en la calle usa la física normal.
 
 const CAPA := 16
+## Velocidad (m/s, respecto a quien recibe el golpe) a partir de la cual un objeto que pega
+## a un personaje lo empuja. Lo pesado empuja más.
+const VELOCIDAD_GOLPE := 3.0
 
 var marco := MarcoMovimiento.new()
 
@@ -17,6 +20,18 @@ func _ready() -> void:
 	material.friction = 0.8
 	material.bounce = 0.15
 	physics_material_override = material
+	contact_monitor = true
+	max_contacts_reported = 2
+	body_entered.connect(_al_chocar)
+
+
+## Algo que vuela (una bolsa, la pierna de otro pasajero) le pega a un personaje.
+func _al_chocar(otro: Node) -> void:
+	if not otro is CuerpoPersonaje:
+		return
+	var relativa: Vector3 = linear_velocity - (otro as CuerpoPersonaje).velocity
+	if relativa.length() > VELOCIDAD_GOLPE:
+		otro.empujar(relativa * minf(1.0, mass / 40.0))
 
 
 func _physics_process(_delta: float) -> void:

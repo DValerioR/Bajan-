@@ -31,20 +31,23 @@ Herramientas de desarrollo (se abren desde el editor o con Godot por línea de c
 - `pruebas/captura_interior.tscn`: capturas desde el jugador dentro del camión (`-- <carpeta>`).
 - `pruebas/vista_personajes.tscn`: los 16 personajes en fila, con las piezas coloreadas (`piezas`), con textura o doblando articulaciones (`pose`).
 - `pruebas/vista_modelos.tscn`: captura de frente de un modelo importado.
+- `pruebas/captura_ventana.tscn`: llena el camión, avienta a un pasajero y toma capturas desde afuera.
+- `pruebas/experimento_rendimiento.tscn`: tiempo por cuadro con 0, 5 y 15 pasajeros; sin `--headless` mide cuadros por segundo con gráficos (`--gpu-index 1` usa la otra GPU).
+- `pruebas/experimento_ragdoll.tscn`: suelta un ragdoll en el aire y reporta cómo caen sus piezas.
 
 ## Estructura
 
 | Carpeta | Contenido |
 |---|---|
 | `audio/musica/`, `audio/efectos/`, `audio/murmullos/` | Audio por tipo (por ahora vacío; ver DISEÑO.md, sección 10). |
-| `config/` | Números de diseño: `juego.cfg` (jugadores, idiomas), `conduccion.cfg` (todo el manejo del camión), `calle_prueba.cfg` (trazado, topes y baches). Nunca van en los scripts. |
+| `config/` | Números de diseño: `juego.cfg` (jugadores, idiomas), `conduccion.cfg` (manejo del camión), `calle_prueba.cfg` (trazado, topes, baches y paradas), `interior.cfg` (caminar adentro, ragdolls, chofer automático), `pasajeros.cfg`. Nunca van en los scripts. |
 | `escenas/` | Escenas: `principal.tscn` (menú de pruebas, escena de arranque), `camion/`, `calle_prueba/`, `ui/`. |
 | `scripts/autoload/` | Nodos globales: `Config` (lee `config/`, F9 recarga) y `Preferencias` (idioma y ajustes locales del jugador). |
 | `scripts/camion/` | Simulación del camión (`camion.gd`), comandos de manejo, entrada del jugador, cámara del chofer y carrocería de formas básicas. |
 | `scripts/mundo/`, `scripts/estilo/`, `scripts/audio/` | Calle de prueba, conversión al estilo toon y sonidos generados en código. |
 | `materiales/` | Shaders del estilo toon y del contorno. |
 | `modelos/` | `personajes/` (16 personajes procesados), `personajes.cfg` (cómo se procesan) y `fuentes/` (originales de Tripo, fuera de git). Formato y escala en `DECISIONES.md`, D33 y D34. |
-| `scripts/personajes/`, `scripts/interior/`, `scripts/objetos/` | Personaje (figura y cuerpo), interior del camión (inercia y espacio de física propio) y objetos sueltos. |
+| `scripts/personajes/`, `scripts/interior/`, `scripts/objetos/`, `scripts/pasajeros/` | Personaje (figura, cuerpo, ragdoll), interior del camión (inercia y espacio de física propio), objetos sueltos y pasajeros. |
 | `traducciones/` | `textos.csv` con todas las cadenas visibles en español (`es`) e inglés (`en`). |
 | `pruebas/` | Escenas de prueba automática que corre `pruebas.bat`. |
 | `herramientas/` | Ejecutables de Godot (ignorados por git y por Godot). |
@@ -89,3 +92,5 @@ Para ajustar el manejo: con el juego abierto, edita `config/conduccion.cfg`, gua
 | Volver a la puerta | R | Y |
 
 Hay un maniquí, bolsas y monedas para agarrar y lanzar. Los empujones, el tropiezo y el pasamanos se ajustan en `config/interior.cfg` (F9 recarga).
+
+**Etapa 3 (pasajeros): en revisión.** En la misma escena, el chofer automático se detiene en las 5 paradas (postes azules con letrero); los pasajeros que esperan suben, se sientan o van de pie sujetos, y bajan en su parada. Con un frenazo fuerte, quien va de pie sin sujetarse cae como ragdoll (también tú), y un empujón o algo que vuela puede sacar a alguien por la puerta o una ventana; el que cae a la calle se pierde. Las piezas de un ragdoll se pueden agarrar (E) y aventar. Los pasajeros se ajustan en `config/pasajeros.cfg` y los ragdolls en `config/interior.cfg` (sección `[ragdoll]`).

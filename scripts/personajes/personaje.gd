@@ -15,6 +15,8 @@ const CARPETA := "res://modelos/personajes"
 
 var altura: float = 1.7
 var altura_ojos: float = 1.55
+## Altura de la cadera (donde se unen las piernas): para sentarlo a la altura del asiento.
+var altura_cadera: float = 0.8
 ## Mano derecha en coordenadas de este nodo (para colocar lo que carga).
 var mano_derecha := Vector3(0.3, 0.9, 0.0)
 
@@ -43,8 +45,27 @@ func _cargar() -> void:
 	_piezas.clear()
 	for pieza in _figura.get_children():
 		_piezas[pieza.name] = pieza
+	if _piezas.has("PiernaIzquierda"):
+		altura_cadera = (_piezas["PiernaIzquierda"] as Node3D).position.y
 	if _piezas.has("BrazoDerecho"):
 		mano_derecha = (_piezas["BrazoDerecho"] as Node3D).position + (_figura.get_meta("mano_derecha", Vector3.ZERO) as Vector3)
+
+
+## Cada pieza con su malla y su transformación relativa a este nodo, en la pose actual
+## (para armar el ragdoll): [[nombre, MeshInstance3D, Transform3D], ...].
+func piezas_con_transformacion() -> Array:
+	var lista := []
+	for nombre in _piezas:
+		var pieza: MeshInstance3D = _piezas[nombre]
+		if pieza.mesh != null:
+			lista.append([nombre, pieza, _figura.transform * pieza.transform])
+	return lista
+
+
+## Muestra u oculta toda la figura (mientras el personaje anda hecho ragdoll).
+func mostrar(visible_figura: bool) -> void:
+	if _figura != null:
+		_figura.visible = visible_figura
 
 
 ## Oculta la cabeza (para la cámara en primera persona del propio jugador).
@@ -54,7 +75,7 @@ func ocultar_cabeza(ocultar: bool) -> void:
 
 
 ## Actualiza la pose. `velocidad` y `empujon` van en coordenadas de este nodo.
-func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, cargando: bool, tropezando: bool, en_el_aire: bool) -> void:
+func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, cargando: bool, tropezando: bool, en_el_aire: bool, sentado: bool = false) -> void:
 	if _piezas.is_empty():
 		return
 	var rapidez := Vector2(velocidad.x, velocidad.z).length()
@@ -84,6 +105,12 @@ func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, 
 	if cargando:
 		brazo_izq = Vector3(deg_to_rad(75.0), 0.0, deg_to_rad(10.0))
 		brazo_der = Vector3(deg_to_rad(75.0), 0.0, deg_to_rad(-10.0))
+	if sentado:
+		# Piernas al frente y manos sobre las rodillas.
+		pierna_izq = deg_to_rad(85.0)
+		pierna_der = deg_to_rad(85.0)
+		brazo_izq = Vector3(deg_to_rad(35.0), 0.0, 0.0)
+		brazo_der = Vector3(deg_to_rad(35.0), 0.0, 0.0)
 	if sujetado:
 		# Brazo derecho arriba, agarrado del pasamanos o del respaldo.
 		brazo_der = Vector3(deg_to_rad(160.0), 0.0, deg_to_rad(-10.0))

@@ -6,7 +6,7 @@ IDIOMA_ACTUAL,Idioma: Español,Language: English
 BOTON_CAMBIAR_IDIOMA,Cambiar idioma (L),Change language (L)
 BOTON_CALLE_PRUEBA,Manejar en la calle de prueba,Drive on the test street
 BOTON_INTERIOR,Caminar dentro del camión,Walk inside the bus
-PRUEBA_ETAPA,Menú de pruebas · Etapa 2,Test menu · Stage 2
+PRUEBA_ETAPA,Menú de pruebas · Etapa 3,Test menu · Stage 3
 LETRERO_RUTA,CENTRO · TIANGUIS,DOWNTOWN · MARKET
 HUD_VELOCIDAD,%d km/h,%d km/h
 AYUDA_TITULO,Controles,Controls
@@ -35,3 +35,6 @@ AYUDA_SUJETARSE,Shift o clic derecho (mantener): sujetarse,Shift or right click 
 AYUDA_AGARRAR,E: agarrar o soltar · Clic: lanzar o empujar,E: grab or drop · Click: throw or shove
 AYUDA_PILOTO,"1 a 4: chofer parado, tranquilo, normal o loco","1 to 4: driver stopped, calm, normal or crazy"
 AYUDA_REINICIAR_INTERIOR,R: volver a la puerta del camión,R: back to the bus door
+LETRERO_PARADA,PARADA,BUS STOP
+HUD_PASAJEROS,Pasajeros a bordo: %d,Passengers on board: %d
+HUD_SUSTO_PARADA,¡Bajan!,Getting off!

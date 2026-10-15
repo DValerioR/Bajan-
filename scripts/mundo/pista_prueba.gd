@@ -1,7 +1,7 @@
 class_name PistaPrueba
 extends Node3D
-## Calle de prueba de la etapa 1, armada desde config/calle_prueba.cfg:
-## dos carriles con baches, banquetas, topes, edificios y árboles.
+## Calle de prueba, armada desde config/calle_prueba.cfg: dos carriles con baches,
+## banquetas, topes, paradas, edificios y árboles.
 ## También sirve de "línea de ruta": guarda una muestra por metro del centro de la calle,
 ## que usan el reinicio del camión y, más adelante, los bots.
 
@@ -19,6 +19,10 @@ const COLOR_TOPE := Color(1.0, 0.82, 0.12)
 const COLOR_TINACO := Color(0.12, 0.12, 0.14)
 const COLOR_TRONCO := Color(0.45, 0.3, 0.2)
 const COLOR_FOLLAJE := Color(0.3, 0.62, 0.3)
+const COLOR_POSTE := Color(0.2, 0.45, 0.85)
+const COLOR_BANCA := Color(0.55, 0.35, 0.22)
+## Dónde está la puerta del camión, medida desde su centro hacia adelante (m).
+const PUERTA_ADELANTE := 3.15
 const COLORES_FACHADA := [
 	Color(0.9, 0.3, 0.55), Color(0.22, 0.38, 0.72), Color(0.98, 0.78, 0.3), Color(0.82, 0.42, 0.28),
 	Color(0.36, 0.76, 0.66), Color(0.95, 0.56, 0.2), Color(0.93, 0.9, 0.84),
@@ -29,6 +33,8 @@ var puntos := PackedVector3Array()
 ## Dirección de avance en cada muestra.
 var direcciones := PackedVector3Array()
 var longitud: float = 0.0
+## Paradas: cada una {indice_poste, indice_camion, poste (posición en la banqueta)}.
+var paradas: Array[Dictionary] = []
 
 var ancho_carril := 3.6
 var alto_calle := 0.25
@@ -55,6 +61,7 @@ func _ready() -> void:
 	_construir_banquetas()
 	_construir_topes(c.get_value("obstaculos", "topes", []), c.get_value("obstaculos", "alto_tope", 0.13), c.get_value("obstaculos", "radio_tope", 0.45))
 	_construir_escenario(c.get_value("escenario", "semilla", 7), c.get_value("escenario", "separacion_edificios", 11.0))
+	_construir_paradas(c.get_value("paradas", "distancias", []))
 	add_child(_cuerpo)
 	_crear_multimallas()
 	EstiloToon.aplicar(self)
@@ -90,6 +97,11 @@ func transform_en_indice(i: int, carril: int = 0) -> Transform3D:
 	var lado := 0.5 if carril == 0 else -0.5
 	var origen := puntos[i] + derecha(i) * ancho_carril * lado + Vector3.UP * (alto_calle + 1.15)
 	return Transform3D(Basis.looking_at(direcciones[i], Vector3.UP), origen)
+
+
+## Dónde queda el camión parado en la parada `k` (carril derecho).
+func transform_parada(k: int) -> Transform3D:
+	return transform_en_indice(paradas[k].indice_camion)
 
 
 func indice_en_distancia(distancia: float) -> int:
@@ -253,6 +265,41 @@ func _construir_escenario(semilla: int, separacion: float) -> void:
 			copa.mesh = esfera
 			copa.position = pie + Vector3.UP * 3.0
 			add_child(copa)
+
+
+func _construir_paradas(distancias: Array) -> void:
+	paradas.clear()
+	for distancia in distancias:
+		var i := indice_en_distancia(distancia)
+		var poste := _desplazado(i, ancho_carril + 0.6) + Vector3.UP * (alto_calle + alto_banqueta)
+		paradas.append({
+			"indice_poste": i,
+			"indice_camion": _ciclo(i - roundi(PUERTA_ADELANTE / PASO)),
+			"poste": poste,
+		})
+		var base := Basis.looking_at(-derecha(i), Vector3.UP)
+		var tubo := _malla_cilindro(0.06, 2.6, COLOR_POSTE)
+		_solido(tubo, _cilindro_forma(0.06, 2.6), Vector3.ZERO, Transform3D(base, poste + Vector3.UP * 1.3))
+		var letrero := Label3D.new()
+		letrero.text = "LETRERO_PARADA"
+		letrero.pixel_size = 0.006
+		letrero.font_size = 48
+		letrero.outline_size = 12
+		letrero.modulate = Color(1, 1, 1)
+		letrero.outline_modulate = COLOR_POSTE.darkened(0.4)
+		letrero.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+		letrero.position = poste + Vector3.UP * 2.75
+		add_child(letrero)
+		var banca := _malla_caja(Vector3(1.6, 0.12, 0.45), COLOR_BANCA)
+		var donde := _desplazado(i + 3, ancho_carril + ancho_banqueta - 0.35) + Vector3.UP * (alto_calle + alto_banqueta + 0.45)
+		_solido(banca, BoxShape3D.new(), Vector3(1.6, 0.12, 0.45), Transform3D(Basis.looking_at(direcciones[i], Vector3.UP), donde))
+
+
+func _cilindro_forma(radio: float, alto: float) -> CylinderShape3D:
+	var forma := CylinderShape3D.new()
+	forma.radius = radio
+	forma.height = alto
+	return forma
 
 
 # --- Utilidades -----------------------------------------------------------

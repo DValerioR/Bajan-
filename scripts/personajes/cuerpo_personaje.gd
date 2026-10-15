@@ -6,12 +6,18 @@ extends CharacterBody3D
 ##
 ## Modelo de inercia: la velocidad horizontal (respecto al piso) recibe el empujón del camión y
 ## una "firmeza" que la lleva hacia donde el personaje quiere caminar. Con un empujón fuerte y sin
-## sujetarse, el personaje tropieza un momento y casi pierde el control.
+## sujetarse, el personaje tropieza un momento; con uno muy fuerte (o un golpe directo) pide
+## volverse ragdoll (`pide_desplomarse`), y GestorRagdolls decide si se puede.
+## Sentado, no lo mueve nada: va pegado a su asiento.
+
+## El personaje recibió un empujón o golpe suficiente para caer como ragdoll.
+signal pide_desplomarse(empujon: Vector3)
 
 const CAPA_PERSONAJES := 8
 const CAPA_OBJETOS := 16
 ## Altura máxima de escalón que sube caminando (banquetas, escalones del camión).
 const PASO_MAXIMO := 0.35
+const MASCARA := 1 | 4 | CAPA_PERSONAJES
 
 var comandos := ComandosPersonaje.new()
 var marco := MarcoMovimiento.new()
@@ -31,6 +37,12 @@ var en_suelo: bool = false
 var cargado: RigidBody3D = null
 ## Cuántas veces ha subido un escalón (lo usan las pruebas).
 var escalones_subidos: int = 0
+## Mientras anda hecho ragdoll, el cuerpo se apaga y espera a levantarse.
+var desplomado: bool = false
+var sentado: bool = false
+
+var _lugar_sentado := Transform3D()
+var _mascara := MASCARA
 
 var _giro: float = 0.0
 var _vertical: float = 0.0
@@ -40,7 +52,7 @@ func _ready() -> void:
 	collision_layer = CAPA_PERSONAJES
 	# Mundo (1), interior del camión (4) y otros personajes (8). Los objetos chocan contra el
 	# personaje (y él los va empujando al caminar), pero no lo frenan.
-	collision_mask = 1 | 4 | CAPA_PERSONAJES
+	collision_mask = _mascara
 	floor_snap_length = 0.3
 	floor_max_angle = deg_to_rad(50.0)
 	platform_on_leave = CharacterBody3D.PLATFORM_ON_LEAVE_ADD_VELOCITY
@@ -70,6 +82,14 @@ func configurar(nueva_altura: float, nueva_altura_ojos: float) -> void:
 		cabeza.position = Vector3(0.0, altura_ojos, 0.0)
 
 
+## Si atraviesa a los demás personajes (los pasajeros se escurren por el pasillo; el jugador
+## sí choca contra ellos).
+func atravesar_personajes(atravesar: bool) -> void:
+	_mascara = (1 | 4) if atravesar else MASCARA
+	if collision_layer != 0:
+		collision_mask = _mascara
+
+
 ## Hacia dónde mira y gira (radianes): lo usa quien coloque al personaje.
 func orientar(giro: float) -> void:
 	_giro = giro
@@ -82,14 +102,81 @@ func giro_actual() -> float:
 	return atan2(-frente.x, -frente.z)
 
 
+## Después de pasar entre el interior y la calle, sigue mirando hacia el mismo lado.
+func al_cambiar_espacio() -> void:
+	orientar(giro_actual())
+
+
 ## Empujón directo (un golpe, otro personaje que lo avienta): cambio de velocidad en m/s.
 func empujar(cambio_velocidad: Vector3) -> void:
+	if desplomado or sentado:
+		return
+	if cambio_velocidad.length() >= parametros.umbral_golpe_ragdoll:
+		pide_desplomarse.emit(cambio_velocidad)
+		return
 	velocity += cambio_velocidad
 	tropezando = maxf(tropezando, parametros.duracion_tropiezo * 0.6)
 
 
+## Se sienta en `lugar` (pies del personaje ya en su lugar) y se queda ahí hasta `pararse()`.
+func sentarse(lugar: Transform3D) -> void:
+	sentado = true
+	_lugar_sentado = lugar
+	_soltar(Vector3.ZERO)
+	collision_layer = 0
+	collision_mask = 0
+	global_transform = lugar
+	velocity = Vector3.ZERO
+	orientar(giro_actual())
+
+
+func pararse(lugar: Transform3D) -> void:
+	sentado = false
+	collision_layer = CAPA_PERSONAJES
+	collision_mask = _mascara
+	global_transform = lugar
+	velocity = Vector3.ZERO
+	orientar(giro_actual())
+	reset_physics_interpolation()
+
+
+## Se apaga mientras anda hecho ragdoll (lo llama GestorRagdolls).
+func desplomar() -> void:
+	desplomado = true
+	_soltar(Vector3.ZERO)
+	collision_layer = 0
+	collision_mask = 0
+	velocity = Vector3.ZERO
+	if visual:
+		visual.mostrar(false)
+
+
+## Vuelve de ragdoll, parado en `lugar` (en el espacio donde quedó el ragdoll).
+func levantar(lugar: Transform3D) -> void:
+	desplomado = false
+	sentado = false
+	collision_layer = CAPA_PERSONAJES
+	collision_mask = _mascara
+	global_transform = lugar
+	velocity = Vector3.ZERO
+	tropezando = 0.4
+	orientar(giro_actual())
+	reset_physics_interpolation()
+	if visual:
+		visual.mostrar(true)
+
+
 func _physics_process(delta: float) -> void:
 	var p := parametros
+	if desplomado:
+		return
+	if sentado:
+		global_transform = _lugar_sentado
+		velocity = Vector3.ZERO
+		comandos.mirar = Vector2.ZERO
+		if visual:
+			visual.animar(delta, Vector3.ZERO, Vector3.ZERO, false, false, false, false, true)
+		return
 
 	# Vista: el giro horizontal mueve todo el cuerpo; el vertical, solo la cabeza.
 	_giro += deg_to_rad(comandos.mirar.x) + marco.giro(delta)
@@ -104,6 +191,8 @@ func _physics_process(delta: float) -> void:
 	en_suelo = is_on_floor()
 	var empujon := marco.empuje(global_position + arriba * altura * 0.5)
 	sujetado = comandos.sujetarse and marco.pasamanos_cerca(global_position, altura * 1.25, p.alcance_pasamanos)
+	if en_suelo and not sujetado and empujon.length() >= p.umbral_empujon_ragdoll:
+		pide_desplomarse.emit(empujon * 0.35)
 	if en_suelo and not sujetado and empujon.length() > p.umbral_tropiezo:
 		tropezando = p.duracion_tropiezo
 	tropezando = maxf(0.0, tropezando - delta)
@@ -146,7 +235,7 @@ func _physics_process(delta: float) -> void:
 	if visual:
 		var local_velocidad := global_basis.inverse() * horizontal
 		var local_empujon := global_basis.inverse() * aplicado
-		visual.animar(delta, local_velocidad, local_empujon, sujetado, cargado != null, tropezando > 0.0, not is_on_floor())
+		visual.animar(delta, local_velocidad, local_empujon, sujetado, cargado != null, tropezando > 0.0, not is_on_floor(), false)
 
 
 ## Si choca de frente con algo bajo (una banqueta, un escalón) mientras camina, lo sube.

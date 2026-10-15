@@ -21,11 +21,23 @@ var duracion_tropiezo := 1.1
 var factor_sujetado := 0.15
 var alcance_pasamanos := 1.0
 
+var max_ragdolls := 6
+var umbral_empujon_ragdoll := 8.8
+var umbral_golpe_ragdoll := 4.0
+var tiempo_minimo_ragdoll := 1.6
+var tiempo_maximo_ragdoll := 6.0
+var masa_ragdoll := 60.0
+var columpio_ragdoll := 70.0
+var giro_ragdoll := 25.0
+
 var alcance := 2.2
 var velocidad_lanzamiento := 9.0
 var empujon := 5.0
 var exageracion_objetos := 1.3
 
+var espera_parada := 8.0
+var espera_extra_parada := 8.0
+var frenado_parada := 3.0
 var piloto := {
 	"tranquilo": [30.0, 3.0, 0.0],
 	"normal": [45.0, 4.5, 9.0],
@@ -53,11 +65,23 @@ static func cargar() -> ParametrosInterior:
 	p.factor_sujetado = c.get_value("inercia", "factor_sujetado", p.factor_sujetado)
 	p.alcance_pasamanos = c.get_value("inercia", "alcance_pasamanos", p.alcance_pasamanos)
 
+	p.max_ragdolls = c.get_value("ragdoll", "max_activos", p.max_ragdolls)
+	p.umbral_empujon_ragdoll = c.get_value("ragdoll", "umbral_empujon", p.umbral_empujon_ragdoll)
+	p.umbral_golpe_ragdoll = c.get_value("ragdoll", "umbral_golpe", p.umbral_golpe_ragdoll)
+	p.tiempo_minimo_ragdoll = c.get_value("ragdoll", "tiempo_minimo", p.tiempo_minimo_ragdoll)
+	p.tiempo_maximo_ragdoll = c.get_value("ragdoll", "tiempo_maximo", p.tiempo_maximo_ragdoll)
+	p.masa_ragdoll = c.get_value("ragdoll", "masa", p.masa_ragdoll)
+	p.columpio_ragdoll = c.get_value("ragdoll", "columpio", p.columpio_ragdoll)
+	p.giro_ragdoll = c.get_value("ragdoll", "giro", p.giro_ragdoll)
+
 	p.alcance = c.get_value("objetos", "alcance", p.alcance)
 	p.velocidad_lanzamiento = c.get_value("objetos", "velocidad_lanzamiento", p.velocidad_lanzamiento)
 	p.empujon = c.get_value("objetos", "empujon", p.empujon)
 	p.exageracion_objetos = c.get_value("objetos", "exageracion", p.exageracion_objetos)
 
+	p.espera_parada = c.get_value("piloto", "espera_parada", p.espera_parada)
+	p.frenado_parada = c.get_value("piloto", "frenado_parada", p.frenado_parada)
+	p.espera_extra_parada = c.get_value("piloto", "espera_extra_parada", p.espera_extra_parada)
 	for modo in p.piloto:
 		p.piloto[modo] = c.get_value("piloto", modo, p.piloto[modo])
 	return p

@@ -5,6 +5,9 @@ extends Node
 const RUTA_TEXTOS := "res://traducciones/textos.csv"
 
 var _fallos: int = 0
+## Si se corren menos verificaciones que esto, algo se rompió antes de tiempo (un script que no compila).
+const VERIFICACIONES_MINIMAS := 20
+var _verificaciones: int = 0
 
 
 func _ready() -> void:
@@ -16,6 +19,9 @@ func _ready() -> void:
 	_probar_cambio_de_idioma()
 
 	Preferencias.cambiar_idioma(idioma_original)
+	if _verificaciones < VERIFICACIONES_MINIMAS:
+		printerr("  FALLO solo se corrieron %d verificaciones (se esperaban al menos %d)" % [_verificaciones, VERIFICACIONES_MINIMAS])
+		_fallos += 1
 	if _fallos == 0:
 		print("PRUEBAS ETAPA 0: todo pasó.")
 	else:
@@ -24,6 +30,7 @@ func _ready() -> void:
 
 
 func _verificar(condicion: bool, descripcion: String) -> void:
+	_verificaciones += 1
 	if condicion:
 		print("  ok    ", descripcion)
 	else:

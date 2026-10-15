@@ -8,6 +8,7 @@ const AYUDA := ["AYUDA_TITULO", "AYUDA_CAMINAR", "AYUDA_MIRAR", "AYUDA_SUJETARSE
 const DURACION_AVISO := 1.2
 
 var _velocidad: Label
+var _pasajeros: Label
 var _piloto: Label
 var _estado: Label
 var _aviso: Label
@@ -24,11 +25,15 @@ func _ready() -> void:
 	var abajo := VBoxContainer.new()
 	abajo.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
 	abajo.offset_left = -520
-	abajo.offset_top = -110
+	abajo.offset_top = -140
 	abajo.offset_right = -20
 	abajo.offset_bottom = -16
 	abajo.alignment = BoxContainer.ALIGNMENT_END
 	add_child(abajo)
+	_pasajeros = _etiqueta("", 20, Color(0.85, 1.0, 0.85))
+	_pasajeros.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_pasajeros.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	abajo.add_child(_pasajeros)
 	_piloto = _etiqueta("", 20, Color.WHITE)
 	_piloto.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_piloto.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -77,6 +82,10 @@ func mostrar_estado(velocidad_kmh: float, modo_piloto: String, dentro: bool, suj
 		_estado.text = "HUD_SUJETADO"
 	else:
 		_estado.text = ""
+
+
+func mostrar_pasajeros(cuantos: int) -> void:
+	_pasajeros.text = tr("HUD_PASAJEROS") % cuantos
 
 
 func avisar_susto(tipo: String) -> void:

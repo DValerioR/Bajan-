@@ -2,7 +2,7 @@
 
 Este archivo registra cada decisión de diseño con su contexto y su resultado. La fuente de verdad es `DISEÑO.md`; si este registro y el diseño no coinciden, manda `DISEÑO.md` y hay que corregir este archivo. Las decisiones nuevas se agregan al final con el siguiente número libre (D25, D26…) y la fecha.
 
-Estado: D1 a D24 aprobadas por el dueño del proyecto (15/10/2026). Ninguna se vuelve a preguntar. D25 a D27 se aprobaron junto con el resumen de la sección 0 (15/10/2026). D28 es un detalle menor de la etapa 0. D29 a D33 son decisiones técnicas de la etapa 1. D34 a D36 son de la etapa 2.
+Estado: D1 a D24 aprobadas por el dueño del proyecto (15/10/2026). Ninguna se vuelve a preguntar. D25 a D27 se aprobaron junto con el resumen de la sección 0 (15/10/2026). D28 es un detalle menor de la etapa 0. D29 a D33 son decisiones técnicas de la etapa 1. D34 a D36 son de la etapa 2. D37 y D38 son de la etapa 3.
 
 ## Riesgos técnicos
 
@@ -294,3 +294,32 @@ Aquí se agregan las decisiones que se tomen durante el desarrollo: la elección
   - **Escalones de la puerta:** se ven dos escalones y la colisión es una rampa invisible de 33°.
   - **Subir escalones:** los personajes suben solos escalones de hasta 35 cm (banquetas, escalones), pero solo si el obstáculo es fijo, está de frente y el lugar donde aterrizan es plano. Así no se trepan a bolsas, al maniquí ni a las esquinas de los asientos.
 - *Secciones:* 7.2, etapa 2.
+
+**D37. Ragdoll de muñeco** (15/10/2026, etapa 3)
+- *Contexto:* D4 y la etapa 3 piden ragdolls que se activen solo con golpes fuertes, con un tope de activos, que salgan volando por ventanas y puertas, y que el jugador también caiga como ragdoll.
+- *Decisión:*
+  - **Armado:** el ragdoll (`Ragdoll`) se arma al momento con las 6 piezas del muñeco, en la pose y el lugar del personaje. Cada pieza es un objeto suelto con una caja del 65 % de su tamaño, unido al torso con una articulación de cono (70° de columpio y 25° de giro). Pesa 60 kg a 1.7 m de altura, escalado según la estatura.
+  - **Cuándo se cae:** al pasar `umbral_empujon` (8.8 m/s² de empujón del camión, solo si va de pie y sin sujetarse) o `umbral_golpe` (4 m/s de golpe directo: un empujón, una bolsa, otro pasajero que le cae encima).
+  - **Gestor:** `GestorRagdolls` respeta `max_activos` (6); si ya hay tantos, el personaje solo tropieza. Mientras tanto, el personaje se apaga; cuando el ragdoll se queda quieto (o pasan 6 s), se levanta donde quedó el torso, adentro o en la calle.
+  - **Entidades de varios cuerpos:** el interior ahora maneja entidades de varios cuerpos, así que un ragdoll entero cruza la puerta o una ventana con la velocidad correcta. La cámara del jugador sigue la cabeza del ragdoll.
+  - **Recoger:** las piezas son objetos sueltos, así que se pueden agarrar y lanzar.
+  - **Ventanas y puertas:** que alguien salga por una ventana depende del ángulo, porque los respaldos y los pilares lo atajan. Por la puerta sale bien (hay prueba automática). Por la ventana se comprobó con capturas (`pruebas/captura_ventana.tscn`).
+- *Secciones:* 7.5, 8, etapa 3.
+
+**D38. Pasajeros y paradas** (15/10/2026, etapa 3)
+- *Contexto:* la etapa 3 pide pasajeros que suban y bajen en las paradas y se agarren de los pasamanos, y la sección 6.0 (D19) pide que en cada parada bajen solo algunos.
+- *Decisión:*
+  - **Paradas:** la calle de prueba tiene 5 (poste con letrero bilingüe y banca), definidas en `config/calle_prueba.cfg`. El piloto automático frena suave para dejar la puerta frente al poste, espera 8 s (hasta 8 s más si todavía hay gente subiendo o bajando) y sigue.
+  - **Pasajeros:** `GestorPasajeros` usa una máquina de estados sencilla con un `CuerpoPersonaje` normal por pasajero: esperar, subir, ir a su lugar, ir sentado o de pie, bajar y alejarse. Cada uno elige una parada de destino a 1–3 paradas, así que en cada parada bajan unos y suben otros.
+  - **Lugares:** prefieren asiento (12) y, si no hay, van de pie en el pasillo (5 lugares), sujetos del pasamanos. Para sentarse llegan al pasillo frente a su asiento. Los sentados no reciben empujones.
+  - **Si salen volando:** el que acaba en la calle sin haber llegado a su destino se pierde y se va (en la etapa 4 será pasaje perdido).
+  - **Pasillo:** los pasajeros no chocan entre sí ni contra el jugador (se escurren, como en un micro lleno); el jugador sí choca contra ellos.
+  - **Configuración:** todo está en `config/pasajeros.cfg`: capacidad 15, llegadas, modelos, etc.
+  - **Errores corregidos en el camino:**
+    - Al detenerse, el piloto pisaba el freno y el camión se echaba en reversa (con el camión parado, el freno mete reversa). Ahora suelta los pedales y actúa el freno de estacionamiento.
+    - Las pruebas ahora fallan si se corren menos verificaciones de las esperadas, para que un script que no compila no pase como "todo bien".
+  - **Rendimiento medido con 15 pasajeros a bordo en modo loco:**
+    - Simulación de unos 2 ms por cuadro, sin dibujar.
+    - ~880 cuadros por segundo a 1080p con la RTX 5070.
+    - 56–60 cuadros por segundo a 1080p con la GPU integrada Intel del mismo equipo, que es mucho más débil que una tarjeta de gama media.
+- *Secciones:* 4, 6.0, 7.5, etapa 3.

@@ -1,0 +1,408 @@
+class_name GestorPasajeros
+extends Node
+## Pasajeros no jugables (etapa 3): aparecen en las paradas, suben cuando el camión se detiene
+## frente a su parada, buscan asiento o se quedan de pie sujetos del pasamanos, y bajan en su
+## parada de destino (unos cuantos en cada parada, nunca todos; DISEÑO.md, sección 6.0).
+## Cada pasajero es un CuerpoPersonaje normal: recibe empujones, cae como ragdoll y puede salir
+## volando. Si termina en la calle sin haber llegado a su destino, se pierde y se va.
+## El "cerebro" de cada uno es una máquina de estados sencilla que llena sus ComandosPersonaje.
+
+enum Estado { ESPERANDO, SUBIENDO, CAMINANDO, SENTADO, DE_PIE, BAJANDO, ALEJANDOSE }
+
+const RUTA := "res://config/pasajeros.cfg"
+## Puntos de la puerta en coordenadas del camión: abajo de los escalones, en el umbral y ya adentro.
+const PUERTA_AFUERA := Vector3(2.6, -0.95, -3.15)
+const PUERTA_UMBRAL := Vector3(1.0, -0.3, -3.15)
+const PUERTA_ADENTRO := Vector3(0.15, -0.3, -2.85)
+const PISO := -0.3
+## Lugares para ir de pie, a lo largo del pasillo.
+const LUGARES_DE_PIE := [-1.7, -0.5, 0.7, 1.9, 3.1]
+const LLEGADA := 0.35
+
+signal subio(cuerpo: CuerpoPersonaje)
+signal bajo(cuerpo: CuerpoPersonaje)
+signal se_perdio(cuerpo: CuerpoPersonaje)
+
+@export var interior: InteriorCamion
+@export var ragdolls: GestorRagdolls
+@export var pista: PistaPrueba
+
+## Parada donde está detenido el camión (con la puerta frente al poste), o -1.
+var parada_actual: int = -1
+## Si llega gente nueva a las paradas con el tiempo (las pruebas lo apagan).
+var llegadas_activas: bool = true
+var pasajeros: Array[Pasajero] = []
+## Totales para las pruebas y la interfaz.
+var total_subieron: int = 0
+var total_bajaron: int = 0
+var total_perdidos: int = 0
+
+var _azar := RandomNumberGenerator.new()
+var _cfg: ConfigFile
+var _lugares: Array[Dictionary] = []
+var _turno_puerta: float = 0.0
+var _tiempo_llegadas: float = 0.0
+var _contador: int = 0
+
+
+class Pasajero:
+	var cuerpo: CuerpoPersonaje
+	var estado: Estado = Estado.ESPERANDO
+	var origen: int = -1
+	var destino: int = -1
+	var lugar: Dictionary = {}
+	var ruta: Array[Vector3] = []
+	var espera_poste := Vector3.ZERO
+	var tiempo: float = 0.0
+
+
+func _ready() -> void:
+	_azar.randomize()
+	_cfg = Config.archivo_config(RUTA)
+	Config.recargado.connect(func(): _cfg = Config.archivo_config(RUTA))
+	_armar_lugares()
+	ragdolls.levantado.connect(_al_levantarse)
+	var inicial: Array = _cfg.get_value("pasajeros", "esperando_al_inicio", [1, 3])
+	for k in pista.paradas.size():
+		for _i in _azar.randi_range(inicial[0], inicial[1]):
+			_aparecer_en_parada(k)
+
+
+## Sustos y llegadas repetibles (para las pruebas automáticas).
+func fijar_semilla(semilla: int) -> void:
+	_azar.seed = semilla
+
+
+func a_bordo() -> int:
+	var cuenta := 0
+	for p in pasajeros:
+		if p.estado in [Estado.CAMINANDO, Estado.SENTADO, Estado.DE_PIE]:
+			cuenta += 1
+	return cuenta
+
+
+## Si todavía hay gente subiendo o bajando (el chofer espera un poco más).
+func hay_movimiento_en_puerta() -> bool:
+	for p in pasajeros:
+		if p.estado == Estado.BAJANDO:
+			return true
+		if p.estado == Estado.SUBIENDO or (p.estado == Estado.ESPERANDO and p.origen == parada_actual and _hay_lugar()):
+			return true
+	return false
+
+
+# --- Lugares en el camión ---------------------------------------------------
+
+func _armar_lugares() -> void:
+	_lugares.clear()
+	var carroceria := GeometriaInterior.Carroceria
+	for z in carroceria.FILAS_ASIENTOS:
+		for x in [-0.72, 0.72]:
+			_lugares.append({"asiento": true, "punto": Vector3(x, PISO, z - 0.02), "pasillo": Vector3(0.0, PISO, z), "ocupado": null})
+	for z in LUGARES_DE_PIE:
+		_lugares.append({"asiento": false, "punto": Vector3(0.0, PISO, z), "pasillo": Vector3(0.0, PISO, z), "ocupado": null})
+
+
+func _hay_lugar() -> bool:
+	return a_bordo() + _contar(Estado.SUBIENDO) < int(_cfg.get_value("pasajeros", "capacidad", 15))
+
+
+func _reservar_lugar(p: Pasajero) -> void:
+	var libres := _lugares.filter(func(l): return l.ocupado == null)
+	if libres.is_empty():
+		return
+	# Prefieren asiento; si no hay, de pie.
+	var asientos := libres.filter(func(l): return l.asiento)
+	var elegido: Dictionary = asientos[_azar.randi() % asientos.size()] if not asientos.is_empty() else libres[_azar.randi() % libres.size()]
+	elegido.ocupado = p
+	p.lugar = elegido
+
+
+func _liberar_lugar(p: Pasajero) -> void:
+	if not p.lugar.is_empty():
+		p.lugar.ocupado = null
+		p.lugar = {}
+
+
+func _contar(estado: Estado) -> int:
+	return pasajeros.filter(func(p): return p.estado == estado).size()
+
+
+# --- Aparecer y desaparecer ------------------------------------------------
+
+func _aparecer_en_parada(k: int) -> void:
+	var esperando := pasajeros.filter(func(p): return p.estado == Estado.ESPERANDO and p.origen == k).size()
+	if esperando >= int(_cfg.get_value("pasajeros", "max_esperando_por_parada", 4)):
+		return
+	if pasajeros.size() >= int(_cfg.get_value("pasajeros", "max_total", 30)):
+		return
+	var p := Pasajero.new()
+	p.origen = k
+	var viaje: Array = _cfg.get_value("pasajeros", "paradas_de_viaje", [1, 3])
+	p.destino = (k + _azar.randi_range(viaje[0], viaje[1])) % pista.paradas.size()
+	var i: int = pista.paradas[k].indice_poste
+	var a_lo_largo: Vector3 = pista.direcciones[i]
+	p.espera_poste = pista.paradas[k].poste + a_lo_largo * _azar.randf_range(-2.0, 2.5) + pista.derecha(i) * _azar.randf_range(0.2, 1.2)
+
+	var cuerpo := CuerpoPersonaje.new()
+	_contador += 1
+	cuerpo.name = "Pasajero%d" % _contador
+	cuerpo.parametros = interior.parametros
+	var visual := Personaje.new()
+	visual.name = "Visual"
+	var modelos: Array = _cfg.get_value("pasajeros", "modelos", ["galan"])
+	visual.modelo = modelos[_azar.randi() % modelos.size()]
+	cuerpo.add_child(visual)
+	cuerpo.visual = visual
+	p.cuerpo = cuerpo
+	interior.agregar_en_calle(cuerpo, null, Transform3D(Basis.looking_at(-pista.derecha(i), Vector3.UP), p.espera_poste + Vector3.UP * 0.05))
+	cuerpo.configurar(visual.altura, visual.altura_ojos)
+	cuerpo.orientar(cuerpo.giro_actual())
+	cuerpo.atravesar_personajes(true)
+	ragdolls.vigilar(cuerpo)
+	pasajeros.append(p)
+
+
+## Quita a todos los pasajeros (para pruebas que necesitan el camión vacío).
+func vaciar() -> void:
+	for p in pasajeros.duplicate():
+		_desaparecer(p)
+
+
+## Quita a los que esperan en las paradas.
+func vaciar_paradas() -> void:
+	for p in pasajeros.duplicate():
+		if p.estado == Estado.ESPERANDO:
+			_desaparecer(p)
+
+
+## Sube de golpe a `cuantos` pasajeros ya acomodados en sus lugares (para pruebas de rendimiento).
+func llenar(cuantos: int) -> void:
+	for _i in cuantos:
+		var p := Pasajero.new()
+		_reservar_lugar(p)
+		if p.lugar.is_empty():
+			return
+		p.origen = -1
+		p.destino = _azar.randi() % pista.paradas.size()
+		var cuerpo := CuerpoPersonaje.new()
+		_contador += 1
+		cuerpo.name = "Pasajero%d" % _contador
+		cuerpo.parametros = interior.parametros
+		var visual := Personaje.new()
+		visual.name = "Visual"
+		var modelos: Array = _cfg.get_value("pasajeros", "modelos", ["galan"])
+		visual.modelo = modelos[_azar.randi() % modelos.size()]
+		cuerpo.add_child(visual)
+		cuerpo.visual = visual
+		p.cuerpo = cuerpo
+		interior.agregar(cuerpo, null, Transform3D(Basis(), p.lugar.pasillo + Vector3.UP * 0.02))
+		cuerpo.configurar(visual.altura, visual.altura_ojos)
+		cuerpo.atravesar_personajes(true)
+		ragdolls.vigilar(cuerpo)
+		pasajeros.append(p)
+		p.estado = Estado.CAMINANDO
+		p.ruta = [p.lugar.pasillo]
+
+
+func _desaparecer(p: Pasajero) -> void:
+	_liberar_lugar(p)
+	interior.quitar(p.cuerpo)
+	p.cuerpo.queue_free()
+	pasajeros.erase(p)
+
+
+# --- Cada cuadro -------------------------------------------------------------
+
+func _physics_process(delta: float) -> void:
+	parada_actual = _detectar_parada()
+	_turno_puerta = maxf(0.0, _turno_puerta - delta)
+	_tiempo_llegadas += delta
+	if llegadas_activas and _tiempo_llegadas > float(_cfg.get_value("pasajeros", "intervalo_llegadas", 12.0)):
+		_tiempo_llegadas = 0.0
+		for k in pista.paradas.size():
+			if k != parada_actual and _azar.randf() < float(_cfg.get_value("pasajeros", "probabilidad_llegada", 0.5)):
+				_aparecer_en_parada(k)
+	for p: Pasajero in pasajeros.duplicate():
+		if not is_instance_valid(p.cuerpo):
+			pasajeros.erase(p)
+			continue
+		p.tiempo += delta
+		var c: ComandosPersonaje = p.cuerpo.comandos
+		c.mover = Vector2.ZERO
+		c.sujetarse = false
+		if p.cuerpo.desplomado:
+			continue
+		match p.estado:
+			Estado.ESPERANDO:
+				_esperar(p)
+			Estado.SUBIENDO:
+				_subir(p)
+			Estado.CAMINANDO:
+				_caminar_a_lugar(p)
+			Estado.SENTADO, Estado.DE_PIE:
+				_viajar(p)
+			Estado.BAJANDO:
+				_bajar(p)
+			Estado.ALEJANDOSE:
+				_alejarse(p)
+
+
+## El camión está en una parada si va casi parado y su puerta queda cerca del poste.
+func _detectar_parada() -> int:
+	var camion := interior.camion
+	if absf(camion.velocidad_adelante) > 0.5:
+		return -1
+	var puerta := camion.global_transform * PUERTA_UMBRAL
+	for k in pista.paradas.size():
+		var poste: Vector3 = pista.paradas[k].poste
+		if Vector2(puerta.x - poste.x, puerta.z - poste.z).length() < 3.5:
+			return k
+	return -1
+
+
+func _esperar(p: Pasajero) -> void:
+	if parada_actual == p.origen and _turno_puerta <= 0.0 and _contar(Estado.BAJANDO) == 0 and _hay_lugar():
+		_turno_puerta = float(_cfg.get_value("pasajeros", "separacion_puerta", 0.6))
+		_reservar_lugar(p)
+		if p.lugar.is_empty():
+			return
+		p.estado = Estado.SUBIENDO
+		p.ruta = [PUERTA_AFUERA, PUERTA_UMBRAL, PUERTA_ADENTRO]
+		p.tiempo = 0.0
+		return
+	# Esperando: se queda junto al poste viendo hacia la calle.
+	if _caminar_hacia(p, p.espera_poste, 0.5, false):
+		p.cuerpo.comandos.mover = Vector2.ZERO
+
+
+func _subir(p: Pasajero) -> void:
+	if interior.esta_dentro(p.cuerpo):
+		p.estado = Estado.CAMINANDO
+		p.ruta = [PUERTA_ADENTRO, p.lugar.pasillo]
+		total_subieron += 1
+		subio.emit(p.cuerpo)
+		return
+	# Si el camión se va sin él, vuelve a esperar.
+	if parada_actual != p.origen and p.tiempo > 1.0:
+		_liberar_lugar(p)
+		p.estado = Estado.ESPERANDO
+		return
+	_seguir_ruta(p, true)
+
+
+func _caminar_a_lugar(p: Pasajero) -> void:
+	if not interior.esta_dentro(p.cuerpo):
+		_perderse(p)
+		return
+	# Para sentarse basta con llegar al pasillo frente a su asiento.
+	if _seguir_ruta(p, true):
+		if p.lugar.asiento:
+			var lugar: Vector3 = p.lugar.punto
+			lugar.y = PISO + 0.45 - p.cuerpo.visual.altura_cadera
+			p.cuerpo.sentarse(Transform3D(Basis(), lugar))
+			p.estado = Estado.SENTADO
+		else:
+			p.estado = Estado.DE_PIE
+
+
+func _viajar(p: Pasajero) -> void:
+	if not interior.esta_dentro(p.cuerpo) and not p.cuerpo.sentado:
+		_perderse(p)
+		return
+	if parada_actual == p.destino and _turno_puerta <= 0.0:
+		_turno_puerta = float(_cfg.get_value("pasajeros", "separacion_puerta", 0.6))
+		if p.cuerpo.sentado:
+			var pasillo: Vector3 = p.lugar.pasillo
+			p.cuerpo.pararse(Transform3D(Basis(), pasillo + Vector3.UP * 0.02))
+		_liberar_lugar(p)
+		p.estado = Estado.BAJANDO
+		p.ruta = [Vector3(0.0, PISO, -2.6), PUERTA_ADENTRO, PUERTA_UMBRAL, PUERTA_AFUERA]
+		p.tiempo = 0.0
+		return
+	if p.estado == Estado.DE_PIE:
+		# De pie: sujeto del pasamanos; si el camión lo movió, regresa a su lugar.
+		p.cuerpo.comandos.sujetarse = true
+		var punto: Vector3 = p.lugar.punto
+		if p.cuerpo.global_position.distance_to(punto) > 0.6:
+			_caminar_hacia(p, punto, 0.5, true)
+
+
+func _bajar(p: Pasajero) -> void:
+	if not interior.esta_dentro(p.cuerpo):
+		p.estado = Estado.ALEJANDOSE
+		p.tiempo = 0.0
+		total_bajaron += 1
+		bajo.emit(p.cuerpo)
+		return
+	if _seguir_ruta(p, true) or p.tiempo > 12.0:
+		# Si se atoró, ya llegó a la puerta de todos modos: un empujoncito hacia afuera.
+		p.ruta = [PUERTA_AFUERA]
+
+
+func _alejarse(p: Pasajero) -> void:
+	var camion := interior.camion
+	var lejos := camion.global_transform * (PUERTA_AFUERA + Vector3(4.0, 0.0, 0.0))
+	_caminar_hacia(p, lejos, 0.8, false)
+	if p.tiempo > float(_cfg.get_value("pasajeros", "tiempo_para_desaparecer", 4.0)):
+		_desaparecer(p)
+
+
+func _perderse(p: Pasajero) -> void:
+	_liberar_lugar(p)
+	if p.cuerpo.sentado:
+		p.cuerpo.pararse(p.cuerpo.global_transform)
+	p.estado = Estado.ALEJANDOSE
+	p.tiempo = 0.0
+	total_perdidos += 1
+	se_perdio.emit(p.cuerpo)
+
+
+## Al levantarse de ser ragdoll: si quedó adentro, regresa a su lugar; si quedó afuera, se perdió.
+func _al_levantarse(cuerpo: CuerpoPersonaje) -> void:
+	for p in pasajeros:
+		if p.cuerpo != cuerpo:
+			continue
+		if p.estado in [Estado.ESPERANDO, Estado.ALEJANDOSE]:
+			return
+		if not interior.esta_dentro(cuerpo):
+			if p.estado != Estado.SUBIENDO:
+				_perderse(p)
+			return
+		if p.lugar.is_empty():
+			_reservar_lugar(p)
+		if p.lugar.is_empty():
+			return
+		if p.estado != Estado.BAJANDO:
+			p.estado = Estado.CAMINANDO
+			p.ruta = [p.lugar.pasillo]
+
+
+# --- Caminar ----------------------------------------------------------------
+
+## Sigue sus puntos de ruta (en coordenadas del camión). Devuelve true al terminar.
+func _seguir_ruta(p: Pasajero, puntos_del_camion: bool) -> bool:
+	while not p.ruta.is_empty():
+		var objetivo := p.ruta[0]
+		if puntos_del_camion:
+			objetivo = interior.desde_local(p.cuerpo, objetivo)
+		if not _caminar_hacia(p, objetivo, 1.0, true):
+			return false
+		p.ruta.remove_at(0)
+	return true
+
+
+## Gira y camina hacia un punto (en el espacio del cuerpo). Devuelve true si ya llegó.
+func _caminar_hacia(p: Pasajero, objetivo: Vector3, rapidez: float, girar_rapido: bool) -> bool:
+	var cuerpo := p.cuerpo
+	var arriba := cuerpo.up_direction
+	var diferencia := objetivo - cuerpo.global_position
+	diferencia -= arriba * diferencia.dot(arriba)
+	if diferencia.length() < LLEGADA:
+		cuerpo.comandos.mover = Vector2.ZERO
+		return true
+	var giro_deseado := atan2(-diferencia.x, -diferencia.z)
+	cuerpo.orientar(lerp_angle(cuerpo.giro_actual(), giro_deseado, 0.35 if girar_rapido else 0.15))
+	var alineado := clampf(1.0 - absf(angle_difference(cuerpo.giro_actual(), giro_deseado)) / PI, 0.2, 1.0)
+	cuerpo.comandos.mover = Vector2(0.0, rapidez * float(_cfg.get_value("pasajeros", "rapidez", 0.8)) * alineado)
+	return false
