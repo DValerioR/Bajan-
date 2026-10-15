@@ -23,15 +23,23 @@ Si se cambia de versión de Godot, hay que actualizar la ruta en los tres `.bat`
 | `jugar.bat` | Lanza el juego directamente (la primera vez importa los recursos). |
 | `pruebas.bat` | Corre las pruebas automáticas sin ventana. Sale con código 0 si todo pasa. |
 
+Herramientas de desarrollo (se abren desde el editor o con Godot por línea de comandos; no son pruebas automáticas):
+
+- `pruebas/captura.tscn`: maneja el camión y guarda capturas de pantalla desde la vista del chofer y desde cámaras externas. Si no se le pasa una carpeta, las guarda en `user://capturas`.
+- `pruebas/experimento_topes.tscn`: pasa el camión sobre un tope a 30, 50 y 70 km/h con varios valores de `patada_topes` y reporta el brinco.
+
 ## Estructura
 
 | Carpeta | Contenido |
 |---|---|
 | `audio/musica/`, `audio/efectos/`, `audio/murmullos/` | Audio por tipo (por ahora vacío; ver DISEÑO.md, sección 10). |
-| `config/` | Números de diseño (`juego.cfg`): jugadores, idiomas y, más adelante, conducción, dinero, bots, etc. Nunca van en los scripts. |
-| `escenas/` | Escenas del juego. `principal.tscn` es la escena de arranque. |
-| `scripts/autoload/` | Nodos globales: `Config` (lee `config/juego.cfg`) y `Preferencias` (idioma y ajustes locales del jugador). |
-| `modelos/`, `materiales/` | Modelos y materiales (por ahora vacíos). |
+| `config/` | Números de diseño: `juego.cfg` (jugadores, idiomas), `conduccion.cfg` (todo el manejo del camión), `calle_prueba.cfg` (trazado, topes y baches). Nunca van en los scripts. |
+| `escenas/` | Escenas: `principal.tscn` (menú de pruebas, escena de arranque), `camion/`, `calle_prueba/`, `ui/`. |
+| `scripts/autoload/` | Nodos globales: `Config` (lee `config/`, F9 recarga) y `Preferencias` (idioma y ajustes locales del jugador). |
+| `scripts/camion/` | Simulación del camión (`camion.gd`), comandos de manejo, entrada del jugador, cámara del chofer y carrocería de formas básicas. |
+| `scripts/mundo/`, `scripts/estilo/`, `scripts/audio/` | Calle de prueba, conversión al estilo toon y sonidos generados en código. |
+| `materiales/` | Shaders del estilo toon y del contorno. |
+| `modelos/` | Modelos importados (por ahora vacío; formato y escala en `DECISIONES.md`, D33). |
 | `traducciones/` | `textos.csv` con todas las cadenas visibles en español (`es`) e inglés (`en`). |
 | `pruebas/` | Escenas de prueba automática que corre `pruebas.bat`. |
 | `herramientas/` | Ejecutables de Godot (ignorados por git y por Godot). |
@@ -45,4 +53,19 @@ Si se cambia de versión de Godot, hay que actualizar la ruta en los tres `.bat`
 
 ## Estado
 
-**Etapa 0 (preparación): completa.** Para probarla, ejecuta `ejecutar.bat` y luego F5 en el editor, o `jugar.bat`. Verás la escena de prueba con el título y un saludo; el botón o la tecla **L** (en mando, el botón Back/Select) cambia entre español e inglés, y el idioma elegido se recuerda para la próxima vez.
+**Etapa 0 (preparación): completa.** En el menú de pruebas, el botón o la tecla **L** (en mando, Back/Select) cambia entre español e inglés, y el idioma elegido se recuerda.
+
+**Etapa 1 (el camión): en revisión.** Con `jugar.bat`, en el menú elige **Manejar en la calle de prueba**.
+
+| Control | Teclado | Mando |
+|---|---|---|
+| Acelerar | W / ↑ | Gatillo derecho |
+| Frenar (parado = reversa) | S / ↓ | Gatillo izquierdo |
+| Volante | A / D o ← / → | Stick izquierdo |
+| Claxon | Espacio / H | A |
+| Enderezar el camión | R | Y |
+| Mirar alrededor | Ratón | Stick derecho |
+| Recargar `config/conduccion.cfg` | F9 | — |
+| Volver al menú | Esc | Start |
+
+Para ajustar el manejo: con el juego abierto, edita `config/conduccion.cfg`, guarda y presiona F9.

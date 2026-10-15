@@ -2,7 +2,7 @@
 
 Este archivo registra cada decisión de diseño con su contexto y su resultado. La fuente de verdad es `DISEÑO.md`; si este registro y el diseño no coinciden, manda `DISEÑO.md` y hay que corregir este archivo. Las decisiones nuevas se agregan al final con el siguiente número libre (D25, D26…) y la fecha.
 
-Estado: D1 a D24 aprobadas por el dueño del proyecto (15/10/2026). Ninguna se vuelve a preguntar. D25 a D27 se aprobaron junto con el resumen de la sección 0 (15/10/2026). D28 es un detalle menor de la etapa 0.
+Estado: D1 a D24 aprobadas por el dueño del proyecto (15/10/2026). Ninguna se vuelve a preguntar. D25 a D27 se aprobaron junto con el resumen de la sección 0 (15/10/2026). D28 es un detalle menor de la etapa 0. D29 a D33 son decisiones técnicas de la etapa 1.
 
 ## Riesgos técnicos
 
@@ -197,3 +197,63 @@ Aquí se agregan las decisiones que se tomen durante el desarrollo: la elección
   - **Pruebas automáticas:** escenas en `pruebas/`, corridas en modo headless con `pruebas.bat`.
   - **Pendiente para la etapa 9:** al exportar, hay que incluir `config/*.cfg` en los filtros de exportación, porque no son recursos de Godot.
 - *Secciones:* 2, etapa 0.
+
+**D29. Modelo de conducción** (15/10/2026, etapa 1)
+- *Contexto:* el camión necesita una conducción arcade, exagerada y ajustable que casi nunca se voltee. El `VehicleBody3D` de Godot es más difícil de exagerar y de ajustar.
+- *Decisión:* el camión es un `RigidBody3D` con suspensión por rayos (uno por llanta) y fuerzas propias:
+  - motor de tracción trasera;
+  - frenos que, con el camión parado, meten reversa;
+  - agarre lateral con límite (puede derrapar);
+  - dirección que se cierra con la velocidad.
+  
+  Todas las fuerzas se expresan como aceleraciones, así que el manejo no depende de la masa.
+  - **Estabilidad:** centro de masa bajo, las fuerzas de las llantas se aplican cerca de ese centro (`altura_fuerzas`) y hay un par que endereza al camión si se ladea de más o va en el aire. Si aun así se voltea, la tecla R lo pone de pie sobre la calle.
+  - **Exageración:** el balanceo de la carrocería es solo visual (la física no se mueve). La "patada" de topes empuja hacia arriba la esquina que pega de golpe, como una suspensión que toca fondo. Con `patada_topes=0.45`: a 30 km/h un tope casi no se siente, a 50 km/h el camión brinca y a 70 km/h despega unos instantes.
+  - **Separación de la entrada:** el camión solo lee `ComandosConduccion`. Los llena `EntradaChofer` con el jugador, el piloto de las pruebas y, más adelante, el bot o la red.
+  - **Ajuste en vivo:** todos los números están en `config/conduccion.cfg` y F9 los recarga sin cerrar el juego.
+  - **Medido con las pruebas automáticas:**
+    - de 0 a 50 km/h en unos 4 s;
+    - frena de 50 a 0 en unos 7 m;
+    - agarre lateral máximo de unos 0.66 g;
+    - vueltas completas sin pasar de unos 10° de inclinación;
+    - volantazo a fondo a 55 km/h sin voltearse.
+- *Secciones:* 7.1, etapa 1.
+
+**D30. Cómo se aplica el estilo toon** (15/10/2026, etapa 1)
+- *Contexto:* D8 pide shader toon y contorno desde la etapa 1, y los modelos futuros (formas básicas ahora, glTF generados con IA después) deben recibir el mismo estilo sin trabajo extra.
+- *Decisión:* las escenas se arman con materiales normales (`StandardMaterial3D`), y `EstiloToon.aplicar()` los convierte al cargar.
+  - **Sombreado:** el shader `materiales/toon.gdshader` da luz en dos tonos con un brillo de borde.
+  - **Contorno:** `materiales/contorno.gdshader` es un "casco invertido". En cajas se infla por eje para que las esquinas no se abran; en las demás formas se infla por la normal.
+  - **Excepciones:** una malla con el metadato `sin_contorno` no lleva contorno (piso, calle). Las piezas repetidas de la calle se dibujan con MultiMesh, sin contorno.
+  - **Pendiente:** el grosor y los colores del contorno se pulen en la etapa 7.
+- *Secciones:* 3, etapas 1 y 7.
+
+**D31. Lectura directa del ratón para mirar** (15/10/2026, etapa 1)
+- *Contexto:* la sección 9 pide que todas las acciones pasen por el sistema de acciones de Godot y nunca leer teclas directo. El movimiento del ratón no es una tecla ni una acción.
+- *Decisión:* la cámara del chofer lee `InputEventMouseMotion` directamente para girar la cabeza, como cualquier cámara en primera persona. El stick derecho del mando usa las acciones `mirar_*`. Todas las teclas y botones pasan por acciones.
+- *Secciones:* 9.
+
+**D32. Calle de prueba y herramientas de ajuste** (15/10/2026, etapa 1)
+- *Contexto:* la etapa 1 pide una calle de prueba con topes, baches y curvas.
+- *Decisión:*
+  - **Trazado:** la calle es un circuito cerrado de 474 m que se arma desde `config/calle_prueba.cfg` (rectas y curvas, topes, baches y escenario). Tiene dos carriles y se maneja por la derecha.
+  - **Baches:** son huecos reales en el asfalto, hasta el piso.
+  - **Topes:** cilindros amarillos a lo ancho de la calle.
+  - **Escenario:** edificios con tinaco por fuera del circuito y árboles en la banqueta de adentro.
+  - **Línea de ruta:** la calle guarda una muestra por metro del centro, que usan el reinicio y el piloto de pruebas. Más adelante la usará el bot chofer.
+  - **Herramientas de desarrollo:** `pruebas/captura.tscn` toma capturas desde varias cámaras, y `pruebas/experimento_topes.tscn` mide el brinco en topes con distintos valores. Ninguna de las dos es prueba automática.
+- *Secciones:* 4, etapa 1.
+
+**D33. Formato y escala de modelos** (15/10/2026, etapa 1)
+- *Contexto:* la sección 3 pide documentar el formato y la escala que se esperan de los modelos que vendrán (incluidos los generados con IA).
+- *Decisión:*
+  - **Convenciones generales:**
+    - Formato glTF 2.0 binario (`.glb`).
+    - 1 unidad = 1 metro, Y hacia arriba, el frente del objeto mirando a −Z.
+    - Materiales simples con color base (y textura opcional); el estilo toon se aplica solo (D30).
+    - Pocas caras: low poly.
+  - **Camión:** mide 8.1 m de largo, 2.5 m de ancho y unos 2.75 m del piso al techo.
+    - El modelo de la carrocería sustituye al nodo `Carroceria` de `escenas/camion/camion.tscn`. Su origen va al centro del piso del camión, con la puerta del lado derecho al frente.
+    - Las llantas van aparte: radio de 0.45 m, eje de giro en X, origen en el centro de la llanta.
+  - **Personajes:** se definen en la etapa 2, cuando exista su escena; se registrará aquí la altura en metros, el origen (entre los pies) y los puntos de agarre.
+- *Secciones:* 3.

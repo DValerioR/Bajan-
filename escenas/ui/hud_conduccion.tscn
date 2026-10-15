@@ -1,0 +1,129 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://escenas/ui/hud_conduccion.gd" id="1_hud"]
+
+[node name="Hud" type="CanvasLayer"]
+script = ExtResource("1_hud")
+
+[node name="Ayuda" type="VBoxContainer" parent="."]
+offset_left = 16.0
+offset_top = 14.0
+offset_right = 520.0
+offset_bottom = 240.0
+theme_override_constants/separation = 2
+
+[node name="Titulo" type="Label" parent="Ayuda"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.86, 0.3, 1)
+theme_override_colors/font_outline_color = Color(0.08, 0.06, 0.06, 1)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 18
+text = "AYUDA_TITULO"
+
+[node name="Manejo" type="Label" parent="Ayuda"]
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0.08, 0.06, 0.06, 1)
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 15
+text = "AYUDA_MANEJO"
+
+[node name="Volante" type="Label" parent="Ayuda"]
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0.08, 0.06, 0.06, 1)
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 15
+text = "AYUDA_VOLANTE"
+
+[node name="Claxon" type="Label" parent="Ayuda"]
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0.08, 0.06, 0.06, 1)
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 15
+text = "AYUDA_CLAXON"
+
+[node name="Reiniciar" type="Label" parent="Ayuda"]
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0.08, 0.06, 0.06, 1)
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 15
+text = "AYUDA_REINICIAR"
+
+[node name="Mirar" type="Label" parent="Ayuda"]
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0.08, 0.06, 0.06, 1)
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 15
+text = "AYUDA_MIRAR"
+
+[node name="Config" type="Label" parent="Ayuda"]
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0.08, 0.06, 0.06, 1)
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 15
+text = "AYUDA_CONFIG"
+
+[node name="Salir" type="Label" parent="Ayuda"]
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0.08, 0.06, 0.06, 1)
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 15
+text = "AYUDA_SALIR"
+
+[node name="Velocidad" type="Label" parent="."]
+unique_name_in_owner = true
+auto_translate_mode = 2
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -300.0
+offset_top = -90.0
+offset_right = -24.0
+offset_bottom = -20.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_colors/font_color = Color(1, 0.95, 0.85, 1)
+theme_override_colors/font_outline_color = Color(0.08, 0.06, 0.06, 1)
+theme_override_constants/outline_size = 12
+theme_override_font_sizes/font_size = 52
+text = "0 km/h"
+horizontal_alignment = 2
+
+[node name="Aviso" type="Label" parent="."]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -300.0
+offset_top = 24.0
+offset_right = 300.0
+offset_bottom = 70.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(0.6, 1, 0.6, 1)
+theme_override_colors/font_outline_color = Color(0.08, 0.06, 0.06, 1)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 26
+horizontal_alignment = 1
+
+[node name="Reiniciar" type="Label" parent="."]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -300.0
+offset_top = 60.0
+offset_right = 300.0
+offset_bottom = 110.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 0.75, 0.3, 1)
+theme_override_colors/font_outline_color = Color(0.08, 0.06, 0.06, 1)
+theme_override_constants/outline_size = 10
+theme_override_font_sizes/font_size = 32
+text = "AVISO_REINICIAR"
+horizontal_alignment = 1

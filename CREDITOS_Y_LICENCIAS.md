@@ -24,7 +24,9 @@ Ninguno todavía. Por ahora todo se construye con formas básicas dentro del pro
 
 ## Música y efectos de sonido
 
-Ninguno todavía.
+| Recurso | Uso | Fuente | Licencia | ¿IA? |
+|---|---|---|---|---|
+| Motor y claxon del camión | Sonidos de relleno | Generados en código por `scripts/audio/sintetizador.gd` (ondas sierra y cuadradas) | Propiedad del proyecto | No |
 
 ## Plantilla para nuevas entradas
 

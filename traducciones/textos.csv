@@ -4,4 +4,17 @@ SUBTITULO_JUEGO,El microbús más caótico,The Chaotic Microbus Game
 PRUEBA_SALUDO,"¡Súbale, súbale, que hay lugares!","Hop on, hop on, plenty of seats!"
 IDIOMA_ACTUAL,Idioma: Español,Language: English
 BOTON_CAMBIAR_IDIOMA,Cambiar idioma (L),Change language (L)
-PRUEBA_ETAPA,Escena de prueba · Etapa 0,Test scene · Stage 0
+BOTON_CALLE_PRUEBA,Manejar en la calle de prueba,Drive on the test street
+PRUEBA_ETAPA,Menú de pruebas · Etapa 1,Test menu · Stage 1
+LETRERO_RUTA,CENTRO · TIANGUIS,DOWNTOWN · MARKET
+HUD_VELOCIDAD,%d km/h,%d km/h
+AYUDA_TITULO,Controles,Controls
+AYUDA_MANEJO,"W / S o flechas: acelerar y frenar (S parado = reversa)","W / S or arrows: throttle and brake (S when stopped = reverse)"
+AYUDA_VOLANTE,A / D o flechas: volante,A / D or arrows: steering
+AYUDA_CLAXON,Espacio o H: claxon,Space or H: horn
+AYUDA_REINICIAR,R: enderezar el camión,R: put the bus back on the road
+AYUDA_MIRAR,Ratón: mirar alrededor,Mouse: look around
+AYUDA_CONFIG,F9: recargar parámetros de conducción,F9: reload driving parameters
+AYUDA_SALIR,Esc: volver al menú,Esc: back to menu
+AVISO_CONFIG_RECARGADA,Parámetros recargados,Parameters reloaded
+AVISO_REINICIAR,¿Te volteaste? Presiona R,Flipped over? Press R
