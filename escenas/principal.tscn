@@ -78,6 +78,22 @@ size_flags_horizontal = 4
 theme_override_font_sizes/font_size = 26
 text = "BOTON_CALLE_PRUEBA"
 
+[node name="BotonInteriorA" type="Button" parent="Centro/Columna"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(420, 56)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 22
+text = "BOTON_INTERIOR_A"
+
+[node name="BotonInteriorB" type="Button" parent="Centro/Columna"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(420, 56)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 22
+text = "BOTON_INTERIOR_B"
+
 [node name="Etapa" type="Label" parent="."]
 layout_mode = 1
 anchors_preset = 2

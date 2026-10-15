@@ -112,5 +112,5 @@ func _crear_pieza(nombre: String, forma: String, medidas: Vector3, posicion: Vec
 	malla.position = posicion
 	malla.rotation_degrees = rotacion
 	malla.material_override = null
-	malla.set_surface_override_material(0, EstiloToon.material(color, true, forma == "caja"))
+	malla.set_surface_override_material(0, EstiloToon.material(color, true, EstiloToon.ModoContorno.CAJA if forma == "caja" else EstiloToon.ModoContorno.NORMAL))
 	return malla

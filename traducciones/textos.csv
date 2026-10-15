@@ -5,7 +5,7 @@ PRUEBA_SALUDO,"¡Súbale, súbale, que hay lugares!","Hop on, hop on, plenty of 
 IDIOMA_ACTUAL,Idioma: Español,Language: English
 BOTON_CAMBIAR_IDIOMA,Cambiar idioma (L),Change language (L)
 BOTON_CALLE_PRUEBA,Manejar en la calle de prueba,Drive on the test street
-PRUEBA_ETAPA,Menú de pruebas · Etapa 1,Test menu · Stage 1
+PRUEBA_ETAPA,Menú de pruebas · Etapa 2,Test menu · Stage 2
 LETRERO_RUTA,CENTRO · TIANGUIS,DOWNTOWN · MARKET
 HUD_VELOCIDAD,%d km/h,%d km/h
 AYUDA_TITULO,Controles,Controls
@@ -18,3 +18,23 @@ AYUDA_CONFIG,F9: recargar parámetros de conducción,F9: reload driving paramete
 AYUDA_SALIR,Esc: volver al menú,Esc: back to menu
 AVISO_CONFIG_RECARGADA,Parámetros recargados,Parameters reloaded
 AVISO_REINICIAR,¿Te volteaste? Presiona R,Flipped over? Press R
+BOTON_INTERIOR_A,Caminar en el camión · prototipo A,Walk in the bus · prototype A
+BOTON_INTERIOR_B,Caminar en el camión · prototipo B,Walk in the bus · prototype B
+HUD_PROTOTIPO_A,Prototipo A: interior en el mundo,Prototype A: interior in the world
+HUD_PROTOTIPO_B,Prototipo B: interior separado,Prototype B: separate interior
+HUD_PILOTO,Chofer automático: %s,Auto driver: %s
+PILOTO_PARADO,parado,stopped
+PILOTO_TRANQUILO,tranquilo,calm
+PILOTO_NORMAL,normal,normal
+PILOTO_LOCO,loco,crazy
+HUD_SUSTO_FRENAZO,¡Frenazo!,Sudden brake!
+HUD_SUSTO_ACELERON,¡Acelerón!,Floored it!
+HUD_SUSTO_VOLANTAZO,¡Volantazo!,Swerve!
+HUD_SUJETADO,Sujeto del pasamanos,Holding on
+HUD_TROPEZANDO,¡Tropezando!,Stumbling!
+HUD_FUERA,Te caíste del camión · R para volver,You fell off the bus · R to get back on
+AYUDA_CAMINAR,WASD: caminar · Espacio: saltar,WASD: walk · Space: jump
+AYUDA_SUJETARSE,Shift o clic derecho (mantener): sujetarse,Shift or right click (hold): hold on
+AYUDA_AGARRAR,E: agarrar o soltar · Clic: lanzar o empujar,E: grab or drop · Click: throw or shove
+AYUDA_PILOTO,"1 a 4: chofer parado, tranquilo, normal o loco","1 to 4: driver stopped, calm, normal or crazy"
+AYUDA_REINICIAR_INTERIOR,R: volver a la puerta del camión,R: back to the bus door

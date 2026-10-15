@@ -10,6 +10,11 @@ var _horizontal: float = 0.0
 var _vertical: float = 0.0
 
 
+func _ready() -> void:
+	# La cabeza gira en _process con el ratón; el camión (su padre) ya se interpola.
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+
+
 func _unhandled_input(evento: InputEvent) -> void:
 	# El movimiento del ratón no es una tecla: se lee directo, como en cualquier cámara de primera persona.
 	if evento is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:

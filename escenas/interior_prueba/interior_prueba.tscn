@@ -1,0 +1,28 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://escenas/interior_prueba/interior_prueba.gd" id="1_interior"]
+[ext_resource type="PackedScene" path="res://escenas/mundo/ambiente_dia.tscn" id="2_ambiente"]
+[ext_resource type="Script" path="res://scripts/mundo/pista_prueba.gd" id="3_pista"]
+[ext_resource type="PackedScene" path="res://escenas/camion/camion.tscn" id="4_camion"]
+[ext_resource type="Script" path="res://scripts/camion/piloto_automatico.gd" id="5_piloto"]
+[ext_resource type="Script" path="res://escenas/ui/hud_interior.gd" id="6_hud"]
+
+[node name="InteriorPrueba" type="Node3D"]
+script = ExtResource("1_interior")
+
+[node name="AmbienteDia" parent="." instance=ExtResource("2_ambiente")]
+
+[node name="Pista" type="Node3D" parent="."]
+script = ExtResource("3_pista")
+
+[node name="Camion" parent="." instance=ExtResource("4_camion")]
+
+[node name="PilotoAutomatico" type="Node" parent="." node_paths=PackedStringArray("camion", "pista")]
+script = ExtResource("5_piloto")
+camion = NodePath("../Camion")
+pista = NodePath("../Pista")
+
+[node name="Mundo" type="Node3D" parent="."]
+
+[node name="Hud" type="CanvasLayer" parent="."]
+script = ExtResource("6_hud")

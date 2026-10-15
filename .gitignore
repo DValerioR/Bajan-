@@ -7,3 +7,6 @@ herramientas/godot/
 # Exportaciones
 exportar/
 *.tmp
+
+# Modelos originales de Tripo (pesados; se respaldan aparte). Solo se versionan los procesados.
+modelos/fuentes/

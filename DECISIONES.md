@@ -2,7 +2,7 @@
 
 Este archivo registra cada decisión de diseño con su contexto y su resultado. La fuente de verdad es `DISEÑO.md`; si este registro y el diseño no coinciden, manda `DISEÑO.md` y hay que corregir este archivo. Las decisiones nuevas se agregan al final con el siguiente número libre (D25, D26…) y la fecha.
 
-Estado: D1 a D24 aprobadas por el dueño del proyecto (15/10/2026). Ninguna se vuelve a preguntar. D25 a D27 se aprobaron junto con el resumen de la sección 0 (15/10/2026). D28 es un detalle menor de la etapa 0. D29 a D33 son decisiones técnicas de la etapa 1.
+Estado: D1 a D24 aprobadas por el dueño del proyecto (15/10/2026). Ninguna se vuelve a preguntar. D25 a D27 se aprobaron junto con el resumen de la sección 0 (15/10/2026). D28 es un detalle menor de la etapa 0. D29 a D33 son decisiones técnicas de la etapa 1. D34 y D35 son de la etapa 2 (D35 espera la elección del dueño).
 
 ## Riesgos técnicos
 
@@ -255,5 +255,34 @@ Aquí se agregan las decisiones que se tomen durante el desarrollo: la elección
   - **Camión:** mide 8.1 m de largo, 2.5 m de ancho y unos 2.75 m del piso al techo.
     - El modelo de la carrocería sustituye al nodo `Carroceria` de `escenas/camion/camion.tscn`. Su origen va al centro del piso del camión, con la puerta del lado derecho al frente.
     - Las llantas van aparte: radio de 0.45 m, eje de giro en X, origen en el centro de la llanta.
-  - **Personajes:** se definen en la etapa 2, cuando exista su escena; se registrará aquí la altura en metros, el origen (entre los pies) y los puntos de agarre.
+  - **Personajes:** ver D34.
 - *Secciones:* 3.
+
+**D34. Personajes de muñeco por piezas** (15/10/2026, etapa 2, decidido con el dueño)
+- *Contexto:* el dueño subió dos hojas de personajes hechas en Tripo (plan de pago), con 16 personajes en total. Cada hoja es una sola malla de ~1 millón de vértices, sin esqueleto, y pesa 65 MB.
+- *Decisión:*
+  - **Estilo de muñeco:** cada personaje se corta en 6 piezas rígidas (cabeza, torso, dos brazos y dos piernas) con el giro en su articulación. Así encaja con "las extremidades se desprenden como piezas de muñeco" (sección 8) y es barato de simular y sincronizar. Se anima en código (`scripts/personajes/personaje.gd`), sin esqueleto.
+  - **Herramienta:** `procesar_personajes.bat` (`scripts/herramientas/procesar_personajes.gd`):
+    1. Separa a cada personaje: al soldar las costuras, cada uno es una malla cerrada.
+    2. Lo escala, lo centra entre los pies y lo voltea para que mire a −Z.
+    3. Lo corta con las articulaciones medidas a mano en `modelos/personajes.cfg`; la estimación automática queda solo para personajes nuevos sin medidas.
+    4. Limpia las islas sueltas y reduce cada pieza con los niveles de detalle de Godot (~5 000 triángulos por personaje).
+    5. Guarda en el color de vértice una normal suavizada para el contorno.
+  - **Escala:** 3.8 m por unidad de Tripo, lo que da alturas de 1.15 m (abuelita) a 1.98 m (fresa). El origen va entre los pies y el frente mira a −Z. Cada escena guarda en metadatos `altura`, `altura_ojos`, `ancho` y la posición de cada mano relativa a su brazo.
+  - **Roles:** los 4 de arriba de Modelos1, de izquierda a derecha, son chofer, cobrador, voceador y vendedora. Los otros 12 son pasajeros.
+  - **Archivos:** los originales quedan en `modelos/fuentes/`, ignorados por git y por Godot; el dueño los respalda por su cuenta. Al repositorio solo suben los procesados (`modelos/personajes/`, ~4.6 MB en total).
+  - **Pendiente para la etapa 7:** las piezas no tienen tapas en los cortes. Al doblarse mucho se ve el hueco, igual que en un muñeco articulado. Si al desprenderlas se ve mal, se agregan tapas.
+- *Secciones:* 3, 8.
+
+**D35. Prototipos del interior (D1)** (15/10/2026, etapa 2, pendiente de que el dueño elija)
+- *Contexto:* D1 pide probar dos o tres enfoques para caminar dentro del camión antes de construir encima.
+- *Decisión:* hay dos prototipos que comparten el mismo personaje (`CuerpoPersonaje`), el mismo modelo de inercia y la misma geometría del interior (sacada de la carrocería).
+  - **Modelo de inercia común:** el empujón es la aceleración ficticia del camión, suavizada, exagerada ×1.3 y con tope de 9 m/s². La "firmeza" del personaje lo regresa a donde quiere caminar. Si el empujón pasa de 8 m/s², tropieza; sujeto del pasamanos solo siente el 15 %.
+  - **A, interior en el mundo** (`InteriorMundo`): el piso del camión es una plataforma móvil. Godot lleva a los personajes con ella; los objetos sueltos los arrastra la fricción real.
+  - **B, interior separado** (`InteriorLocal`): lo que va adentro vive en un espacio de física propio, donde el camión está quieto. Lo que hace el camión llega como gravedad inclinada y empujones con tope, y lo que se ve son reflejos colgados de la carrocería, que se ladean con ella. Al cruzar la puerta o una ventana, el cuerpo pasa al mundo con su velocidad real, y al volver a entrar regresa al espacio del interior.
+  - **Medido con `pruebas/prueba_etapa2.tscn`:** los dos dejan caminar de la puerta al fondo con el camión en marcha, aguantan el modo loco sujetos del pasamanos y sacan bien una bolsa por la ventana.
+    - A tiene fallas intermitentes en el modo loco: brincos de ~25 cm en un solo cuadro y hundimientos en el piso de hasta ~9 cm.
+    - B no tiene ninguna (brincos máximos de 3 a 6 cm, sin hundirse).
+  - **Recomendación técnica:** B, por estabilidad, control del caos y porque sincronizar posiciones relativas al camión es más simple en red (etapa 8). Su costo es mantener dos espacios de física y la transición entre ellos.
+  - **Pendiente:** que el dueño pruebe los dos y elija. El que no se elija se borra.
+- *Secciones:* 7.2, etapa 2.

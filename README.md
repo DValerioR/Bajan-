@@ -22,11 +22,15 @@ Si se cambia de versión de Godot, hay que actualizar la ruta en los tres `.bat`
 | `ejecutar.bat` | Abre el proyecto en el editor de Godot. |
 | `jugar.bat` | Lanza el juego directamente (la primera vez importa los recursos). |
 | `pruebas.bat` | Corre las pruebas automáticas sin ventana. Sale con código 0 si todo pasa. |
+| `procesar_personajes.bat` | Convierte los modelos originales de `modelos/fuentes/` (no están en git) en personajes de muñeco por piezas en `modelos/personajes/`. Solo hace falta si cambian los modelos o `modelos/personajes.cfg`. |
 
 Herramientas de desarrollo (se abren desde el editor o con Godot por línea de comandos; no son pruebas automáticas):
 
 - `pruebas/captura.tscn`: maneja el camión y guarda capturas de pantalla desde la vista del chofer y desde cámaras externas. Si no se le pasa una carpeta, las guarda en `user://capturas`.
 - `pruebas/experimento_topes.tscn`: pasa el camión sobre un tope a 30, 50 y 70 km/h con varios valores de `patada_topes` y reporta el brinco.
+- `pruebas/captura_interior.tscn`: capturas desde el jugador dentro del camión (`-- <carpeta> A|B`).
+- `pruebas/vista_personajes.tscn`: los 16 personajes en fila, con las piezas coloreadas (`piezas`), con textura o doblando articulaciones (`pose`).
+- `pruebas/vista_modelos.tscn`: captura de frente de un modelo importado.
 
 ## Estructura
 
@@ -39,7 +43,8 @@ Herramientas de desarrollo (se abren desde el editor o con Godot por línea de c
 | `scripts/camion/` | Simulación del camión (`camion.gd`), comandos de manejo, entrada del jugador, cámara del chofer y carrocería de formas básicas. |
 | `scripts/mundo/`, `scripts/estilo/`, `scripts/audio/` | Calle de prueba, conversión al estilo toon y sonidos generados en código. |
 | `materiales/` | Shaders del estilo toon y del contorno. |
-| `modelos/` | Modelos importados (por ahora vacío; formato y escala en `DECISIONES.md`, D33). |
+| `modelos/` | `personajes/` (16 personajes procesados), `personajes.cfg` (cómo se procesan) y `fuentes/` (originales de Tripo, fuera de git). Formato y escala en `DECISIONES.md`, D33 y D34. |
+| `scripts/personajes/`, `scripts/interior/`, `scripts/objetos/` | Personaje (figura y cuerpo), interior del camión (inercia, los dos prototipos) y objetos sueltos. |
 | `traducciones/` | `textos.csv` con todas las cadenas visibles en español (`es`) e inglés (`en`). |
 | `pruebas/` | Escenas de prueba automática que corre `pruebas.bat`. |
 | `herramientas/` | Ejecutables de Godot (ignorados por git y por Godot). |
@@ -69,3 +74,18 @@ Herramientas de desarrollo (se abren desde el editor o con Godot por línea de c
 | Volver al menú | Esc | Start |
 
 Para ajustar el manejo: con el juego abierto, edita `config/conduccion.cfg`, guarda y presiona F9.
+
+**Etapa 2 (el interior): en revisión, falta elegir prototipo.** En el menú, **Caminar en el camión · prototipo A** o **· prototipo B**. Un chofer automático maneja por la calle de prueba mientras caminas adentro.
+
+| Control | Teclado y ratón | Mando |
+|---|---|---|
+| Caminar | WASD | Stick izquierdo |
+| Mirar | Ratón | Stick derecho |
+| Saltar | Espacio | A |
+| Sujetarse del pasamanos (mantener) | Shift o clic derecho | LB |
+| Agarrar o soltar | E | X |
+| Lanzar lo que cargas, o empujar | Clic izquierdo | RB |
+| Chofer: parado, tranquilo, normal, loco | 1, 2, 3, 4 | — |
+| Volver a la puerta | R | Y |
+
+Hay un maniquí, bolsas y monedas para agarrar y lanzar. Los empujones, el tropiezo y el pasamanos se ajustan en `config/interior.cfg` (F9 recarga).
