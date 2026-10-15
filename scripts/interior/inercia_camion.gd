@@ -2,7 +2,7 @@ class_name InerciaCamion
 extends Node
 ## Mide cómo se mueve el camión (aceleración y giro, suavizados) y calcula la aceleración
 ## ficticia que siente cualquier punto de su interior: lo que "empuja" a la gente cuando el
-## camión frena, acelera, da vuelta o brinca. Es la base del interior en los dos prototipos.
+## camión frena, acelera, da vuelta o brinca. Es la base del interior (MarcoInterior).
 
 @export var camion: Camion
 

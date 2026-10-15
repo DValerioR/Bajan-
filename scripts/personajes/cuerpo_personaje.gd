@@ -2,7 +2,7 @@ class_name CuerpoPersonaje
 extends CharacterBody3D
 ## Cuerpo físico de un personaje que camina (jugador o, más adelante, bot o red).
 ## Solo lee `comandos`. Lo que siente del camión (gravedad aparente, empujones, giro) se lo dice
-## su `marco`, así el mismo código sirve en la calle y dentro del camión, en los dos prototipos.
+## su `marco`, así el mismo código sirve en la calle y dentro del camión.
 ##
 ## Modelo de inercia: la velocidad horizontal (respecto al piso) recibe el empujón del camión y
 ## una "firmeza" que la lleva hacia donde el personaje quiere caminar. Con un empujón fuerte y sin
@@ -10,16 +10,18 @@ extends CharacterBody3D
 
 const CAPA_PERSONAJES := 8
 const CAPA_OBJETOS := 16
+## Altura máxima de escalón que sube caminando (banquetas, escalones del camión).
+const PASO_MAXIMO := 0.35
 
 var comandos := ComandosPersonaje.new()
 var marco := MarcoMovimiento.new()
 var parametros: ParametrosInterior
-## Figura visual. Puede vivir en otro lugar de la escena (prototipo B); aquí solo se anima.
+## Figura visual. Dentro del camión vive en un reflejo, fuera del cuerpo; aquí solo se anima.
 var visual: Personaje
 
 var altura: float = 1.7
 var altura_ojos: float = 1.55
-## Punto de vista: gira en vertical. En el prototipo A la cámara va aquí adentro.
+## Punto de vista: gira en vertical. En la calle, la cámara del jugador va aquí adentro.
 var cabeza: Node3D
 
 var sujetado: bool = false
@@ -27,6 +29,8 @@ var tropezando: float = 0.0
 var empujon_actual := Vector3.ZERO
 var en_suelo: bool = false
 var cargado: RigidBody3D = null
+## Cuántas veces ha subido un escalón (lo usan las pruebas).
+var escalones_subidos: int = 0
 
 var _giro: float = 0.0
 var _vertical: float = 0.0
@@ -69,6 +73,13 @@ func configurar(nueva_altura: float, nueva_altura_ojos: float) -> void:
 ## Hacia dónde mira y gira (radianes): lo usa quien coloque al personaje.
 func orientar(giro: float) -> void:
 	_giro = giro
+
+
+## El giro que corresponde a hacia dónde mira ahora, en su espacio actual
+## (después de pasar entre el interior y la calle).
+func giro_actual() -> float:
+	var frente := -global_basis.z
+	return atan2(-frente.x, -frente.z)
 
 
 ## Empujón directo (un golpe, otro personaje que lo avienta): cambio de velocidad en m/s.
@@ -117,7 +128,7 @@ func _physics_process(delta: float) -> void:
 		firmeza *= 4.0
 	horizontal += (aplicado + (deseo - horizontal) * firmeza) * delta
 
-	# Gravedad aparente (en el prototipo B viene inclinada si el camión se inclina).
+	# Gravedad aparente (dentro del camión viene inclinada si el camión se inclina).
 	var g := marco.gravedad(global_position)
 	var g_vertical := arriba * g.dot(arriba)
 	horizontal += (g - g_vertical) * delta
@@ -129,12 +140,50 @@ func _physics_process(delta: float) -> void:
 			apply_floor_snap()
 	velocity = horizontal.limit_length(p.velocidad_maxima) + vertical
 	move_and_slide()
+	_subir_escalon(deseo * delta)
 
 	_manejar_objetos(delta)
 	if visual:
 		var local_velocidad := global_basis.inverse() * horizontal
 		var local_empujon := global_basis.inverse() * aplicado
 		visual.animar(delta, local_velocidad, local_empujon, sujetado, cargado != null, tropezando > 0.0, not is_on_floor())
+
+
+## Si choca de frente con algo bajo (una banqueta, un escalón) mientras camina, lo sube.
+func _subir_escalon(avance: Vector3) -> void:
+	if not en_suelo or not is_on_wall() or avance.length() < 0.001:
+		return
+	# Solo se suben cosas fijas (banquetas, escalones), no objetos sueltos ni otros personajes.
+	var contra_algo_fijo := false
+	for i in get_slide_collision_count():
+		var choque_pared := get_slide_collision(i)
+		var normal := choque_pared.get_normal()
+		var de_frente := normal.dot(avance.normalized()) < -0.5
+		if absf(normal.dot(up_direction)) < 0.3 and de_frente and _es_fijo(choque_pared.get_collider()):
+			contra_algo_fijo = true
+	if not contra_algo_fijo:
+		return
+	var subida := up_direction * PASO_MAXIMO
+	var paso := avance.normalized() * maxf(avance.length(), 0.08)
+	var prueba := global_transform
+	if test_move(prueba, subida):
+		return
+	prueba.origin += subida
+	if test_move(prueba, paso):
+		return
+	prueba.origin += paso
+	var choque := KinematicCollision3D.new()
+	# Tiene que aterrizar sobre algo fijo y plano, no sobre la esquina de un asiento.
+	if not test_move(prueba, -subida, choque) or not _es_fijo(choque.get_collider()) or choque.get_normal().dot(up_direction) < 0.85:
+		return
+	prueba.origin += choque.get_travel()
+	escalones_subidos += 1
+	global_transform = prueba
+	reset_physics_interpolation()
+
+
+static func _es_fijo(objeto: Object) -> bool:
+	return objeto is StaticBody3D or objeto is AnimatableBody3D
 
 
 ## Base cuyo eje Y es `arriba` y que mira hacia `giro` alrededor de él.

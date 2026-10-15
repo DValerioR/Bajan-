@@ -55,7 +55,11 @@ func _aplicar_parametros() -> void:
 	parametros = ParametrosConduccion.cargar()
 	mass = parametros.masa
 	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
-	center_of_mass = Vector3(0.0, parametros.centro_masa_y, 0.0)
+	# A lo largo, el centro de masa va entre los dos ejes: así parado no se ladea ni se arrastra.
+	var centro_ejes := 0.0
+	for r in _ruedas:
+		centro_ejes += (r.anclaje_local as Vector3).z / _ruedas.size()
+	center_of_mass = Vector3(0.0, parametros.centro_masa_y, centro_ejes)
 	angular_damp = parametros.amortiguacion_angular
 	_motor.volume_db = parametros.volumen_motor
 	_claxon.volume_db = parametros.volumen_claxon
@@ -160,6 +164,9 @@ func _physics_process(delta: float) -> void:
 			var desaceleracion := minf(freno * p.frenado, absf(velocidad_longitudinal) / delta)
 			fuerza_longitudinal -= signf(velocidad_longitudinal) * desaceleracion * masa_rueda
 		fuerza_longitudinal -= velocidad_longitudinal * p.resistencia_rodado * masa_rueda
+		# Freno de estacionamiento: sin pedales y casi parado, el camión se queda quieto.
+		if comandos.acelerar == 0.0 and comandos.frenar == 0.0 and absf(velocidad_longitudinal) < 0.6:
+			fuerza_longitudinal -= velocidad_longitudinal / delta * masa_rueda * 0.5
 		fuerza_longitudinal = clampf(fuerza_longitudinal, -limite * 1.5, limite * 1.5)
 
 		var punto_fuerza := (golpe.position as Vector3).lerp(centro_masa_global, p.altura_fuerzas)

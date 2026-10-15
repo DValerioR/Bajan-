@@ -1,14 +1,11 @@
 extends Node3D
-## Escena de la etapa 2: caminar dentro del camión mientras lo maneja el piloto automático.
-## El menú elige el prototipo del interior (DECISIONES.md, D1) antes de abrir la escena:
-## "A" = interior en el mundo (InteriorMundo), "B" = interior separado (InteriorLocal).
+## Escena de la etapa 2: caminar dentro del camión mientras lo maneja el piloto automático
+## (interior separado, DECISIONES.md, D35). Se puede bajar por la puerta y volver a subir.
 
 const ESCENA_MENU := "res://escenas/principal.tscn"
 ## Dónde aparece el jugador: junto a la puerta, mirando hacia el fondo (coordenadas del camión).
 const PUESTO_JUGADOR := Vector3(0.35, -0.28, -3.0)
 const MANIQUI := "chavo_sudadera"
-
-static var prototipo: String = "B"
 
 @onready var pista: PistaPrueba = $Pista
 @onready var camion: Camion = $Camion
@@ -24,7 +21,7 @@ var _arranque: float = 1.5
 
 func _ready() -> void:
 	camion.colocar(pista.transform_en_indice(pista.indice_en_distancia(5.0)))
-	interior = InteriorMundo.new() if prototipo == "A" else InteriorLocal.new()
+	interior = InteriorCamion.new()
 	interior.name = "Interior"
 	interior.camion = camion
 	interior.mundo = mundo
@@ -34,7 +31,6 @@ func _ready() -> void:
 
 	jugador = _crear_jugador()
 	_crear_objetos()
-	hud.mostrar_prototipo(prototipo)
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
@@ -47,12 +43,12 @@ func _crear_jugador() -> CuerpoPersonaje:
 	visual.modelo = cuerpo.parametros.modelo
 	cuerpo.add_child(visual)
 	cuerpo.visual = visual
-	cuerpo.orientar(PI)
 	var camara := Camera3D.new()
 	camara.name = "CamaraJugador"
 	camara.fov = 80.0
 	camara.near = 0.05
 	interior.agregar(cuerpo, camara, Transform3D(Basis(), PUESTO_JUGADOR))
+	cuerpo.orientar(PI)
 	cuerpo.configurar(visual.altura, visual.altura_ojos)
 	visual.ocultar_cabeza(true)
 	var entrada := EntradaJugador.new()
@@ -174,11 +170,5 @@ func _reiniciar() -> void:
 	camion.colocar(pista.transform_en_indice(i))
 	interior.inercia.reiniciar()
 	piloto.reiniciar()
-	jugador.orientar(PI if prototipo == "B" else _giro_mundo_hacia_atras())
 	interior.recolocar(jugador, Transform3D(Basis(), PUESTO_JUGADOR))
-
-
-## En el prototipo A el giro del jugador se mide en el mundo: mirar hacia la parte de atrás del camión.
-func _giro_mundo_hacia_atras() -> float:
-	var atras := camion.global_basis.z
-	return atan2(-atras.x, -atras.z)
+	jugador.orientar(PI)

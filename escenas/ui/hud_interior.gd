@@ -1,13 +1,12 @@
 class_name HudInterior
 extends CanvasLayer
-## Interfaz de la prueba del interior (etapa 2): prototipo, velocidad, modo del chofer
+## Interfaz de la prueba del interior (etapa 2): velocidad, modo del chofer
 ## automático, estado del jugador, avisos de sustos y ayuda de controles.
 ## No lee el estado del juego: la escena le pasa los datos. Los textos son claves de traducción.
 
 const AYUDA := ["AYUDA_TITULO", "AYUDA_CAMINAR", "AYUDA_MIRAR", "AYUDA_SUJETARSE", "AYUDA_AGARRAR", "AYUDA_PILOTO", "AYUDA_REINICIAR_INTERIOR", "AYUDA_CONFIG", "AYUDA_SALIR"]
 const DURACION_AVISO := 1.2
 
-var _prototipo: Label
 var _velocidad: Label
 var _piloto: Label
 var _estado: Label
@@ -21,14 +20,6 @@ func _ready() -> void:
 	add_child(ayuda)
 	for clave in AYUDA:
 		ayuda.add_child(_etiqueta(clave, 15 if clave != "AYUDA_TITULO" else 18, Color(1, 0.86, 0.3) if clave == "AYUDA_TITULO" else Color.WHITE))
-
-	_prototipo = _etiqueta("", 20, Color(0.75, 0.95, 1.0))
-	_prototipo.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	_prototipo.offset_left = -520
-	_prototipo.offset_right = -20
-	_prototipo.offset_top = 14
-	_prototipo.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	add_child(_prototipo)
 
 	var abajo := VBoxContainer.new()
 	abajo.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
@@ -73,10 +64,6 @@ func _ready() -> void:
 	mira.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	mira.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	add_child(mira)
-
-
-func mostrar_prototipo(prototipo: String) -> void:
-	_prototipo.text = "HUD_PROTOTIPO_" + prototipo
 
 
 func mostrar_estado(velocidad_kmh: float, modo_piloto: String, dentro: bool, sujetado: bool, tropezando: bool) -> void:

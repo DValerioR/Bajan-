@@ -2,7 +2,7 @@
 
 Este archivo registra cada decisión de diseño con su contexto y su resultado. La fuente de verdad es `DISEÑO.md`; si este registro y el diseño no coinciden, manda `DISEÑO.md` y hay que corregir este archivo. Las decisiones nuevas se agregan al final con el siguiente número libre (D25, D26…) y la fecha.
 
-Estado: D1 a D24 aprobadas por el dueño del proyecto (15/10/2026). Ninguna se vuelve a preguntar. D25 a D27 se aprobaron junto con el resumen de la sección 0 (15/10/2026). D28 es un detalle menor de la etapa 0. D29 a D33 son decisiones técnicas de la etapa 1. D34 y D35 son de la etapa 2 (D35 espera la elección del dueño).
+Estado: D1 a D24 aprobadas por el dueño del proyecto (15/10/2026). Ninguna se vuelve a preguntar. D25 a D27 se aprobaron junto con el resumen de la sección 0 (15/10/2026). D28 es un detalle menor de la etapa 0. D29 a D33 son decisiones técnicas de la etapa 1. D34 a D36 son de la etapa 2.
 
 ## Riesgos técnicos
 
@@ -274,7 +274,7 @@ Aquí se agregan las decisiones que se tomen durante el desarrollo: la elección
   - **Pendiente para la etapa 7:** las piezas no tienen tapas en los cortes. Al doblarse mucho se ve el hueco, igual que en un muñeco articulado. Si al desprenderlas se ve mal, se agregan tapas.
 - *Secciones:* 3, 8.
 
-**D35. Prototipos del interior (D1)** (15/10/2026, etapa 2, pendiente de que el dueño elija)
+**D35. Prototipos del interior (D1)** (15/10/2026, etapa 2, el dueño eligió B)
 - *Contexto:* D1 pide probar dos o tres enfoques para caminar dentro del camión antes de construir encima.
 - *Decisión:* hay dos prototipos que comparten el mismo personaje (`CuerpoPersonaje`), el mismo modelo de inercia y la misma geometría del interior (sacada de la carrocería).
   - **Modelo de inercia común:** el empujón es la aceleración ficticia del camión, suavizada, exagerada ×1.3 y con tope de 9 m/s². La "firmeza" del personaje lo regresa a donde quiere caminar. Si el empujón pasa de 8 m/s², tropieza; sujeto del pasamanos solo siente el 15 %.
@@ -284,5 +284,13 @@ Aquí se agregan las decisiones que se tomen durante el desarrollo: la elección
     - A tiene fallas intermitentes en el modo loco: brincos de ~25 cm en un solo cuadro y hundimientos en el piso de hasta ~9 cm.
     - B no tiene ninguna (brincos máximos de 3 a 6 cm, sin hundirse).
   - **Recomendación técnica:** B, por estabilidad, control del caos y porque sincronizar posiciones relativas al camión es más simple en red (etapa 8). Su costo es mantener dos espacios de física y la transición entre ellos.
-  - **Pendiente:** que el dueño pruebe los dos y elija. El que no se elija se borra.
+  - **Resultado:** el dueño probó los dos y eligió **B**. Se borró A y el interior quedó en una sola clase, `InteriorCamion` (con `MarcoInterior`).
+- *Secciones:* 7.2, etapa 2.
+
+**D36. Bajar y subir del camión** (15/10/2026, etapa 2, detalle menor)
+- *Contexto:* para cerrar la etapa 2 había que comprobar que un personaje puede bajar a la calle y volver a subir. Eso destapó tres problemas: el arco de la llanta delantera tapaba la puerta, el piso del camión queda a 66 cm del suelo y los personajes no subían ni una banqueta.
+- *Decisión:*
+  - **Eje delantero:** se adelantó de z = −2.75 a −2.1 (la puerta queda delante del eje, como en los micros reales). El centro de masa ahora se calcula entre los dos ejes, y se agregó un freno de estacionamiento sin pedales, para que el camión parado no se arrastre. Las pruebas de manejo siguen pasando.
+  - **Escalones de la puerta:** se ven dos escalones y la colisión es una rampa invisible de 33°.
+  - **Subir escalones:** los personajes suben solos escalones de hasta 35 cm (banquetas, escalones), pero solo si el obstáculo es fijo, está de frente y el lugar donde aterrizan es plano. Así no se trepan a bolsas, al maniquí ni a las esquinas de los asientos.
 - *Secciones:* 7.2, etapa 2.

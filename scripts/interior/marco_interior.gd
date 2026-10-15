@@ -1,6 +1,6 @@
-class_name MarcoInteriorLocal
+class_name MarcoInterior
 extends MarcoMovimiento
-## Prototipo B: el cuerpo vive en un espacio de física aparte donde el interior del camión
+## Dentro del camión: el cuerpo vive en un espacio de física aparte donde el interior del camión
 ## está quieto, en coordenadas del camión. Todo lo que hace el camión llega como gravedad
 ## inclinada y empujones calculados, con tope.
 

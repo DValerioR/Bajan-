@@ -28,7 +28,7 @@ Herramientas de desarrollo (se abren desde el editor o con Godot por línea de c
 
 - `pruebas/captura.tscn`: maneja el camión y guarda capturas de pantalla desde la vista del chofer y desde cámaras externas. Si no se le pasa una carpeta, las guarda en `user://capturas`.
 - `pruebas/experimento_topes.tscn`: pasa el camión sobre un tope a 30, 50 y 70 km/h con varios valores de `patada_topes` y reporta el brinco.
-- `pruebas/captura_interior.tscn`: capturas desde el jugador dentro del camión (`-- <carpeta> A|B`).
+- `pruebas/captura_interior.tscn`: capturas desde el jugador dentro del camión (`-- <carpeta>`).
 - `pruebas/vista_personajes.tscn`: los 16 personajes en fila, con las piezas coloreadas (`piezas`), con textura o doblando articulaciones (`pose`).
 - `pruebas/vista_modelos.tscn`: captura de frente de un modelo importado.
 
@@ -44,7 +44,7 @@ Herramientas de desarrollo (se abren desde el editor o con Godot por línea de c
 | `scripts/mundo/`, `scripts/estilo/`, `scripts/audio/` | Calle de prueba, conversión al estilo toon y sonidos generados en código. |
 | `materiales/` | Shaders del estilo toon y del contorno. |
 | `modelos/` | `personajes/` (16 personajes procesados), `personajes.cfg` (cómo se procesan) y `fuentes/` (originales de Tripo, fuera de git). Formato y escala en `DECISIONES.md`, D33 y D34. |
-| `scripts/personajes/`, `scripts/interior/`, `scripts/objetos/` | Personaje (figura y cuerpo), interior del camión (inercia, los dos prototipos) y objetos sueltos. |
+| `scripts/personajes/`, `scripts/interior/`, `scripts/objetos/` | Personaje (figura y cuerpo), interior del camión (inercia y espacio de física propio) y objetos sueltos. |
 | `traducciones/` | `textos.csv` con todas las cadenas visibles en español (`es`) e inglés (`en`). |
 | `pruebas/` | Escenas de prueba automática que corre `pruebas.bat`. |
 | `herramientas/` | Ejecutables de Godot (ignorados por git y por Godot). |
@@ -60,7 +60,7 @@ Herramientas de desarrollo (se abren desde el editor o con Godot por línea de c
 
 **Etapa 0 (preparación): completa.** En el menú de pruebas, el botón o la tecla **L** (en mando, Back/Select) cambia entre español e inglés, y el idioma elegido se recuerda.
 
-**Etapa 1 (el camión): en revisión.** Con `jugar.bat`, en el menú elige **Manejar en la calle de prueba**.
+**Etapa 1 (el camión): completa.** Con `jugar.bat`, en el menú elige **Manejar en la calle de prueba**.
 
 | Control | Teclado | Mando |
 |---|---|---|
@@ -75,7 +75,7 @@ Herramientas de desarrollo (se abren desde el editor o con Godot por línea de c
 
 Para ajustar el manejo: con el juego abierto, edita `config/conduccion.cfg`, guarda y presiona F9.
 
-**Etapa 2 (el interior): en revisión, falta elegir prototipo.** En el menú, **Caminar en el camión · prototipo A** o **· prototipo B**. Un chofer automático maneja por la calle de prueba mientras caminas adentro.
+**Etapa 2 (el interior): completa.** En el menú, **Caminar dentro del camión**. Un chofer automático maneja por la calle de prueba mientras caminas adentro; puedes bajar por la puerta (con el camión parado o en marcha) y volver a subir por los escalones.
 
 | Control | Teclado y ratón | Mando |
 |---|---|---|

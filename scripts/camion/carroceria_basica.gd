@@ -47,13 +47,15 @@ const PIEZAS := [
 	["RespaldoChofer", "caja", Vector3(0.6, 0.8, 0.12), Vector3(-0.6, 0.85, -2.4), Vector3.ZERO, VINO],
 	["Volante", "toro", Vector3(0.15, 0.2, 0), Vector3(-0.6, 1.1, -3.3), Vector3(60, 0, 0), NEGRO],
 	["ColumnaVolante", "cilindro", Vector3(0.03, 0.45, 0), Vector3(-0.6, 0.95, -3.45), Vector3(60, 0, 0), NEGRO],
-	["ArcoDelanteroIzquierdo", "caja", Vector3(0.5, 0.35, 1.1), Vector3(-0.95, 0.175, -2.75), Vector3.ZERO, GRIS_OSCURO],
-	["ArcoDelanteroDerecho", "caja", Vector3(0.5, 0.35, 1.1), Vector3(0.95, 0.175, -2.75), Vector3.ZERO, GRIS_OSCURO],
+	["ArcoDelanteroIzquierdo", "caja", Vector3(0.5, 0.35, 1.1), Vector3(-0.95, 0.175, -2.1), Vector3.ZERO, GRIS_OSCURO],
+	["ArcoDelanteroDerecho", "caja", Vector3(0.5, 0.35, 1.1), Vector3(0.95, 0.175, -2.05), Vector3.ZERO, GRIS_OSCURO],
 	["ArcoTraseroIzquierdo", "caja", Vector3(0.5, 0.35, 1.1), Vector3(-0.95, 0.175, 2.6), Vector3.ZERO, GRIS_OSCURO],
 	["ArcoTraseroDerecho", "caja", Vector3(0.5, 0.35, 1.1), Vector3(0.95, 0.175, 2.6), Vector3.ZERO, GRIS_OSCURO],
 	["PasamanosIzquierdo", "cilindro", Vector3(0.025, 7.4, 0), Vector3(-0.45, 2.05, 0.2), Vector3(90, 0, 0), GRIS],
 	["PasamanosDerecho", "cilindro", Vector3(0.025, 7.4, 0), Vector3(0.45, 2.05, 0.2), Vector3(90, 0, 0), GRIS],
 	["PostePuerta", "cilindro", Vector3(0.03, 2.35, 0), Vector3(0.95, 1.175, -2.5), Vector3.ZERO, GRIS],
+	["EscalonAlto", "caja", Vector3(0.32, 0.08, 1.0), Vector3(1.4, -0.2, -3.15), Vector3.ZERO, GRIS],
+	["EscalonBajo", "caja", Vector3(0.32, 0.08, 1.0), Vector3(1.7, -0.43, -3.15), Vector3.ZERO, GRIS],
 ]
 
 ## Pilares de las ventanas laterales (posición z); del lado derecho dejan libre la puerta.

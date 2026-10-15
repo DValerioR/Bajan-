@@ -1,10 +1,9 @@
 extends Node
 ## Herramienta de desarrollo: abre la prueba del interior, deja manejar al chofer automático,
 ## camina un poco y guarda capturas desde el jugador y desde afuera.
-## Uso: Godot --path . res://pruebas/captura_interior.tscn -- <carpeta> <A|B>
+## Uso: Godot --path . res://pruebas/captura_interior.tscn -- <carpeta>
 
 const ESCENA := "res://escenas/interior_prueba/interior_prueba.tscn"
-const InteriorPrueba := preload("res://escenas/interior_prueba/interior_prueba.gd")
 
 var _carpeta: String = "user://capturas"
 var _escena: Node
@@ -14,7 +13,6 @@ func _ready() -> void:
 	var argumentos := OS.get_cmdline_user_args()
 	if argumentos.size() > 0:
 		_carpeta = argumentos[0]
-	InteriorPrueba.prototipo = argumentos[1] if argumentos.size() > 1 else "B"
 	DirAccess.make_dir_recursive_absolute(_carpeta)
 	_escena = load(ESCENA).instantiate()
 	add_child(_escena)
@@ -22,7 +20,7 @@ func _ready() -> void:
 	_escena.get_node("EntradaJugador").queue_free()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	var jugador: CuerpoPersonaje = _escena.jugador
-	var prefijo := InteriorPrueba.prototipo
+	var prefijo := "interior"
 
 	await _esperar(2.5)
 	await _capturar(prefijo + "_1_jugador_inicio")

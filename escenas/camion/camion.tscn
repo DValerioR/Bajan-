@@ -42,7 +42,7 @@ shape = SubResource("Forma_cuerpo")
 [node name="Ruedas" type="Node3D" parent="."]
 
 [node name="DelanteraIzquierda" type="Node3D" parent="Ruedas"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.05, -0.25, -2.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.05, -0.25, -2.1)
 
 [node name="Llanta" type="Node3D" parent="Ruedas/DelanteraIzquierda"]
 
@@ -57,7 +57,7 @@ transform = Transform3D(0, -1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0)
 mesh = SubResource("Malla_rin")
 
 [node name="DelanteraDerecha" type="Node3D" parent="Ruedas"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.05, -0.25, -2.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.05, -0.25, -2.1)
 
 [node name="Llanta" type="Node3D" parent="Ruedas/DelanteraDerecha"]
 

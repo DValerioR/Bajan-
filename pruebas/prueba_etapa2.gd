@@ -1,11 +1,9 @@
 extends Node
-## Prueba automática de la etapa 2: corre las mismas situaciones en los dos prototipos del
-## interior (A = en el mundo, B = separado) y reporta números para compararlos.
-## Uso: Godot --headless --fixed-fps 60 res://pruebas/prueba_etapa2.tscn [-- A|B]
-## Sale con código 0 si los dos (o el elegido) pasan los criterios básicos.
+## Prueba automática de la etapa 2: caminar dentro del camión en movimiento (interior separado, D35).
+## Uso: Godot --headless --fixed-fps 60 res://pruebas/prueba_etapa2.tscn
+## Sale con código 0 si todo pasa.
 
 const ESCENA := "res://escenas/interior_prueba/interior_prueba.tscn"
-const InteriorPrueba := preload("res://escenas/interior_prueba/interior_prueba.gd")
 const FPS := 60
 
 var _fallos: int = 0
@@ -25,10 +23,7 @@ var _hundimiento: float = 0.0
 
 
 func _ready() -> void:
-	var argumentos := OS.get_cmdline_user_args()
-	var prototipos := ["A", "B"] if argumentos.is_empty() else [argumentos[0]]
-	for prototipo in prototipos:
-		await _probar(prototipo)
+	await _probar()
 	if _fallos == 0:
 		print("PRUEBAS ETAPA 2: todo pasó.")
 	else:
@@ -44,9 +39,7 @@ func _verificar(condicion: bool, descripcion: String) -> void:
 		_fallos += 1
 
 
-func _probar(prototipo: String) -> void:
-	print("=== Prototipo ", prototipo, " ===")
-	InteriorPrueba.prototipo = prototipo
+func _probar() -> void:
 	escena = load(ESCENA).instantiate()
 	add_child(escena)
 	await get_tree().physics_frame
@@ -98,12 +91,7 @@ func _probar(prototipo: String) -> void:
 	await _esperar(20.0, func(): pass)
 	print("        se movió %.2f m del lugar donde estaba" % _local().distance_to(inicio))
 	_reportar()
-	var limpio := _salto_maximo < 0.25 and _hundimiento < 0.12
-	if prototipo == "A" and not limpio:
-		# A es candidato en evaluación (D1): su falla se reporta para compararlo, sin romper las pruebas.
-		print("  AVISO el prototipo A tuvo brincos o hundimientos de física con sustos (ver números)")
-	else:
-		_verificar(limpio, "sin fallos de física con sustos")
+	_verificar(_salto_maximo < 0.25 and _hundimiento < 0.12, "sin fallos de física con sustos")
 
 	print("Lanzar una bolsa por la ventana:")
 	escena._reiniciar()
@@ -112,11 +100,8 @@ func _probar(prototipo: String) -> void:
 	var bolsa: ObjetoSuelto = escena.objetos[1]
 	interior.recolocar(bolsa, Transform3D(Basis(), Vector3(-0.9, 1.3, 0.65)))
 	await get_tree().physics_frame
-	var empujon := Vector3(-6.0, 1.0, 0.0)
-	if interior.esta_dentro(bolsa) and bolsa.get_world_3d() != camion.get_world_3d():
-		bolsa.linear_velocity = empujon
-	else:
-		bolsa.linear_velocity = interior.inercia.velocidad_en(bolsa.global_position) + camion.global_basis * empujon
+	# Dentro del camión la velocidad es relativa a él: hacia la ventana izquierda.
+	bolsa.linear_velocity = Vector3(-6.0, 1.0, 0.0)
 	# Se mide la velocidad justo en el cuadro en que la bolsa queda en la calle.
 	var velocidad_salida := Vector3.INF
 	var velocidad_camion := Vector3.ZERO
@@ -131,6 +116,31 @@ func _probar(prototipo: String) -> void:
 		var relativa := camion.global_basis.inverse() * (velocidad_salida - velocidad_camion)
 		print("        al salir: bolsa %.1f m/s, camión %.1f m/s; velocidad respecto al camión %s" % [velocidad_salida.length(), velocidad_camion.length(), relativa.snapped(Vector3.ONE * 0.1)])
 		_verificar(relativa.x < -3.0 and absf(relativa.z) < 3.0, "sale con la velocidad del camión más la del lanzamiento hacia la izquierda")
+
+	print("Bajar por la puerta y volver a subir (camión parado):")
+	escena._reiniciar()
+	piloto.cambiar_modo(PilotoAutomatico.Modo.PARADO)
+	await _esperar(2.0, func(): pass)
+	jugador.orientar(-PI / 2.0)
+	tiempo = 0.0
+	while interior.esta_dentro(jugador) and tiempo < 6.0:
+		jugador.comandos.mover = Vector2(0.0, 1.0)
+		await get_tree().physics_frame
+		tiempo += 1.0 / FPS
+	await _esperar(0.4, func(): jugador.comandos.mover = Vector2(0.0, 1.0))
+	jugador.comandos.mover = Vector2.ZERO
+	await _esperar(0.5, func(): pass)
+	var afuera := not interior.esta_dentro(jugador)
+	_verificar(afuera and jugador.is_on_floor(), "baja por la puerta y queda parado en la calle (%.2f m del camión)" % (_local().x - 1.25))
+	tiempo = 0.0
+	while not interior.esta_dentro(jugador) and tiempo < 8.0:
+		jugador.comandos.mover = Vector2(0.0, -1.0)
+		await get_tree().physics_frame
+		tiempo += 1.0 / FPS
+	await _esperar(1.0, func(): jugador.comandos.mover = Vector2(0.0, -1.0))
+	jugador.comandos.mover = Vector2.ZERO
+	await _esperar(0.5, func(): pass)
+	_verificar(interior.esta_dentro(jugador) and jugador.is_on_floor(), "vuelve a subir por los escalones (en %.1f s, z = %.2f, piso %.2f)" % [tiempo, _local().z, _local().y])
 
 	escena.queue_free()
 	await get_tree().physics_frame
@@ -189,4 +199,5 @@ func _medir() -> void:
 
 
 func _reportar() -> void:
+	print("        escalones subidos (total) %d" % jugador.escalones_subidos)
 	print("        tropiezos %d | brinco máximo de un cuadro %.3f m | se hundió en el piso %.3f m | se salió del camión: %s" % [_tropiezos, _salto_maximo, _hundimiento, "sí" if _salio else "no"])

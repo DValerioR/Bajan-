@@ -8,7 +8,10 @@ const Carroceria := preload("res://scripts/camion/carroceria_basica.gd")
 ## La carrocería está 0.3 m abajo del origen del camión (ver escenas/camion/camion.tscn).
 const DESPLAZAMIENTO := Vector3(0.0, -0.3, 0.0)
 ## Piezas que son solo adorno o están por fuera: no estorban a la gente.
-const SIN_COLISION := ["FranjaIzquierda", "FranjaDerecha", "ParachoquesDelantero", "ParachoquesTrasero"]
+const SIN_COLISION := ["FranjaIzquierda", "FranjaDerecha", "ParachoquesDelantero", "ParachoquesTrasero", "EscalonAlto", "EscalonBajo"]
+## Los escalones de la puerta chocan como una rampa (33°), que el personaje sube caminando:
+## va del borde de la puerta (piso del camión) hasta la calle, 0.66 m más abajo.
+const RAMPA_PUERTA := [Vector3(1.2, 0.1, 1.0), Vector3(1.75, -0.38, -3.15), Vector3(0.0, 0.0, -33.4)]
 
 ## Volumen del interior, en coordenadas del camión (para saber si algo está adentro).
 const LIMITES := AABB(Vector3(-1.25, -0.4, -4.02), Vector3(2.5, 2.75, 8.04))
@@ -21,6 +24,7 @@ static func formas() -> Array:
 		if pieza[1] != "caja" or pieza[0] in SIN_COLISION:
 			continue
 		lista.append(_caja(pieza[2], pieza[3], pieza[4]))
+	lista.append(_caja(RAMPA_PUERTA[0], RAMPA_PUERTA[1], RAMPA_PUERTA[2]))
 	for z in Carroceria.PILARES_IZQUIERDA:
 		lista.append(_caja(Vector3(0.08, 1.0, 0.12), Vector3(-1.21, 1.5, z), Vector3.ZERO))
 	for z in Carroceria.PILARES_DERECHA:

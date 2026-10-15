@@ -5,6 +5,7 @@ PRUEBA_SALUDO,"¡Súbale, súbale, que hay lugares!","Hop on, hop on, plenty of 
 IDIOMA_ACTUAL,Idioma: Español,Language: English
 BOTON_CAMBIAR_IDIOMA,Cambiar idioma (L),Change language (L)
 BOTON_CALLE_PRUEBA,Manejar en la calle de prueba,Drive on the test street
+BOTON_INTERIOR,Caminar dentro del camión,Walk inside the bus
 PRUEBA_ETAPA,Menú de pruebas · Etapa 2,Test menu · Stage 2
 LETRERO_RUTA,CENTRO · TIANGUIS,DOWNTOWN · MARKET
 HUD_VELOCIDAD,%d km/h,%d km/h
@@ -18,10 +19,6 @@ AYUDA_CONFIG,F9: recargar parámetros de conducción,F9: reload driving paramete
 AYUDA_SALIR,Esc: volver al menú,Esc: back to menu
 AVISO_CONFIG_RECARGADA,Parámetros recargados,Parameters reloaded
 AVISO_REINICIAR,¿Te volteaste? Presiona R,Flipped over? Press R
-BOTON_INTERIOR_A,Caminar en el camión · prototipo A,Walk in the bus · prototype A
-BOTON_INTERIOR_B,Caminar en el camión · prototipo B,Walk in the bus · prototype B
-HUD_PROTOTIPO_A,Prototipo A: interior en el mundo,Prototype A: interior in the world
-HUD_PROTOTIPO_B,Prototipo B: interior separado,Prototype B: separate interior
 HUD_PILOTO,Chofer automático: %s,Auto driver: %s
 PILOTO_PARADO,parado,stopped
 PILOTO_TRANQUILO,tranquilo,calm
