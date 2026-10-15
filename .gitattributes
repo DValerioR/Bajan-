@@ -1,0 +1,14 @@
+# Normaliza finales de línea a LF en el repositorio
+* text=auto eol=lf
+
+# Los .bat necesitan CRLF en Windows
+*.bat text eol=crlf
+
+# Binarios
+*.translation binary
+*.png binary
+*.jpg binary
+*.ogg binary
+*.wav binary
+*.glb binary
+*.exe binary

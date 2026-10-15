@@ -1,0 +1,9 @@
+# Caché e importaciones de Godot (se regeneran solas)
+.godot/
+
+# Ejecutables de Godot (se descargan aparte; ver README.md)
+herramientas/godot/
+
+# Exportaciones
+exportar/
+*.tmp
