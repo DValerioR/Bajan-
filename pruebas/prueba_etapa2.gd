@@ -86,10 +86,14 @@ func _probar() -> void:
 	_verificar(not _salio and _salto_maximo < 0.25 and _hundimiento < 0.12, "sin fallos de física al caminar")
 
 	print("Modo loco, sujeto del pasamanos, 20 s:")
+	# Se prepara con el camión parado: junto a la puerta abierta y sin sujetarse, un frenazo lo
+	# puede sacar volando (desde la etapa 3).
 	escena._reiniciar()
-	piloto.cambiar_modo(PilotoAutomatico.Modo.LOCO)
-	await _esperar(5.0, func(): pass)
+	piloto.cambiar_modo(PilotoAutomatico.Modo.PARADO)
+	await _esperar(1.0, func(): pass)
 	await _ir_a(Vector3(0.0, 0.0, 0.0))
+	piloto.cambiar_modo(PilotoAutomatico.Modo.LOCO)
+	await _esperar(5.0, func(): jugador.comandos.sujetarse = true)
 	inicio = _local()
 	_limpiar_medidas()
 	await _esperar(20.0, func(): jugador.comandos.sujetarse = true)

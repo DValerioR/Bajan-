@@ -13,15 +13,16 @@ func _ready() -> void:
 	var modo: String = argumentos[1] if argumentos.size() > 1 else "piezas"
 	var nombres := []
 	for archivo in DirAccess.get_files_at(CARPETA):
-		if archivo.ends_with(".scn"):
+		if archivo.ends_with(".glb"):
 			nombres.append(archivo.get_basename())
 	var x := 0.0
 	var ancho_fila := 0.0
 	var fila := 0
 	for nombre in nombres:
-		var personaje: Node3D = load(CARPETA.path_join(nombre + ".scn")).instantiate()
+		var personaje := Personaje.new()
+		personaje.modelo = nombre
 		add_child(personaje)
-		var ancho: float = personaje.get_meta("ancho", 1.0)
+		var ancho: float = personaje.ancho
 		if fila == 0 and nombres.find(nombre) >= nombres.size() / 2:
 			fila = 1
 			ancho_fila = x
@@ -38,7 +39,7 @@ func _ready() -> void:
 		etiqueta.position = personaje.position + Vector3(0, -0.15, 0.5)
 		add_child(etiqueta)
 		var k := 0
-		for pieza in personaje.get_children():
+		for pieza in personaje.get_node("Figura").get_children():
 			if modo == "piezas":
 				var m := StandardMaterial3D.new()
 				m.albedo_color = COLORES[k % COLORES.size()]
@@ -46,8 +47,6 @@ func _ready() -> void:
 			elif modo == "pose":
 				_posar(pieza)
 			k += 1
-		if modo != "piezas":
-			EstiloToon.aplicar(personaje)
 	var camara := Camera3D.new()
 	camara.projection = Camera3D.PROJECTION_ORTHOGONAL
 	x = maxf(x, ancho_fila)

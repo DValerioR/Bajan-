@@ -111,6 +111,9 @@ func al_cambiar_espacio() -> void:
 func empujar(cambio_velocidad: Vector3) -> void:
 	if desplomado or sentado:
 		return
+	# Sujeto del pasamanos aguanta mucho mejor los golpes.
+	if sujetado:
+		cambio_velocidad *= minf(1.0, parametros.factor_sujetado * 2.0)
 	if cambio_velocidad.length() >= parametros.umbral_golpe_ragdoll:
 		pide_desplomarse.emit(cambio_velocidad)
 		return

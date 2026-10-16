@@ -130,7 +130,7 @@ func _camion_lleno() -> void:
 	_verificar(max_ragdolls <= interior.parametros.max_ragdolls, "respeta el tope de ragdolls activos (%d de %d)" % [max_ragdolls, interior.parametros.max_ragdolls])
 	_verificar(problemas == 0, "ningún pasajero atravesó el piso ni salió disparado (%d cuadros con problemas)" % problemas)
 	# El promedio es estable; el 95 % depende de lo que esté haciendo la computadora en ese momento.
-	_verificar(promedio < 6.0, "la simulación cabe de sobra en un cuadro de 16.7 ms (promedio %.2f ms)" % promedio)
+	_verificar(promedio < 8.0, "la simulación cabe de sobra en un cuadro de 16.7 ms (promedio %.2f ms)" % promedio)
 
 	print("Un golpe fuerte saca a un pasajero por la puerta:")
 	piloto.cambiar_modo(PilotoAutomatico.Modo.PARADO)

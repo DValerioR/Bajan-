@@ -1,11 +1,19 @@
 class_name Personaje
 extends Node3D
-## Figura visual de un personaje: carga el muñeco por piezas de modelos/personajes/<modelo>.scn
+## Figura visual de un personaje: carga el muñeco por piezas de modelos/personajes/<modelo>.glb
 ## y lo anima en código (sin esqueleto): caminar, sujetarse, cargar, tropezar y ladearse con
 ## los empujones. No tiene física; la lógica vive en CuerpoPersonaje y aquí solo se dibuja.
-## Origen entre los pies, mirando a -Z (DECISIONES.md, D33).
+## Origen entre los pies, mirando a -Z (DECISIONES.md, D33 y D34).
+##
+## El .glb se puede editar en Blender: basta con que conserve las 6 piezas con su nombre
+## (un sufijo como ".001" no importa) y el origen de cada una en su articulación. La estatura,
+## el cuello, la cadera y las manos se sacan de las piezas al cargar.
 
 const CARPETA := "res://modelos/personajes"
+const PIEZAS := ["Cabeza", "Torso", "BrazoIzquierdo", "BrazoDerecho", "PiernaIzquierda", "PiernaDerecha"]
+
+## Mallas con la normal suavizada para el contorno, ya calculadas (una por malla del modelo).
+static var _mallas_contorno: Dictionary = {}
 
 @export var modelo: String = "cobrador":
 	set(valor):
@@ -15,6 +23,7 @@ const CARPETA := "res://modelos/personajes"
 
 var altura: float = 1.7
 var altura_ojos: float = 1.55
+var ancho: float = 0.8
 ## Altura de la cadera (donde se unen las piernas): para sentarlo a la altura del asiento.
 var altura_cadera: float = 0.8
 ## Mano derecha en coordenadas de este nodo (para colocar lo que carga).
@@ -33,22 +42,102 @@ func _ready() -> void:
 func _cargar() -> void:
 	if _figura != null:
 		_figura.queue_free()
-	var escena := load(CARPETA.path_join(modelo + ".scn")) as PackedScene
+	var escena := load(CARPETA.path_join(modelo + ".glb")) as PackedScene
 	if escena == null:
 		push_error("No existe el personaje: " + modelo)
 		return
-	_figura = escena.instantiate()
+	# El .glb importado puede traer nodos de más (según cómo lo exporte Blender): se toman solo
+	# las 6 piezas, con su lugar relativo al modelo, y se cuelgan de una figura limpia.
+	var importado: Node3D = escena.instantiate()
+	_figura = Node3D.new()
+	_figura.name = "Figura"
 	add_child(_figura)
-	EstiloToon.aplicar(_figura)
-	altura = _figura.get_meta("altura", altura)
-	altura_ojos = _figura.get_meta("altura_ojos", altura_ojos)
 	_piezas.clear()
-	for pieza in _figura.get_children():
-		_piezas[pieza.name] = pieza
+	for nodo in importado.find_children("*", "MeshInstance3D", true, false):
+		var nombre := _nombre_de_pieza(String(nodo.name))
+		if nombre == "" or _piezas.has(nombre):
+			continue
+		var relativa := _relativa_a(nodo, importado)
+		nodo.owner = null
+		nodo.get_parent().remove_child(nodo)
+		nodo.name = nombre
+		nodo.transform = relativa
+		nodo.mesh = _malla_con_contorno(nodo.mesh)
+		_figura.add_child(nodo)
+		_piezas[nombre] = nodo
+	importado.free()
+	EstiloToon.aplicar(_figura)
+	_medir()
+
+
+## Estatura, ancho, cuello, cadera y mano, sacados de las piezas (respeta lo editado en Blender).
+func _medir() -> void:
+	var caja := AABB()
+	var primera := true
+	for pieza: MeshInstance3D in _piezas.values():
+		var suya := pieza.transform * pieza.get_aabb()
+		caja = suya if primera else caja.merge(suya)
+		primera = false
+	altura = caja.end.y
+	ancho = caja.size.x
+	var cuello := altura * 0.7
+	if _piezas.has("Cabeza"):
+		cuello = (_piezas["Cabeza"] as Node3D).position.y
+	altura_ojos = cuello + (altura - cuello) * 0.45
 	if _piezas.has("PiernaIzquierda"):
 		altura_cadera = (_piezas["PiernaIzquierda"] as Node3D).position.y
 	if _piezas.has("BrazoDerecho"):
-		mano_derecha = (_piezas["BrazoDerecho"] as Node3D).position + (_figura.get_meta("mano_derecha", Vector3.ZERO) as Vector3)
+		# La mano es la punta de abajo del brazo, que cuelga en la pose original.
+		var brazo: MeshInstance3D = _piezas["BrazoDerecho"]
+		var su_caja := brazo.get_aabb()
+		mano_derecha = brazo.transform * Vector3(su_caja.get_center().x, su_caja.position.y, su_caja.get_center().z)
+
+
+static func _nombre_de_pieza(nombre_nodo: String) -> String:
+	for pieza in PIEZAS:
+		if nombre_nodo == pieza or nombre_nodo.begins_with(pieza + ".") or nombre_nodo.begins_with(pieza + "_"):
+			return pieza
+	return ""
+
+
+static func _relativa_a(nodo: Node3D, raiz: Node3D) -> Transform3D:
+	var t := nodo.transform
+	var padre := nodo.get_parent()
+	while padre != null and padre != raiz:
+		if padre is Node3D:
+			t = (padre as Node3D).transform * t
+		padre = padre.get_parent()
+	return t
+
+
+## Copia de la malla con una normal suavizada (promedio de los vértices en la misma posición)
+## guardada en el color de vértice: la usa el contorno para no abrirse en las costuras de la
+## textura. Se calcula una vez por malla y no se guarda en el .glb.
+static func _malla_con_contorno(malla: Mesh) -> Mesh:
+	if malla == null or not malla is ArrayMesh:
+		return malla
+	var clave := malla.get_instance_id()
+	if _mallas_contorno.has(clave):
+		return _mallas_contorno[clave]
+	var nueva := ArrayMesh.new()
+	for s in malla.get_surface_count():
+		var arreglos := malla.surface_get_arrays(s)
+		var vertices: PackedVector3Array = arreglos[Mesh.ARRAY_VERTEX]
+		var normales: PackedVector3Array = arreglos[Mesh.ARRAY_NORMAL]
+		var suma := {}
+		for k in vertices.size():
+			var punto := Vector3i((vertices[k] * 2000.0).round())
+			suma[punto] = (suma.get(punto, Vector3.ZERO) as Vector3) + normales[k]
+		var suaves := PackedColorArray()
+		suaves.resize(vertices.size())
+		for k in vertices.size():
+			var n: Vector3 = (suma[Vector3i((vertices[k] * 2000.0).round())] as Vector3).normalized()
+			suaves[k] = Color(n.x * 0.5 + 0.5, n.y * 0.5 + 0.5, n.z * 0.5 + 0.5)
+		arreglos[Mesh.ARRAY_COLOR] = suaves
+		nueva.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arreglos)
+		nueva.surface_set_material(s, malla.surface_get_material(s))
+	_mallas_contorno[clave] = nueva
+	return nueva
 
 
 ## Cada pieza con su malla y su transformación relativa a este nodo, en la pose actual

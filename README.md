@@ -22,7 +22,7 @@ Si se cambia de versión de Godot, hay que actualizar la ruta en los tres `.bat`
 | `ejecutar.bat` | Abre el proyecto en el editor de Godot. |
 | `jugar.bat` | Lanza el juego directamente (la primera vez importa los recursos). |
 | `pruebas.bat` | Corre las pruebas automáticas sin ventana. Sale con código 0 si todo pasa. |
-| `procesar_personajes.bat` | Convierte los modelos originales de `modelos/fuentes/` (no están en git) en personajes de muñeco por piezas en `modelos/personajes/`. Solo hace falta si cambian los modelos o `modelos/personajes.cfg`. |
+| `procesar_personajes.bat` | Convierte los modelos originales de `modelos/fuentes/` (no están en git) en personajes de muñeco por piezas: `modelos/personajes/<nombre>.glb`. No toca los `.glb` que ya existen; `procesar_personajes.bat --forzar [nombre]` los regenera. |
 
 Herramientas de desarrollo (se abren desde el editor o con Godot por línea de comandos; no son pruebas automáticas):
 
@@ -51,6 +51,17 @@ Herramientas de desarrollo (se abren desde el editor o con Godot por línea de c
 | `traducciones/` | `textos.csv` con todas las cadenas visibles en español (`es`) e inglés (`en`). |
 | `pruebas/` | Escenas de prueba automática que corre `pruebas.bat`. |
 | `herramientas/` | Ejecutables de Godot (ignorados por git y por Godot). |
+
+## Editar personajes en Blender
+
+Cada personaje es `modelos/personajes/<nombre>.glb`, con 6 objetos: `Cabeza`, `Torso`, `BrazoIzquierdo`, `BrazoDerecho`, `PiernaIzquierda` y `PiernaDerecha`. El origen de cada uno está en su articulación (cuello, cadera, hombros); es el punto sobre el que gira.
+
+1. En Blender: **Archivo → Importar → glTF 2.0**, y abre el `.glb`.
+2. Edita lo que quieras (forma, textura, proporciones). Conserva los **nombres** de los 6 objetos; un sufijo como `.001` no importa. Si mueves una articulación, mueve también el **origen** del objeto.
+3. **Archivo → Exportar → glTF 2.0**, formato **glTF Binary (.glb)**, con "+Y Up" activado (viene así por defecto), encima del mismo archivo.
+4. Al abrir Godot, se reimporta solo. La estatura, el cuello, la cadera y las manos se recalculan con las piezas.
+
+No corras `procesar_personajes.bat --forzar` con ese personaje, o regresa a la versión original.
 
 ## Reglas rápidas
 

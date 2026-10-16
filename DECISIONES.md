@@ -270,7 +270,11 @@ Aquí se agregan las decisiones que se tomen durante el desarrollo: la elección
     5. Guarda en el color de vértice una normal suavizada para el contorno.
   - **Escala:** 3.8 m por unidad de Tripo, lo que da alturas de 1.15 m (abuelita) a 1.98 m (fresa). El origen va entre los pies y el frente mira a −Z. Cada escena guarda en metadatos `altura`, `altura_ojos`, `ancho` y la posición de cada mano relativa a su brazo.
   - **Roles:** los 4 de arriba de Modelos1, de izquierda a derecha, son chofer, cobrador, voceador y vendedora. Los otros 12 son pasajeros.
-  - **Archivos:** los originales quedan en `modelos/fuentes/`, ignorados por git y por Godot; el dueño los respalda por su cuenta. Al repositorio solo suben los procesados (`modelos/personajes/`, ~4.6 MB en total).
+  - **Archivos:** los originales quedan en `modelos/fuentes/`, ignorados por git y por Godot; el dueño los respalda por su cuenta. Al repositorio solo suben los procesados (`modelos/personajes/`, ~9 MB en total).
+  - **Formato editable en Blender** (decidido con el dueño después): cada personaje es un `.glb` (`modelos/personajes/<nombre>.glb`) con sus 6 piezas como objetos separados, con el origen en su articulación, y su propia textura recortada de la hoja original y guardada adentro (JPEG, 1024 px como máximo).
+    - **Manda la versión editada:** `procesar_personajes.bat` solo crea los `.glb` que no existen; `--forzar [nombre]` los regenera.
+    - **Sin datos aparte:** el juego no guarda medidas aparte; saca la estatura, el cuello, la cadera y la mano de las piezas al cargar, así que respeta lo que se cambie en Blender.
+    - **Contorno:** la normal suavizada del contorno se calcula al cargar (una vez por malla) y no va en el archivo, para que en Blender no aparezcan colores de vértice raros.
   - **Pendiente para la etapa 7:** las piezas no tienen tapas en los cortes. Al doblarse mucho se ve el hueco, igual que en un muñeco articulado. Si al desprenderlas se ve mal, se agregan tapas.
 - *Secciones:* 3, 8.
 

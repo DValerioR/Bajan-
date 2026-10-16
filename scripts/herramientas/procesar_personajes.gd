@@ -1,7 +1,10 @@
 extends SceneTree
 ## Herramienta: convierte las hojas de personajes de Tripo (modelos/fuentes/*.glb) en
-## personajes de muñeco por piezas, listos para el juego (modelos/personajes/*.scn).
-## Uso: procesar_personajes.bat (o Godot --headless --path . --script res://scripts/herramientas/procesar_personajes.gd)
+## personajes de muñeco por piezas, uno por archivo: modelos/personajes/<nombre>.glb.
+## Uso: procesar_personajes.bat [--forzar [nombre ...]]
+##
+## Los .glb que ya existen NO se tocan: así se respetan los que se editen en Blender.
+## Para regenerar uno, bórralo o usa --forzar con su nombre (--forzar solo = todos).
 ##
 ## Por cada personaje:
 ##   1. Lo separa de la hoja (cada personaje es una malla cerrada al soldar las costuras).
@@ -9,6 +12,7 @@ extends SceneTree
 ##   3. Estima su esqueleto desde la forma: cuello, axilas, hombros, manos, entrepierna, caderas y pies.
 ##   4. Lo corta en Cabeza, Torso, Brazos y Piernas, asignando cada triángulo al hueso más cercano.
 ##   5. Reduce cada pieza y la guarda con el origen en su articulación.
+##   6. Recorta su parte de la textura de la hoja y la guarda dentro de su .glb.
 
 const CONFIG := "res://modelos/personajes.cfg"
 const SALIDA := "res://modelos/personajes"
@@ -28,6 +32,8 @@ var _triangulos_objetivo := 6000
 var _tamano_textura := 2048
 var _resumen: Array[String] = []
 var _cfg: ConfigFile
+## Nombres a regenerar aunque ya existan; "*" = todos.
+var _forzar: Array = []
 
 
 func _init() -> void:
@@ -41,6 +47,11 @@ func _init() -> void:
 	_tamano_textura = cfg.get_value("general", "tamano_textura", _tamano_textura)
 	DirAccess.make_dir_recursive_absolute(SALIDA)
 	_cfg = cfg
+	var argumentos := OS.get_cmdline_user_args()
+	if argumentos.has("--forzar"):
+		_forzar = argumentos.slice(argumentos.find("--forzar") + 1)
+		if _forzar.is_empty():
+			_forzar = ["*"]
 	for hoja in cfg.get_sections():
 		if not cfg.has_section_key(hoja, "archivo"):
 			continue
@@ -63,13 +74,10 @@ func _procesar_hoja(hoja: String, archivo: String, nombres: Array) -> void:
 	var arreglos := malla_original.mesh.surface_get_arrays(0)
 	var material := malla_original.get_active_material(0) as BaseMaterial3D
 
-	# Textura de color reducida, compartida por todos los personajes de la hoja.
-	var textura_ruta := SALIDA.path_join(hoja.to_lower() + "_color.jpg")
+	# Textura de la hoja a resolución completa; cada personaje recorta su parte.
 	var imagen := material.albedo_texture.get_image()
 	if imagen.is_compressed():
 		imagen.decompress()
-	imagen.resize(_tamano_textura, _tamano_textura, Image.INTERPOLATE_LANCZOS)
-	imagen.save_jpg(ProjectSettings.globalize_path(textura_ruta), 0.9)
 
 	var vertices: PackedVector3Array = arreglos[Mesh.ARRAY_VERTEX]
 	var normales: PackedVector3Array = arreglos[Mesh.ARRAY_NORMAL]
@@ -93,7 +101,7 @@ func _procesar_hoja(hoja: String, archivo: String, nombres: Array) -> void:
 		return a.minimo.x < b.minimo.x)
 
 	for k in componentes.size():
-		_procesar_personaje(nombres[k], componentes[k], vertices, normales, uvs, indices, textura_ruta)
+		_procesar_personaje(nombres[k], componentes[k], vertices, normales, uvs, indices, imagen)
 
 
 ## Agrupa los triángulos en personajes: soldando vértices por posición, cada personaje es una pieza.
@@ -128,15 +136,29 @@ func _separar(vertices: PackedVector3Array, indices: PackedInt32Array) -> Array:
 	return grupos.values()
 
 
-## Textura que se guarda como referencia al archivo .jpg (Godot lo importa al abrir el proyecto).
-var _texturas := {}
-func _textura(ruta: String) -> Texture2D:
-	if not _texturas.has(ruta):
-		var imagen := Image.load_from_file(ProjectSettings.globalize_path(ruta))
-		var textura := ImageTexture.create_from_image(imagen)
-		textura.take_over_path(ruta)
-		_texturas[ruta] = textura
-	return _texturas[ruta]
+## Recorta de la hoja la zona de la textura que usa el personaje y le ajusta las coordenadas UV.
+## Si sus partes están regadas por toda la hoja, se queda con la hoja completa (reducida).
+## Devuelve [textura, uvs ajustadas] (los arreglos empacados se pasan por valor).
+func _recortar_textura(hoja: Image, uvs: PackedVector2Array) -> Array:
+	var minimo := Vector2.INF
+	var maximo := -Vector2.INF
+	for uv in uvs:
+		minimo = minimo.min(uv)
+		maximo = maximo.max(uv)
+	var margen := Vector2.ONE * (8.0 / hoja.get_width())
+	minimo = (minimo - margen).clamp(Vector2.ZERO, Vector2.ONE)
+	maximo = (maximo + margen).clamp(Vector2.ZERO, Vector2.ONE)
+	var tamano := Vector2(hoja.get_size())
+	var region := Rect2i(Vector2i((minimo * tamano).floor()), Vector2i(((maximo - minimo) * tamano).ceil()))
+	var recorte := hoja.get_region(region)
+	var escala := minf(1.0, float(_tamano_textura) / maxf(region.size.x, region.size.y))
+	if escala < 1.0:
+		recorte.resize(maxi(1, roundi(region.size.x * escala)), maxi(1, roundi(region.size.y * escala)), Image.INTERPOLATE_LANCZOS)
+	var real_min := Vector2(region.position) / tamano
+	var real_tamano := Vector2(region.size) / tamano
+	for i in uvs.size():
+		uvs[i] = (uvs[i] - real_min) / real_tamano
+	return [ImageTexture.create_from_image(recorte), uvs]
 
 
 func _raiz(padre: PackedInt32Array, i: int) -> int:
@@ -146,7 +168,11 @@ func _raiz(padre: PackedInt32Array, i: int) -> int:
 	return i
 
 
-func _procesar_personaje(nombre: String, componente: Dictionary, vertices: PackedVector3Array, normales: PackedVector3Array, uvs: PackedVector2Array, indices: PackedInt32Array, textura_ruta: String) -> void:
+func _procesar_personaje(nombre: String, componente: Dictionary, vertices: PackedVector3Array, normales: PackedVector3Array, uvs: PackedVector2Array, indices: PackedInt32Array, hoja: Image) -> void:
+	var ruta := SALIDA.path_join(nombre + ".glb")
+	if FileAccess.file_exists(ruta) and not ("*" in _forzar or nombre in _forzar):
+		_resumen.append("  %-16s ya existe: se respeta (usa --forzar %s para regenerarlo)" % [nombre, nombre])
+		return
 	var minimo: Vector3 = componente.minimo
 	var maximo: Vector3 = componente.maximo
 	var centro := Vector3((minimo.x + maximo.x) * 0.5, minimo.y, (minimo.z + maximo.z) * 0.5)
@@ -179,9 +205,12 @@ func _procesar_personaje(nombre: String, componente: Dictionary, vertices: Packe
 	_limpiar_islas(locales, triangulos, etiquetas)
 
 	var raiz := Node3D.new()
-	raiz.name = "Personaje_" + nombre
+	raiz.name = nombre
 	var material := StandardMaterial3D.new()
-	material.albedo_texture = _textura(textura_ruta)
+	material.resource_name = nombre
+	var recorte := _recortar_textura(hoja, uvs_locales)
+	material.albedo_texture = recorte[0]
+	uvs_locales = recorte[1]
 	var total_triangulos := triangulos.size() / 3
 	var triangulos_finales := 0
 	var conteo_piezas: Array[int] = []
@@ -202,17 +231,15 @@ func _procesar_personaje(nombre: String, componente: Dictionary, vertices: Packe
 		raiz.add_child(nodo)
 		nodo.owner = raiz
 
-	# Datos que usa el juego: alturas y puntos de agarre (manos), relativos a cada brazo.
-	raiz.set_meta("altura", esqueleto.altura)
-	raiz.set_meta("altura_ojos", esqueleto.altura_ojos)
-	raiz.set_meta("ancho", esqueleto.ancho)
-	raiz.set_meta("mano_izquierda", esqueleto.mano_izq - esqueleto.pivotes[BRAZO_IZQ])
-	raiz.set_meta("mano_derecha", esqueleto.mano_der - esqueleto.pivotes[BRAZO_DER])
-
-	var paquete := PackedScene.new()
-	paquete.pack(raiz)
-	var ruta := SALIDA.path_join(nombre + ".scn")
-	ResourceSaver.save(paquete, ruta)
+	# Un .glb por personaje, con la textura adentro. El juego saca alturas y manos de las piezas.
+	var documento := GLTFDocument.new()
+	documento.image_format = "JPEG"
+	documento.lossy_quality = 0.88
+	var estado := GLTFState.new()
+	documento.append_from_scene(raiz, estado)
+	var error := documento.write_to_filesystem(estado, ProjectSettings.globalize_path(ruta))
+	if error != OK:
+		printerr("No se pudo guardar ", ruta, " (error ", error, ")")
 	raiz.free()
 	_resumen.append("  %-16s altura %.2f m | %6d → %5d triángulos | piezas %s" % [nombre, esqueleto.altura, total_triangulos, triangulos_finales, str(conteo_piezas)])
 	print("  ", nombre, " listo")
@@ -578,19 +605,8 @@ func _construir_pieza(pieza: int, etiquetas: PackedByteArray, triangulos: Packed
 			n2.append(nn[i])
 			uv2.append(uu[i])
 		idx2.append(usado[i])
-	# Normal suave para el contorno (promedio de los vértices en la misma posición), guardada en COLOR:
-	# así el contorno no se abre en las costuras de la textura.
-	var suma := {}
-	for k in v2.size():
-		var clave := Vector3i((v2[k] * 2000.0).round())
-		suma[clave] = (suma.get(clave, Vector3.ZERO) as Vector3) + n2[k]
-	var suaves := PackedColorArray()
-	for k in v2.size():
-		var s: Vector3 = (suma[Vector3i((v2[k] * 2000.0).round())] as Vector3).normalized()
-		suaves.append(Color(s.x * 0.5 + 0.5, s.y * 0.5 + 0.5, s.z * 0.5 + 0.5))
 	var final := []
 	final.resize(Mesh.ARRAY_MAX)
-	final[Mesh.ARRAY_COLOR] = suaves
 	final[Mesh.ARRAY_VERTEX] = v2
 	final[Mesh.ARRAY_NORMAL] = n2
 	final[Mesh.ARRAY_TEX_UV] = uv2

@@ -22,7 +22,7 @@ Al exportar el juego hay que incluir los avisos de licencia de Godot y de sus bi
 
 | Recurso | Uso | Fuente | Licencia | ¿IA? |
 |---|---|---|---|---|
-| Personajes (16): chofer, cobrador, voceador, vendedora, abuelita, galán, chavo de sudadera, fresa, albañil, señora, oficinista, luchador, abuelo vaquero, niño, punk, turista | `modelos/personajes/*.scn` y texturas `modelos1_color.jpg`, `modelos2_color.jpg` | Generados por el dueño del proyecto con Tripo AI (tripo3d.ai) en dos hojas (`Modelos1.glb`, `Modelos2.glb`, guardadas fuera del repositorio). Separados, cortados en piezas y reducidos con `procesar_personajes.bat` | Plan de pago de Tripo (uso comercial según los términos de Tripo vigentes al generarlos); revisar los términos antes de publicar (etapa 9) | Sí: modelos 3D y texturas generados con Tripo AI |
+| Personajes (16): chofer, cobrador, voceador, vendedora, abuelita, galán, chavo de sudadera, fresa, albañil, señora, oficinista, luchador, abuelo vaquero, niño, punk, turista | `modelos/personajes/*.glb` (cada uno con su textura adentro) | Generados por el dueño del proyecto con Tripo AI (tripo3d.ai) en dos hojas (`Modelos1.glb`, `Modelos2.glb`, guardadas fuera del repositorio). Separados, cortados en piezas y reducidos con `procesar_personajes.bat` | Plan de pago de Tripo (uso comercial según los términos de Tripo vigentes al generarlos); revisar los términos antes de publicar (etapa 9) | Sí: modelos 3D y texturas generados con Tripo AI |
 | Camión, calle, edificios y objetos de prueba | Escenas del juego | Formas básicas armadas en el proyecto | Propiedad del proyecto | No |
 
 ## Música y efectos de sonido
