@@ -34,6 +34,8 @@ var _resumen: Array[String] = []
 var _cfg: ConfigFile
 ## Nombres a regenerar aunque ya existan; "*" = todos.
 var _forzar: Array = []
+## Estatura en metros de los personajes de la hoja actual (0 = usar la escala).
+var _altura_objetivo := 0.0
 
 
 func _init() -> void:
@@ -52,9 +54,17 @@ func _init() -> void:
 		_forzar = argumentos.slice(argumentos.find("--forzar") + 1)
 		if _forzar.is_empty():
 			_forzar = ["*"]
+	var escala_general := _escala
+	var textura_general := _tamano_textura
+	var triangulos_general := _triangulos_objetivo
 	for hoja in cfg.get_sections():
 		if not cfg.has_section_key(hoja, "archivo"):
 			continue
+		# Cada hoja puede traer su propia escala, estatura objetivo y textura.
+		_escala = cfg.get_value(hoja, "escala", escala_general)
+		_altura_objetivo = cfg.get_value(hoja, "altura", 0.0)
+		_tamano_textura = cfg.get_value(hoja, "tamano_textura", textura_general)
+		_triangulos_objetivo = cfg.get_value(hoja, "triangulos_por_personaje", triangulos_general)
 		_procesar_hoja(hoja, cfg.get_value(hoja, "archivo"), cfg.get_value(hoja, "nombres"))
 	print("\nResumen:")
 	for linea in _resumen:
@@ -84,7 +94,8 @@ func _procesar_hoja(hoja: String, archivo: String, nombres: Array) -> void:
 	var uvs: PackedVector2Array = arreglos[Mesh.ARRAY_TEX_UV]
 	var indices: PackedInt32Array = arreglos[Mesh.ARRAY_INDEX]
 
-	var componentes := _separar(vertices, indices)
+	# Una hoja de un solo personaje se toma completa (ojos, botones y demás pedazos sueltos incluidos).
+	var componentes := _separar(vertices, indices) if nombres.size() > 1 else [_todo(vertices, indices)]
 	if componentes.size() != nombres.size():
 		printerr("La hoja %s tiene %d personajes pero personajes.cfg nombra %d." % [hoja, componentes.size(), nombres.size()])
 		return
@@ -101,7 +112,17 @@ func _procesar_hoja(hoja: String, archivo: String, nombres: Array) -> void:
 		return a.minimo.x < b.minimo.x)
 
 	for k in componentes.size():
-		_procesar_personaje(nombres[k], componentes[k], vertices, normales, uvs, indices, imagen)
+		# Un nombre vacío salta a ese personaje (por ejemplo, si ya se reemplazó con otro modelo).
+		if nombres[k] != "":
+			_procesar_personaje(nombres[k], componentes[k], vertices, normales, uvs, indices, imagen)
+
+
+func _todo(vertices: PackedVector3Array, indices: PackedInt32Array) -> Dictionary:
+	var g := {"triangulos": PackedInt32Array(range(0, indices.size(), 3)), "minimo": Vector3.INF, "maximo": -Vector3.INF}
+	for i in indices:
+		g.minimo = (g.minimo as Vector3).min(vertices[i])
+		g.maximo = (g.maximo as Vector3).max(vertices[i])
+	return g
 
 
 ## Agrupa los triángulos en personajes: soldando vértices por posición, cada personaje es una pieza.
@@ -176,9 +197,10 @@ func _procesar_personaje(nombre: String, componente: Dictionary, vertices: Packe
 	var minimo: Vector3 = componente.minimo
 	var maximo: Vector3 = componente.maximo
 	var centro := Vector3((minimo.x + maximo.x) * 0.5, minimo.y, (minimo.z + maximo.z) * 0.5)
+	var escala := _escala if _altura_objetivo <= 0.0 else _altura_objetivo / (maximo.y - minimo.y)
 	# Del modelo original (mira hacia +Z) a coordenadas del juego: metros, pies en y = 0, mirando a -Z.
 	var a_local := func(v: Vector3) -> Vector3:
-		var d := (v - centro) * _escala
+		var d := (v - centro) * escala
 		return Vector3(-d.x, d.y, -d.z)
 
 	# Vértices usados por este personaje, ya en coordenadas locales.
@@ -216,7 +238,10 @@ func _procesar_personaje(nombre: String, componente: Dictionary, vertices: Packe
 	var conteo_piezas: Array[int] = []
 	for p in PIEZAS.size():
 		var pivote: Vector3 = esqueleto.pivotes[p]
-		var malla := _construir_pieza(p, etiquetas, triangulos, locales, normales_locales, uvs_locales, pivote, total_triangulos)
+		var giro := Basis()
+		if esqueleto.has("brazos_caidos") and (p == BRAZO_IZQ or p == BRAZO_DER):
+			giro = _bajar_brazo(pivote, esqueleto.mano_izq if p == BRAZO_IZQ else esqueleto.mano_der, esqueleto.brazos_caidos)
+		var malla := _construir_pieza(p, etiquetas, triangulos, locales, normales_locales, uvs_locales, pivote, total_triangulos, giro)
 		var nodo := MeshInstance3D.new()
 		nodo.name = PIEZAS[p]
 		nodo.position = pivote
@@ -403,6 +428,19 @@ func _aplicar_medidas(e: Dictionary, nombre: String) -> void:
 	e.pivotes[BRAZO_DER] = Vector3(hombro_x, hombro_y, 0.0)
 	e.pivotes[PIERNA_IZQ] = Vector3(-cadera_x, entrepierna, 0.0)
 	e.pivotes[PIERNA_DER] = Vector3(cadera_x, entrepierna, 0.0)
+	# Modelos en pose T: los brazos se cortan extendidos y se bajan (grados desde la vertical).
+	if _cfg.has_section_key(nombre, "brazos_caidos"):
+		e.brazos_caidos = float(_cfg.get_value(nombre, "brazos_caidos"))
+		e.hombro_x = hombro_x
+
+
+## Giro (sobre Z, alrededor del hombro) que deja colgando un brazo extendido, abierto
+## `grados` desde la vertical: la animación da por hecho que los brazos cuelgan en reposo.
+func _bajar_brazo(hombro: Vector3, mano: Vector3, grados: float) -> Basis:
+	var actual := Vector2(mano.x - hombro.x, mano.y - hombro.y)
+	var lado := signf(mano.x)
+	var objetivo := Vector2(lado * sin(deg_to_rad(grados)), -cos(deg_to_rad(grados)))
+	return Basis(Vector3.BACK, actual.angle_to(objetivo))
 
 
 func _tramo_central(lista: Array) -> Vector2:
@@ -458,7 +496,8 @@ func _etiquetar(puntos: PackedVector3Array, triangulos: PackedInt32Array, e: Dic
 	for t in range(0, triangulos.size(), 3):
 		var c := (puntos[triangulos[t]] + puntos[triangulos[t + 1]] + puntos[triangulos[t + 2]]) / 3.0
 		var etiqueta := TORSO
-		if c.y > cuello:
+		# En pose T, lo que queda arriba del cuello pero lejos del centro es la mano (el pulgar), no la cabeza.
+		if c.y > cuello and not (e.has("brazos_caidos") and absf(c.x) > float(e.hombro_x)):
 			etiqueta = CABEZA
 		else:
 			var p := Vector2(c.x, c.y)
@@ -472,8 +511,13 @@ func _etiquetar(puntos: PackedVector3Array, triangulos: PackedInt32Array, e: Dic
 				# Las piernas no se quedan con lo que está lejos de su columna (manos que cuelgan al lado).
 				if (pieza == PIERNA_IZQ or pieza == PIERNA_DER) and absf(c.x - (h[2] as Vector2).x) > altura * 0.13:
 					continue
-				if (pieza == BRAZO_IZQ or pieza == BRAZO_DER) and c.y > hombro_tope:
-					continue
+				if pieza == BRAZO_IZQ or pieza == BRAZO_DER:
+					if e.has("brazos_caidos"):
+						# En pose T el brazo empieza en el hombro: lo que queda adentro es pecho o espalda.
+						if absf(c.x) < float(e.hombro_x) - altura * 0.01:
+							continue
+					elif c.y > hombro_tope:
+						continue
 				var d := _distancia_segmento(p, h[1], h[2]) / float(h[3])
 				if d < mejor:
 					mejor = d
@@ -552,7 +596,7 @@ func _distancia_segmento(p: Vector2, a: Vector2, b: Vector2) -> float:
 
 
 ## Arma la malla de una pieza, la reduce y la deja con el origen en su articulación.
-func _construir_pieza(pieza: int, etiquetas: PackedByteArray, triangulos: PackedInt32Array, puntos: PackedVector3Array, normales: PackedVector3Array, uvs: PackedVector2Array, pivote: Vector3, total_triangulos: int) -> ArrayMesh:
+func _construir_pieza(pieza: int, etiquetas: PackedByteArray, triangulos: PackedInt32Array, puntos: PackedVector3Array, normales: PackedVector3Array, uvs: PackedVector2Array, pivote: Vector3, total_triangulos: int, giro: Basis = Basis()) -> ArrayMesh:
 	var mapa := {}
 	var v := PackedVector3Array()
 	var n := PackedVector3Array()
@@ -565,8 +609,8 @@ func _construir_pieza(pieza: int, etiquetas: PackedByteArray, triangulos: Packed
 			var i := triangulos[t * 3 + j]
 			if not mapa.has(i):
 				mapa[i] = v.size()
-				v.append(puntos[i] - pivote)
-				n.append(normales[i])
+				v.append(giro * (puntos[i] - pivote))
+				n.append(giro * normales[i])
 				uv.append(uvs[i])
 			idx.append(mapa[i])
 	if idx.is_empty():
@@ -577,6 +621,11 @@ func _construir_pieza(pieza: int, etiquetas: PackedByteArray, triangulos: Packed
 	arreglos[Mesh.ARRAY_NORMAL] = n
 	arreglos[Mesh.ARRAY_TEX_UV] = uv
 	arreglos[Mesh.ARRAY_INDEX] = idx
+	if _triangulos_objetivo <= 0:
+		var completa := ArrayMesh.new()
+		completa.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arreglos)
+		completa.resource_name = PIEZAS[pieza]
+		return completa
 
 	# Reducción con los niveles de detalle (LOD) de Godot: se toma el nivel más cercano al objetivo.
 	var objetivo := maxi(60, roundi(float(_triangulos_objetivo) * (idx.size() / 3) / total_triangulos))
