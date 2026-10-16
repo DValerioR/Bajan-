@@ -8,7 +8,7 @@ const ESCENA := "res://escenas/ruta/ruta.tscn"
 const Ruta := preload("res://escenas/ruta/ruta.gd")
 ## Segundos de juego entre capturas y cuántas tomar como máximo.
 const CADA := 12.0
-const MAXIMO := 14
+const MAXIMO := 30
 
 var _carpeta: String = "user://capturas_ruta"
 var _escena: Node
@@ -27,6 +27,12 @@ func _ready() -> void:
 	_escena.get_node("EntradaJugador").queue_free()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	Engine.time_scale = 3.0
+	var gestor: GestorEventos = _escena.eventos
+	for evento in gestor.eventos:
+		print("Plan: %s en %.0f m (tramo %d)" % [evento.tipo, evento.inicio, evento.tramo])
+	gestor.empezo.connect(func(e): print("[%.0f s] empieza %s" % [Time.get_ticks_msec() * Engine.time_scale / 1000.0, e.tipo]))
+	gestor.termino.connect(func(e): print("[%.0f s] termina %s" % [Time.get_ticks_msec() * Engine.time_scale / 1000.0, e.tipo]))
+	_escena.piloto.se_atoro.connect(func(n): print("  se atoró (intento %d)" % n))
 	_camara = Camera3D.new()
 	_camara.fov = 60.0
 	_camara.far = 800.0
@@ -40,6 +46,11 @@ func _ready() -> void:
 	_camara.global_position = caja.get_center() + Vector3(0.0, maxf(caja.size.x, caja.size.z) * 0.9, caja.size.z * 0.3)
 	_camara.look_at(caja.get_center())
 	await _capturar("00_aerea")
+	# El chofer sentado al volante, visto desde afuera del parabrisas.
+	var camion: Camion = _escena.camion
+	_camara.global_position = camion.global_transform * Vector3(-0.3, 1.9, -6.0)
+	_camara.look_at(camion.global_transform * Vector3(-0.6, 1.0, -2.7))
+	await _capturar("00_chofer")
 
 	for k in MAXIMO:
 		var inicio := Time.get_ticks_msec()

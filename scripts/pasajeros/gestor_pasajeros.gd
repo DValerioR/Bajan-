@@ -68,6 +68,8 @@ class Pasajero:
 	var tiempo: float = 0.0
 	var pagado: bool = false
 	var marca: Label3D
+	## Al alejarse: a dónde camina (INF = lejos de la puerta del camión).
+	var ir_a := Vector3.INF
 
 
 func _ready() -> void:
@@ -222,6 +224,24 @@ func _aparecer_en_parada(k: int) -> void:
 	cuerpo.atravesar_personajes(true)
 	ragdolls.vigilar(cuerpo)
 	pasajeros.append(p)
+
+
+## Los que esperan en la parada k se van con otro camión (el rival de la carrerita): caminan
+## hacia `hacia` y desaparecen. Devuelve cuántos se fueron.
+func llevarse_esperando(k: int, hacia: Vector3) -> int:
+	var cuantos := 0
+	for p in pasajeros:
+		if p.estado == Estado.ESPERANDO and p.origen == k:
+			p.estado = Estado.ALEJANDOSE
+			p.ir_a = hacia
+			p.tiempo = 0.0
+			cuantos += 1
+	return cuantos
+
+
+## Pasajeros a bordo que todavía no pagan (para el inspector).
+func sin_pagar_a_bordo() -> int:
+	return pasajeros.filter(func(p): return _a_bordo(p) and not p.pagado).size()
 
 
 ## Quita a todos los pasajeros (para pruebas que necesitan el camión vacío).
@@ -454,7 +474,7 @@ func _bajar(p: Pasajero) -> void:
 
 func _alejarse(p: Pasajero) -> void:
 	var camion := interior.camion
-	var lejos := camion.global_transform * (PUERTA_AFUERA + Vector3(4.0, 0.0, 0.0))
+	var lejos := camion.global_transform * (PUERTA_AFUERA + Vector3(4.0, 0.0, 0.0)) if p.ir_a == Vector3.INF else p.ir_a
 	_caminar_hacia(p, lejos, 0.8, false)
 	if p.tiempo > float(_cfg.get_value("pasajeros", "tiempo_para_desaparecer", 4.0)):
 		_desaparecer(p)

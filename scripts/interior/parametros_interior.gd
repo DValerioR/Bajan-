@@ -38,6 +38,9 @@ var exageracion_objetos := 1.3
 var espera_parada := 8.0
 var espera_extra_parada := 8.0
 var frenado_parada := 3.0
+var sobrepaso_parada := 1.5
+var curvas_abiertas := 0.8
+var frenado_obstaculo := 5.0
 var piloto := {
 	"tranquilo": [30.0, 3.0, 0.0],
 	"normal": [45.0, 4.5, 9.0],
@@ -82,6 +85,9 @@ static func cargar() -> ParametrosInterior:
 	p.espera_parada = c.get_value("piloto", "espera_parada", p.espera_parada)
 	p.frenado_parada = c.get_value("piloto", "frenado_parada", p.frenado_parada)
 	p.espera_extra_parada = c.get_value("piloto", "espera_extra_parada", p.espera_extra_parada)
+	p.sobrepaso_parada = c.get_value("piloto", "sobrepaso_parada", p.sobrepaso_parada)
+	p.curvas_abiertas = c.get_value("piloto", "curvas_abiertas", p.curvas_abiertas)
+	p.frenado_obstaculo = c.get_value("piloto", "frenado_obstaculo", p.frenado_obstaculo)
 	for modo in p.piloto:
 		p.piloto[modo] = c.get_value("piloto", modo, p.piloto[modo])
 	return p

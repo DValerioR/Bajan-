@@ -330,7 +330,7 @@ Aquí se agregan las decisiones que se tomen durante el desarrollo: la elección
 
 **D39. Rol del jugador y morral del cobrador** (15/10/2026, etapa 4)
 - *Contexto:* la etapa 4 pide una ruta completa con cobro y cuota. Según D26, en esta etapa solo maneja el jugador, pero para probar el cobro hace falta alguien cobrando mientras el camión anda.
-- *Decisión:* en la escena de ruta, el jugador es el **cobrador** y el piloto automático hace de chofer, como sustituto del bot chofer de la etapa 6A. Esto amplía D26: manejar como jugador sigue disponible en la calle de prueba. Pendiente de que el dueño lo confirme.
+- *Decisión:* en la escena de ruta, el jugador es el **cobrador** y el piloto automático hace de chofer, como sustituto del bot chofer de la etapa 6A. Esto amplía D26: manejar como jugador sigue disponible en la calle de prueba. El dueño lo confirmó.
   - **Cobro:** con F (mando B), le cobras al pasajero que tengas enfrente (`alcance` 1.6 m). Cada pasajero paga su pasaje una vez y queda marcado con "$". El que se baja sin pagar cuenta como dinero perdido.
   - **Morral (mecánica nueva, no viene en DISEÑO.md):** lo cobrado se guarda en el morral y se entrega al fondo en cada parada. Si tropiezas, se riega el 30 %; si caes como ragdoll, se riega todo, en monedas físicas de $2 (máximo 12). Se recogen caminando encima de ellas. Las que caen a la calle se pierden a los 3 s. Así el caos del camión le cuesta dinero al cobrador. Las monedas tienen fricción alta, no rebotan y no ruedan de canto: en la primera versión se salían rodando por la puerta y se perdía el 80 % de lo cobrado.
   - **Balance medido:** en la ruta de prueba, un cobrador que va sujeto y le cobra a todos junta unos $210 contra una cuota de $60. Es holgado a propósito, porque los eventos y rivales de la etapa 5 van a apretar; el balance fino se hace después.
@@ -355,3 +355,26 @@ Aquí se agregan las decisiones que se tomen durante el desarrollo: la elección
 - *Contexto:* el dueño cambió el modelo del chofer por uno suelto de Tripo, en pose T y con otra escala.
 - *Decisión:* `procesar_personajes` acepta hojas de un solo personaje con su propia estatura (`altura`), textura y número de triángulos. Un modelo en pose T (`brazos_caidos`) se corta con los brazos extendidos y luego se giran en el hombro, para que en reposo cuelguen como los demás (la animación lo da por hecho). El chofer nuevo mide 1.72 m y va sin reducir (10 044 triángulos), porque reducirlo manchaba la textura. Su original está en `modelos/fuentes/chofer.glb`.
 - *Secciones:* 3.
+
+**D42. Conductor de línea fija y chofer visible** (15/10/2026, etapa 5)
+- *Contexto:* la sección 7.3 pide un conductor de línea fija que maneje mal a propósito, que usen los rivales y después el bot chofer, y D23 pide que vaya sujeto al asiento sin poder salir volando.
+- *Decisión:* el `PilotoAutomatico` es ese conductor. Escribe en los mismos comandos que un jugador (acelerar, frenar, girar) y no esquiva nada.
+  - **Manejo malo:** se pasa hasta 1.5 m de la parada, abre las curvas cerradas hasta 0.8 m y mete frenazos, acelerones y volantazos según el modo (`config/interior.cfg`, sección `[piloto]`).
+  - **Eventos:** solo frena ante lo que el gestor de eventos le marca con `alto_en` (animales, valla, el rival de enfrente) y respeta un tope de velocidad temporal (el bache gigante). Puede ir por el carril izquierdo (`carril`) y más rápido (`factor_velocidad`); así rebasan los rivales.
+  - **Atorones:** si se estrella o se sube a la banqueta y no avanza en 3 s, se echa en reversa con el volante al revés. Si después de tres intentos sigue atorado, el camión vuelve a su carril, que es lo único que hace sin manejar. Pasa sobre todo con la calle mojada; sin esto, la ruta se quedaba trabada.
+  - **Chofer visible (D23):** `ChoferSentado` pone al chofer (el modelo nuevo) en el asiento, con las manos en el volante, que se mueven con la dirección. Es solo figura, sin cuerpo físico, así que nunca sale volando. Los rivales llevan otro igual.
+- *Secciones:* 7.1, 7.3, etapa 5.
+
+**D43. Eventos de caos** (15/10/2026, etapa 5)
+- *Contexto:* la etapa 5 pide eventos con aviso (topes, bache gigante, animales, bloqueo, lluvia, inspector), carreritas contra rivales y conducción variable. El criterio: al menos un evento memorable por parada, y cada uno se puede apagar para pruebas.
+- *Decisión:* `PlanEventos` decide con la semilla de la ruta qué pasa en cada tramo entre paradas: de 1 a 2 eventos, lejos de las paradas, y lluvia y prisa nunca en el mismo tramo (juntas, el chofer siempre se sale de la calle). `GestorEventos` los hace pasar: anuncio con letrero y pitido unos metros antes, inicio y fin. Todo está en `config/eventos.cfg`, con `activo` y `peso` por evento. Los 8 eventos:
+  - **Topes:** 4 topes seguidos. El chofer automático no reacciona, porque es un evento puramente físico.
+  - **Bache gigante:** 5 m en los dos carriles. El chofer automático frena solo y lo toma a 25 km/h (D3, efecto menor).
+  - **Animales:** una vaca y tres gallinas cruzan la calle. El chofer frena y espera a que pasen.
+  - **Bloqueo:** una valla de obra cierra la calle. El chofer se detiene, pita y a los 6 s la quitan (D3: se resuelve solo).
+  - **Lluvia:** 140 m de calle mojada, con el agarre de las llantas al 60 %, lluvia visible y el cielo nublado.
+  - **Inspector:** se anuncia al salir de la parada anterior, para que dé tiempo de cobrar. En la parada revisa y cobra una multa de $12 por cada pasajero a bordo sin pagar; la multa nunca deja el fondo en negativo.
+  - **Carrerita (rivales):** aparece la "Ruta 7" (naranja) atrás. El chofer se pone en modo loco y el rival, 20 % más rápido, rebasa por la izquierda. Si gana, se detiene en la siguiente parada y se lleva a la gente que esperaba; si llegamos primero, se sigue de largo. Al irse lejos, desaparece.
+  - **Prisa (conducción variable):** el chofer maneja en modo loco 120 m.
+- *Para las pruebas:* `Ruta.eventos_activos` fija qué tipos pueden salir; la prueba de la etapa 4 corre sin eventos.
+- *Secciones:* 7.1, 7.3, etapa 5.

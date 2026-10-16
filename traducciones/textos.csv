@@ -6,7 +6,7 @@ IDIOMA_ACTUAL,Idioma: Español,Language: English
 BOTON_CAMBIAR_IDIOMA,Cambiar idioma (L),Change language (L)
 BOTON_CALLE_PRUEBA,Manejar en la calle de prueba,Drive on the test street
 BOTON_INTERIOR,Caminar dentro del camión,Walk inside the bus
-PRUEBA_ETAPA,Menú de pruebas · Etapa 4,Test menu · Stage 4
+PRUEBA_ETAPA,Menú de pruebas · Etapa 5,Test menu · Stage 5
 LETRERO_RUTA,CENTRO · TIANGUIS,DOWNTOWN · MARKET
 HUD_VELOCIDAD,%d km/h,%d km/h
 AYUDA_TITULO,Controles,Controls
@@ -68,3 +68,21 @@ ZONA_POPULAR,Colonia El Tianguis,El Tianguis Neighborhood
 ZONA_CENTRO,Centro Histórico,Historic Downtown
 ZONA_LUJO,Lomas del Billete,Money Hills
 ZONA_CRUCE,Periférico Exprés,Ring Road Express
+EVENTO_TOPES,¡Aguas! Tope tras tope,Heads up! Speed bump after speed bump
+EVENTO_BACHE_GIGANTE,¡Bache gigante adelante!,Giant pothole ahead!
+EVENTO_ANIMALES,¡Animales cruzando!,Animals crossing!
+EVENTO_BLOQUEO,¡Calle cerrada por obra!,Road closed for repairs!
+EVENTO_LLUVIA,¡Se viene el aguacero! Calle mojada,Here comes the downpour! Wet road
+EVENTO_INSPECTOR,¡En la siguiente parada revisa el inspector! Cóbrale a todos,The inspector checks at the next stop! Charge everyone
+EVENTO_CARRERITA,¡Carrerita con la Ruta 7! Nos quiere ganar el pasaje,Race against Route 7! They want our passengers
+EVENTO_PRISA,¡El chofer trae prisa!,The driver is in a hurry!
+MSJ_BLOQUEO_FIN,¡Ya pásele! Quitaron la valla,Go ahead! They moved the barrier
+MSJ_LLUVIA_FIN,Ya escampó,The rain stopped
+MSJ_PRISA_FIN,El chofer se calmó,The driver calmed down
+MSJ_INSPECTOR_MULTA,"Inspector: %d sin boleto, multa de $%d","Inspector: %d without a ticket, $%d fine"
+MSJ_INSPECTOR_LIMPIO,Inspector: todos pagaron. ¡Bien!,Inspector: everyone paid. Nice!
+MSJ_RIVAL_SE_LLEVO,La Ruta 7 se llevó a %d pasajeros,Route 7 took %d passengers
+MSJ_RIVAL_GANAMOS,¡Le ganamos la parada a la Ruta 7!,We beat Route 7 to the stop!
+LETRERO_RIVAL,RUTA 7 · NO SE DETIENE,ROUTE 7 · NONSTOP
+LETRERO_INSPECTOR,INSPECTOR,INSPECTOR
+LETRERO_OBRA,OBRA · DISCULPE LAS MOLESTIAS,ROADWORK · SORRY FOR THE TROUBLE

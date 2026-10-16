@@ -31,6 +31,19 @@ static func claxon() -> AudioStreamWAV:
 	return _crear(muestras, true)
 
 
+## Dos pitidos cortos y agudos para anunciar un evento (no se repite).
+static func aviso() -> AudioStreamWAV:
+	var duracion := 0.42
+	var muestras := PackedFloat32Array()
+	muestras.resize(int(FRECUENCIA_MUESTREO * duracion))
+	for i in muestras.size():
+		var t := float(i) / FRECUENCIA_MUESTREO
+		var en_pitido := t < 0.16 or (t > 0.24 and t < 0.4)
+		var tono := 880.0 if t < 0.2 else 1175.0
+		muestras[i] = (0.35 * sin(TAU * tono * t) + 0.12 * sin(TAU * tono * 2.0 * t)) if en_pitido else 0.0
+	return _crear(muestras, false)
+
+
 static func _crear(muestras: PackedFloat32Array, en_bucle: bool) -> AudioStreamWAV:
 	var datos := PackedByteArray()
 	datos.resize(muestras.size() * 2)

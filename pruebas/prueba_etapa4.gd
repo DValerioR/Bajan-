@@ -177,6 +177,8 @@ func _se_cruza(segmentos: Array) -> bool:
 func _abrir_ruta(semilla: int) -> Node:
 	Juego.en_partida = false
 	Ruta.semilla_forzada = semilla
+	# La etapa 4 mide el cobro y la cuota sin eventos de caos (esos los prueba la etapa 5).
+	Ruta.eventos_activos = []
 	var escena: Node = load(ESCENA).instantiate()
 	add_child(escena)
 	await get_tree().physics_frame

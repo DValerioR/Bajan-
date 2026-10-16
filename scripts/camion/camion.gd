@@ -20,6 +20,11 @@ var ruedas_en_suelo: int = 0
 ## Aceleración en ejes del camión (m/s²), sin gravedad. La usa el balanceo visual.
 var aceleracion_local := Vector3.ZERO
 
+## Agarre de las llantas respecto al normal (la calle mojada lo baja; etapa 5).
+var factor_agarre: float = 1.0
+## Los camiones rivales no suenan: su motor taparía al propio.
+var con_sonido: bool = true
+
 var _ruedas: Array[Dictionary] = []
 var _velocidad_anterior := Vector3.ZERO
 var _angulo_llantas: float = 0.0
@@ -48,7 +53,8 @@ func _ready() -> void:
 	_claxon.stream = Sintetizador.claxon()
 	_aplicar_parametros()
 	Config.recargado.connect(_aplicar_parametros)
-	_motor.play()
+	if con_sonido:
+		_motor.play()
 
 
 func _aplicar_parametros() -> void:
@@ -140,8 +146,8 @@ func _physics_process(delta: float) -> void:
 		r.velocidad_giro = velocidad_longitudinal / p.radio_rueda
 
 		# Agarre lateral: quita el derrape hasta el límite que aguanta la llanta.
-		var agarre := p.lateral_delantero if r.delantera else p.lateral_trasero
-		var limite := fuerza_suspension * p.coeficiente_maximo
+		var agarre := (p.lateral_delantero if r.delantera else p.lateral_trasero) * factor_agarre
+		var limite := fuerza_suspension * p.coeficiente_maximo * factor_agarre
 		var fuerza_lateral := clampf(-velocidad_lateral * agarre * masa_rueda, -limite, limite)
 
 		# Motor (tracción trasera), reversa, frenos y rodado.

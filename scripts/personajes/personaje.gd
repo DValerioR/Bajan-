@@ -164,7 +164,7 @@ func ocultar_cabeza(ocultar: bool) -> void:
 
 
 ## Actualiza la pose. `velocidad` y `empujon` van en coordenadas de este nodo.
-func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, cargando: bool, tropezando: bool, en_el_aire: bool, sentado: bool = false) -> void:
+func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, cargando: bool, tropezando: bool, en_el_aire: bool, sentado: bool = false, manejando: bool = false) -> void:
 	if _piezas.is_empty():
 		return
 	var rapidez := Vector2(velocidad.x, velocidad.z).length()
@@ -200,6 +200,10 @@ func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, 
 		pierna_der = deg_to_rad(85.0)
 		brazo_izq = Vector3(deg_to_rad(35.0), 0.0, 0.0)
 		brazo_der = Vector3(deg_to_rad(35.0), 0.0, 0.0)
+	if manejando:
+		# Las dos manos al volante, que se mueve con la vuelta (empujon.x trae el volante).
+		brazo_izq = Vector3(deg_to_rad(70.0 + 12.0 * empujon.x), 0.0, deg_to_rad(12.0))
+		brazo_der = Vector3(deg_to_rad(70.0 - 12.0 * empujon.x), 0.0, deg_to_rad(-12.0))
 	if sujetado:
 		# Brazo derecho arriba, agarrado del pasamanos o del respaldo.
 		brazo_der = Vector3(deg_to_rad(160.0), 0.0, deg_to_rad(-10.0))

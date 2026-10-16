@@ -1,7 +1,8 @@
 extends Node3D
-## Una ruta completa (etapa 4): GeneradorRuta arma la calle por zonas, el chofer automático
-## maneja y se detiene en cada parada durante la ventana de parada, y el jugador es el cobrador
-## (D26). Al llegar a la terminal se cierra la ruta contra la cuota y se muestra el resultado.
+## Una ruta completa (etapas 4 y 5): GeneradorRuta arma la calle por zonas, el chofer automático
+## (sentado al volante, D23) maneja y se detiene en cada parada durante la ventana de parada, y el
+## jugador es el cobrador (D39). En el camino pasan los eventos de PlanEventos (GestorEventos).
+## Al llegar a la terminal se cierra la ruta contra la cuota y se muestra el resultado.
 ## El estado de la partida (dinero, número de ruta) vive en el autoload Juego.
 
 const ESCENA_MENU := "res://escenas/principal.tscn"
@@ -13,6 +14,8 @@ const TIEMPO_PARA_QUEDARSE_ABAJO := 1.0
 
 ## Para las pruebas: semilla fija de la partida (-1 = al azar).
 static var semilla_forzada: int = -1
+## Para las pruebas: qué eventos pueden pasar (null = lo que diga config/eventos.cfg).
+static var eventos_activos: Variant = null
 
 @onready var camion: Camion = $Camion
 @onready var mundo: Node3D = $Mundo
@@ -26,6 +29,8 @@ var pasajeros: GestorPasajeros
 var piloto: PilotoAutomatico
 var jugador: CuerpoPersonaje
 var cobrador: Cobrador
+var eventos: GestorEventos
+var chofer: ChoferSentado
 var terminada: bool = false
 var resultado: Dictionary = {}
 
@@ -41,6 +46,8 @@ func _ready() -> void:
 		Juego.nueva_partida(semilla_forzada)
 	var semilla := Juego.siguiente_ruta()
 	descripcion = GeneradorRuta.generar(semilla, Juego.dinero.numero_ruta)
+	var plan := PlanEventos.generar(descripcion, semilla, eventos_activos)
+	PlanEventos.aplicar_a_descripcion(descripcion, plan)
 
 	calle = Calle.new()
 	calle.name = "Calle"
@@ -72,6 +79,20 @@ func _ready() -> void:
 	add_child(piloto)
 	piloto.cambiar_modo(PilotoAutomatico.Modo.PARADO)
 	piloto.susto.connect(hud.avisar_susto)
+	chofer = ChoferSentado.sentar_en(camion)
+
+	eventos = GestorEventos.new()
+	eventos.name = "GestorEventos"
+	eventos.eventos = plan
+	eventos.calle = calle
+	eventos.camion = camion
+	eventos.piloto = piloto
+	eventos.pasajeros = pasajeros
+	eventos.hud = hud
+	eventos.escenario = self
+	eventos.ambiente = $AmbienteDia/Ambiente
+	eventos.sol = $AmbienteDia/Sol
+	add_child(eventos)
 
 	jugador = _crear_jugador()
 	cobrador = Cobrador.new()

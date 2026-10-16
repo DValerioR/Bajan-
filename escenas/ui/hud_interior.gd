@@ -6,6 +6,7 @@ extends CanvasLayer
 
 const AYUDA := ["AYUDA_TITULO", "AYUDA_CAMINAR", "AYUDA_MIRAR", "AYUDA_SUJETARSE", "AYUDA_AGARRAR", "AYUDA_COBRAR", "AYUDA_PILOTO", "AYUDA_REINICIAR_INTERIOR", "AYUDA_CONFIG", "AYUDA_SALIR"]
 const DURACION_AVISO := 1.2
+const DURACION_ANUNCIO := 3.5
 
 var _velocidad: Label
 var _pasajeros: Label
@@ -18,6 +19,9 @@ var _parada: Label
 var _ventana: Label
 var _mensaje: Label
 var _tiempo_mensaje: float = 0.0
+var _anuncio: Label
+var _tiempo_anuncio: float = 0.0
+var _pitido: AudioStreamPlayer
 
 
 func _ready() -> void:
@@ -103,6 +107,21 @@ func _ready() -> void:
 	_mensaje.visible = false
 	add_child(_mensaje)
 
+	_anuncio = _etiqueta("", 36, Color(1.0, 0.85, 0.3))
+	_anuncio.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	_anuncio.offset_left = -600
+	_anuncio.offset_right = 600
+	_anuncio.offset_top = 150
+	_anuncio.offset_bottom = 200
+	_anuncio.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_anuncio.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_anuncio.visible = false
+	add_child(_anuncio)
+	_pitido = AudioStreamPlayer.new()
+	_pitido.stream = Sintetizador.aviso()
+	_pitido.volume_db = -8.0
+	add_child(_pitido)
+
 	# Mira en el centro de la pantalla, para apuntar al agarrar y empujar.
 	var mira := _etiqueta("·", 30, Color.WHITE)
 	mira.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
@@ -152,6 +171,15 @@ func mostrar_pasajeros(cuantos: int) -> void:
 	_pasajeros.text = tr("HUD_PASAJEROS") % cuantos
 
 
+## Anuncio de un evento (etapa 5): letrero grande unos segundos y un pitido.
+func anunciar(clave: String, color: Color = Color(1.0, 0.85, 0.3)) -> void:
+	_anuncio.text = clave
+	_anuncio.add_theme_color_override("font_color", color)
+	_anuncio.visible = true
+	_tiempo_anuncio = DURACION_ANUNCIO
+	_pitido.play()
+
+
 func avisar_susto(tipo: String) -> void:
 	_aviso.text = "HUD_SUSTO_" + tipo.to_upper()
 	_aviso.visible = true
@@ -167,6 +195,10 @@ func _process(delta: float) -> void:
 		_tiempo_aviso -= delta
 		if _tiempo_aviso <= 0.0:
 			_aviso.visible = false
+	if _tiempo_anuncio > 0.0:
+		_tiempo_anuncio -= delta
+		if _tiempo_anuncio <= 0.0:
+			_anuncio.visible = false
 
 
 func _etiqueta(texto: String, tamano: int, color: Color) -> Label:

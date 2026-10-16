@@ -41,12 +41,13 @@ Herramientas de desarrollo (se abren desde el editor o con Godot por línea de c
 | Carpeta | Contenido |
 |---|---|
 | `audio/musica/`, `audio/efectos/`, `audio/murmullos/` | Audio por tipo (por ahora vacío; ver DISEÑO.md, sección 10). |
-| `config/` | Números de diseño: `juego.cfg` (jugadores, idiomas), `conduccion.cfg` (manejo del camión), `calle_prueba.cfg` (trazado, topes, baches y paradas), `interior.cfg` (caminar adentro, ragdolls, chofer automático), `pasajeros.cfg`, `partida.cfg` (dinero, cobro, paradas), `tramos.cfg` (tramos para generar rutas). Nunca van en los scripts. |
+| `config/` | Números de diseño: `juego.cfg` (jugadores, idiomas), `conduccion.cfg` (manejo del camión), `calle_prueba.cfg` (trazado, topes, baches y paradas), `interior.cfg` (caminar adentro, ragdolls, chofer automático), `pasajeros.cfg`, `partida.cfg` (dinero, cobro, paradas), `tramos.cfg` (tramos para generar rutas), `eventos.cfg` (eventos de caos). Nunca van en los scripts. |
 | `escenas/` | Escenas: `principal.tscn` (menú de pruebas, escena de arranque), `camion/`, `calle_prueba/`, `ruta/` (una ruta completa), `ui/`. |
 | `scripts/autoload/` | Nodos globales: `Config` (lee `config/`, F9 recarga), `Preferencias` (idioma y ajustes locales del jugador) y `Juego` (estado de la partida: dinero y número de ruta). |
 | `scripts/camion/` | Simulación del camión (`camion.gd`), comandos de manejo, entrada del jugador, cámara del chofer y carrocería de formas básicas. |
 | `scripts/mundo/`, `scripts/estilo/`, `scripts/audio/` | Calle (circuito de prueba y rutas generadas), generador de rutas, conversión al estilo toon y sonidos generados en código. |
-| `scripts/partida/`, `scripts/roles/` | Dinero y parámetros de la partida; el cobrador. |
+| `scripts/partida/`, `scripts/roles/` | Dinero y parámetros de la partida; el cobrador y el chofer sentado. |
+| `scripts/eventos/` | Plan de eventos de cada ruta, el gestor que los hace pasar y su utilería (animales, valla, lluvia, inspector). |
 | `materiales/` | Shaders del estilo toon y del contorno. |
 | `modelos/` | `personajes/` (16 personajes procesados), `personajes.cfg` (cómo se procesan) y `fuentes/` (originales de Tripo, fuera de git). Formato y escala en `DECISIONES.md`, D33 y D34. |
 | `scripts/personajes/`, `scripts/interior/`, `scripts/objetos/`, `scripts/pasajeros/` | Personaje (figura, cuerpo, ragdoll), interior del camión (inercia y espacio de física propio), objetos sueltos y pasajeros. |
@@ -110,7 +111,7 @@ Hay un maniquí, bolsas y monedas para agarrar y lanzar. Los empujones, el tropi
 
 **Etapa 3 (pasajeros): completa.** En la misma escena, el chofer automático se detiene en las 5 paradas (postes azules con letrero); los pasajeros que esperan suben, se sientan o van de pie sujetos, y bajan en su parada. Con un frenazo fuerte, quien va de pie sin sujetarse cae como ragdoll (también tú), y un empujón o algo que vuela puede sacar a alguien por la puerta o una ventana; el que cae a la calle se pierde. Las piezas de un ragdoll se pueden agarrar (E) y aventar. Los pasajeros se ajustan en `config/pasajeros.cfg` y los ragdolls en `config/interior.cfg` (sección `[ragdoll]`).
 
-**Etapa 4 (una ruta completa): en revisión.** En el menú, **Jugar una ruta**. Cada ruta se arma distinta con tramos de cuatro zonas (popular, centro, lujo y cruces) y tiene de 6 a 10 paradas. El chofer automático maneja y se detiene en cada parada. Tú eres el cobrador:
+**Etapa 4 (una ruta completa): completa.** En el menú, **Jugar una ruta**. Cada ruta se arma distinta con tramos de cuatro zonas (popular, centro, lujo y cruces) y tiene de 6 a 10 paradas. El chofer automático maneja y se detiene en cada parada. Tú eres el cobrador:
 
 - Ponte frente a cada pasajero y cóbrale con **F** (mando: **B**). Los que ya pagaron llevan "$".
 - Lo cobrado va en tu morral y se entrega solo al fondo en cada parada. Si tropiezas, se te riega una parte, y si te caes, todo. Recoge las monedas caminando sobre ellas antes de que se pierdan.
@@ -118,3 +119,18 @@ Hay un maniquí, bolsas y monedas para agarrar y lanzar. Los empujones, el tropi
 - En la terminal se cierra la ruta: si llegaste a la cuota, sigues a la siguiente ruta (con una cuota más alta). Si no, se acaba la partida.
 
 Los números del dinero, el cobro y la ventana de parada están en `config/partida.cfg`, y los tramos de calle en `config/tramos.cfg` (F9 recarga).
+
+**Etapa 5 (eventos y rivales): en revisión.** En **Jugar una ruta**, el chofer (ahora se ve sentado al volante) maneja mal a propósito y en cada tramo entre paradas pasa al menos un evento, anunciado con un letrero y un pitido:
+
+| Evento | Qué pasa |
+|---|---|
+| Tope tras tope | Cuatro topes seguidos. |
+| Bache gigante | Un hoyo en los dos carriles; el chofer frena un poco. |
+| Animales | Una vaca y unas gallinas cruzan; el chofer frena en seco y espera. |
+| Calle cerrada | Una valla de obra; el chofer espera, pita y la quitan. |
+| Aguacero | Calle mojada: el camión derrapa. |
+| Inspector | En la siguiente parada revisa y multa por cada pasajero sin pagar. ¡Cóbrales antes! |
+| Carrerita | La Ruta 7 (naranja) aparece atrás; si te rebasa, te gana la parada y se lleva a la gente. |
+| Prisa | El chofer maneja como loco un rato. |
+
+Cada evento se puede apagar en `config/eventos.cfg` (`activo=false`) y ahí mismo se ajusta qué tan seguido sale y qué tan fuerte es; los cambios se aplican desde la siguiente ruta.

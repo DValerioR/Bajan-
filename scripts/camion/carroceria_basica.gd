@@ -16,6 +16,9 @@ const AMARILLO := Color(1.0, 0.8, 0.18)
 const ROJO := Color(0.88, 0.16, 0.1)
 const PISO := Color(0.36, 0.31, 0.29)
 
+## Color de la carrocería (lo que va en verde): los rivales usan otro.
+@export var color_principal: Color = VERDE
+
 ## Cada pieza: [nombre, forma, medidas, posición, rotación en grados, color].
 ## Medidas: caja = tamaño; cilindro = (radio, alto, -); esfera = (radio, -, -); toro = (radio interior, exterior, -).
 const PIEZAS := [
@@ -70,7 +73,8 @@ func _ready() -> void:
 	piezas.name = "Piezas"
 	add_child(piezas)
 	for pieza in PIEZAS:
-		piezas.add_child(_crear_pieza(pieza[0], pieza[1], pieza[2], pieza[3], pieza[4], pieza[5]))
+		var color: Color = color_principal if pieza[5] == VERDE else pieza[5]
+		piezas.add_child(_crear_pieza(pieza[0], pieza[1], pieza[2], pieza[3], pieza[4], color))
 	for z in PILARES_IZQUIERDA:
 		piezas.add_child(_crear_pieza("PilarIzquierdo", "caja", Vector3(0.08, 1.0, 0.12), Vector3(-1.21, 1.5, z), Vector3.ZERO, CREMA))
 	for z in PILARES_DERECHA:
