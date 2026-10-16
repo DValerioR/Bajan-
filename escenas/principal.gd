@@ -5,17 +5,24 @@ extends Control
 
 const ESCENA_CALLE := "res://escenas/calle_prueba/calle_prueba.tscn"
 const ESCENA_INTERIOR := "res://escenas/interior_prueba/interior_prueba.tscn"
+const ESCENA_RUTA := "res://escenas/ruta/ruta.tscn"
 
 
 func _ready() -> void:
 	%BotonIdioma.pressed.connect(Preferencias.siguiente_idioma)
 	%BotonCalle.pressed.connect(_abrir_calle)
 	%BotonInterior.pressed.connect(_abrir_interior)
-	%BotonCalle.grab_focus()
+	%BotonRuta.pressed.connect(_abrir_ruta)
+	%BotonRuta.grab_focus()
 
 
 func _abrir_calle() -> void:
 	get_tree().change_scene_to_file(ESCENA_CALLE)
+
+
+func _abrir_ruta() -> void:
+	Juego.nueva_partida()
+	get_tree().change_scene_to_file(ESCENA_RUTA)
 
 
 func _abrir_interior() -> void:

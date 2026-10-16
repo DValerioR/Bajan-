@@ -1,11 +1,27 @@
-class_name PistaPrueba
+class_name Calle
 extends Node3D
-## Calle de prueba, armada desde config/calle_prueba.cfg: dos carriles con baches,
-## banquetas, topes, paradas, edificios y árboles.
-## También sirve de "línea de ruta": guarda una muestra por metro del centro de la calle,
-## que usan el reinicio del camión y, más adelante, los bots.
+## Calle por la que va el camión: dos carriles con baches, banquetas, topes, paradas, edificios
+## y árboles. Se arma desde una `descripcion` (la ruta que hace GeneradorRuta, abierta y por zonas)
+## o, si no se le da ninguna, desde config/calle_prueba.cfg (el circuito cerrado de prueba).
+## También es la "línea de ruta": guarda una muestra por metro del centro de la calle, que usan
+## el reinicio del camión, el piloto automático y los pasajeros.
+##
+## Descripción: {segmentos, topes, baches, paradas (distancias en m), cerrada, semilla,
+##               zonas: [[desde_m, zona], ...]}.
 
 const RUTA := "res://config/calle_prueba.cfg"
+## Cómo se ve cada zona (DISEÑO.md, sección 4). En la etapa 7 se les da su identidad completa.
+const ESTILOS := {
+	"popular": {"colores": [Color(0.9, 0.3, 0.55), Color(0.98, 0.78, 0.3), Color(0.36, 0.76, 0.66), Color(0.95, 0.56, 0.2), Color(0.55, 0.8, 0.35)],
+		"alto": [3.0, 7.0], "frente": [5.0, 8.0], "separacion": 8.0, "tinaco": 0.85, "arbol": 0.15, "hueco": 0.1},
+	"centro": {"colores": [Color(0.85, 0.42, 0.3), Color(0.93, 0.85, 0.65), Color(0.75, 0.25, 0.22), Color(0.95, 0.72, 0.45)],
+		"alto": [7.0, 12.0], "frente": [8.0, 11.0], "separacion": 10.0, "tinaco": 0.3, "arbol": 0.25, "hueco": 0.0},
+	"lujo": {"colores": [Color(0.55, 0.7, 0.85), Color(0.85, 0.88, 0.9), Color(0.3, 0.38, 0.48), Color(0.75, 0.8, 0.82)],
+		"alto": [16.0, 34.0], "frente": [12.0, 18.0], "separacion": 20.0, "tinaco": 0.0, "arbol": 0.8, "hueco": 0.15},
+	"cruce": {"colores": [Color(0.6, 0.6, 0.62), Color(0.75, 0.7, 0.62), Color(0.5, 0.55, 0.6)],
+		"alto": [3.0, 6.0], "frente": [10.0, 16.0], "separacion": 26.0, "tinaco": 0.2, "arbol": 0.1, "hueco": 0.55},
+}
+const ZONA_PRUEBA := "prueba"
 const PASO := 1.0
 const SOLAPE := 0.35
 
@@ -35,6 +51,12 @@ var direcciones := PackedVector3Array()
 var longitud: float = 0.0
 ## Paradas: cada una {indice_poste, indice_camion, poste (posición en la banqueta)}.
 var paradas: Array[Dictionary] = []
+## Si es un circuito cerrado (la calle de prueba) o una ruta con principio y fin.
+var cerrada: bool = true
+## Descripción con la que se armó (si viene de GeneradorRuta, se pone antes de agregarla a la escena).
+var descripcion: Dictionary = {}
+## Zona de cada muestra.
+var zonas := PackedStringArray()
 
 var ancho_carril := 3.6
 var alto_calle := 0.25
@@ -51,17 +73,32 @@ func _ready() -> void:
 	alto_calle = c.get_value("calle", "alto_calle", alto_calle)
 	ancho_banqueta = c.get_value("calle", "ancho_banqueta", ancho_banqueta)
 	alto_banqueta = c.get_value("calle", "alto_banqueta", alto_banqueta)
-	_trazar(c.get_value("calle", "segmentos", []))
+	var d := descripcion
+	if d.is_empty():
+		d = {
+			"segmentos": c.get_value("calle", "segmentos", []),
+			"topes": c.get_value("obstaculos", "topes", []),
+			"baches": c.get_value("obstaculos", "baches", []),
+			"paradas": c.get_value("paradas", "distancias", []),
+			"cerrada": true,
+			"semilla": c.get_value("escenario", "semilla", 7),
+			"zonas": [[0.0, ZONA_PRUEBA]],
+		}
+	cerrada = d.get("cerrada", true)
+	_trazar(d.segmentos)
+	_asignar_zonas(d.get("zonas", [[0.0, ZONA_PRUEBA]]))
 
 	# Las formas se agregan antes de meter el cuerpo a la escena: así la física lo arma una sola vez.
 	_cuerpo = StaticBody3D.new()
 	_cuerpo.name = "Colisiones"
 	_construir_piso()
-	_construir_calle(c.get_value("obstaculos", "baches", []))
+	_construir_calle(d.get("baches", []))
 	_construir_banquetas()
-	_construir_topes(c.get_value("obstaculos", "topes", []), c.get_value("obstaculos", "alto_tope", 0.13), c.get_value("obstaculos", "radio_tope", 0.45))
-	_construir_escenario(c.get_value("escenario", "semilla", 7), c.get_value("escenario", "separacion_edificios", 11.0))
-	_construir_paradas(c.get_value("paradas", "distancias", []))
+	_construir_topes(d.get("topes", []), c.get_value("obstaculos", "alto_tope", 0.13), c.get_value("obstaculos", "radio_tope", 0.45))
+	_construir_escenario(d.get("semilla", 7), c.get_value("escenario", "separacion_edificios", 11.0))
+	_construir_paradas(d.get("paradas", []))
+	if not cerrada:
+		_construir_fin()
 	add_child(_cuerpo)
 	_crear_multimallas()
 	EstiloToon.aplicar(self)
@@ -108,8 +145,24 @@ func indice_en_distancia(distancia: float) -> int:
 	return _ciclo(roundi(distancia / PASO))
 
 
+func zona_en(i: int) -> String:
+	return zonas[_ciclo(i)] if not zonas.is_empty() else ZONA_PRUEBA
+
+
+## En un circuito cerrado los índices dan la vuelta; en una ruta abierta se quedan en sus extremos.
 func _ciclo(i: int) -> int:
-	return posmod(i, puntos.size())
+	return posmod(i, puntos.size()) if cerrada else clampi(i, 0, puntos.size() - 1)
+
+
+func _asignar_zonas(tramos: Array) -> void:
+	zonas.resize(puntos.size())
+	for i in puntos.size():
+		var distancia := i * PASO
+		var zona: String = tramos[0][1]
+		for tramo in tramos:
+			if distancia >= float(tramo[0]):
+				zona = tramo[1]
+		zonas[i] = zona
 
 
 # --- Trazado --------------------------------------------------------------
@@ -141,8 +194,8 @@ func _trazar(segmentos: Array) -> void:
 				direcciones.append(direccion.rotated(Vector3.UP, giro))
 			posicion = puntos[puntos.size() - 1]
 			direccion = direcciones[direcciones.size() - 1]
-	# El circuito es cerrado: la última muestra coincide con la primera.
-	if puntos.size() > 1 and puntos[puntos.size() - 1].distance_to(puntos[0]) < PASO * 0.5:
+	# En un circuito cerrado la última muestra coincide con la primera.
+	if cerrada and puntos.size() > 1 and puntos[puntos.size() - 1].distance_to(puntos[0]) < PASO * 0.5:
 		puntos.remove_at(puntos.size() - 1)
 		direcciones.remove_at(direcciones.size() - 1)
 	longitud = puntos.size() * PASO
@@ -151,11 +204,18 @@ func _trazar(segmentos: Array) -> void:
 # --- Construcción ---------------------------------------------------------
 
 func _construir_piso() -> void:
+	# Piso que cubre toda la calle con 200 m de sobra alrededor.
+	var limites := AABB(puntos[0], Vector3.ZERO)
+	for p in puntos:
+		limites = limites.expand(p)
+	limites = limites.grow(200.0)
+	var centro := limites.get_center()
+	var medidas := Vector3(limites.size.x, 1.0, limites.size.z)
 	var forma := BoxShape3D.new()
-	forma.size = Vector3(800, 1, 800)
-	_agregar_forma(forma, Transform3D(Basis(), Vector3(0, -0.5, 0)))
-	var malla := _malla_caja(Vector3(800, 1, 800), COLOR_PISO)
-	malla.position = Vector3(0, -0.5, 0)
+	forma.size = medidas
+	_agregar_forma(forma, Transform3D(Basis(), Vector3(centro.x, -0.5, centro.z)))
+	var malla := _malla_caja(medidas, COLOR_PISO)
+	malla.position = Vector3(centro.x, -0.5, centro.z)
 	malla.set_meta("sin_contorno", true)
 	add_child(malla)
 
@@ -190,7 +250,7 @@ func _construir_calle(baches: Array) -> void:
 			_tira(i, j, ancho_carril * lado, ancho_carril, alto_calle, alto_calle, "asfalto", COLOR_ASFALTO)
 			i = j
 	# Raya central discontinua.
-	for i in range(0, n, 4):
+	for i in range(0, n - (0 if cerrada else 2), 4):
 		var a := puntos[i]
 		var b := puntos[_ciclo(i + 2)]
 		_caja_visual("raya", COLOR_RAYA, (a + b) * 0.5 + Vector3.UP * (alto_calle + 0.01), b - a, Vector3(0.15, 0.02, a.distance_to(b)))
@@ -229,6 +289,9 @@ func _construir_topes(distancias: Array, alto_tope: float, radio: float) -> void
 
 
 func _construir_escenario(semilla: int, separacion: float) -> void:
+	if not cerrada:
+		_construir_escenario_por_zonas(semilla)
+		return
 	var azar := RandomNumberGenerator.new()
 	azar.seed = semilla
 	var n := puntos.size()
@@ -239,11 +302,15 @@ func _construir_escenario(semilla: int, separacion: float) -> void:
 		var frente := azar.randf_range(7.0, 10.0)
 		var fondo := azar.randf_range(6.0, 9.0)
 		var alto := azar.randf_range(4.0, 13.0)
-		var centro := _desplazado(i, borde + 1.0 + fondo * 0.5) + Vector3.UP * alto * 0.5
+		# 2 m detrás de la banqueta: en el circuito se prueba a 90 km/h y el camión se abre en las curvas.
+		var centro := _desplazado(i, borde + 2.0 + fondo * 0.5) + Vector3.UP * alto * 0.5
 		var base := Basis.looking_at(direcciones[i], Vector3.UP)
 		var color: Color = COLORES_FACHADA[azar.randi() % COLORES_FACHADA.size()]
-		_solido(_malla_caja(Vector3(frente, alto, fondo), color), BoxShape3D.new(), Vector3(frente, alto, fondo), Transform3D(base, centro))
-		if azar.randf() < 0.6:
+		# Con looking_at, X es el lado hacia la calle (fondo) y Z va a lo largo de ella (frente).
+		var invade := _invade_calle(i, base, centro, frente, fondo)
+		if not invade:
+			_solido(_malla_caja(Vector3(fondo, alto, frente), color), BoxShape3D.new(), Vector3(fondo, alto, frente), Transform3D(base, centro))
+		if azar.randf() < 0.6 and not invade:
 			var tinaco := _malla_cilindro(0.55, 1.0, COLOR_TINACO)
 			tinaco.position = centro + Vector3.UP * (alto * 0.5 + 0.5) + base.x * azar.randf_range(-2.0, 2.0)
 			add_child(tinaco)
@@ -265,6 +332,96 @@ func _construir_escenario(semilla: int, separacion: float) -> void:
 			copa.mesh = esfera
 			copa.position = pie + Vector3.UP * 3.0
 			add_child(copa)
+
+
+## Ruta abierta: edificios a los dos lados, con el estilo de la zona de cada tramo, y un letrero
+## al entrar a cada zona.
+func _construir_escenario_por_zonas(semilla: int) -> void:
+	var azar := RandomNumberGenerator.new()
+	azar.seed = semilla
+	var borde := ancho_carril + ancho_banqueta
+	var n := puntos.size()
+	for lado in [1.0, -1.0]:
+		var i := 0
+		while i < n:
+			var estilo: Dictionary = ESTILOS.get(zonas[i], ESTILOS["popular"])
+			var frente := azar.randf_range(estilo.frente[0], estilo.frente[1])
+			if azar.randf() >= float(estilo.hueco):
+				var fondo := azar.randf_range(6.0, 10.0)
+				var alto := azar.randf_range(estilo.alto[0], estilo.alto[1])
+				var centro := _desplazado(i, (borde + 1.0 + fondo * 0.5) * lado) + Vector3.UP * alto * 0.5
+				var base := Basis.looking_at(direcciones[i], Vector3.UP)
+				var color: Color = estilo.colores[azar.randi() % estilo.colores.size()]
+				# Del lado de adentro de una curva, las esquinas de un edificio largo se meten a la
+				# calle: se prueba con la mitad del frente y, si aun así invade, no se pone.
+				var ancho_edificio := frente * 0.92
+				if _invade_calle(i, base, centro, ancho_edificio, fondo):
+					ancho_edificio *= 0.5
+				if not _invade_calle(i, base, centro, ancho_edificio, fondo):
+					# Con looking_at, X es el lado hacia la calle (fondo) y Z va a lo largo de ella (frente).
+					_solido(_malla_caja(Vector3(fondo, alto, ancho_edificio), color), BoxShape3D.new(), Vector3(fondo, alto, ancho_edificio), Transform3D(base, centro))
+				var con_tinaco := azar.randf() < float(estilo.tinaco)
+				var corrimiento := azar.randf_range(-2.0, 2.0)
+				if con_tinaco and not _invade_calle(i, base, centro, ancho_edificio, fondo):
+					var tinaco := _malla_cilindro(0.55, 1.0, COLOR_TINACO)
+					tinaco.position = centro + Vector3.UP * (alto * 0.5 + 0.5) + base.x * corrimiento
+					add_child(tinaco)
+			if azar.randf() < float(estilo.arbol):
+				_arbol(_desplazado(i, (ancho_carril + ancho_banqueta * 0.75) * lado) + Vector3.UP * (alto_calle + alto_banqueta))
+			i += maxi(1, roundi(maxf(frente, float(estilo.separacion) * 0.5) / PASO))
+	# Letrero al empezar cada zona, del lado izquierdo de la calle.
+	var anterior := ""
+	for i in range(0, n, 5):
+		if zonas[i] == anterior:
+			continue
+		anterior = zonas[i]
+		var letrero := Label3D.new()
+		letrero.text = "ZONA_" + zonas[i].to_upper()
+		letrero.pixel_size = 0.012
+		letrero.font_size = 64
+		letrero.outline_size = 16
+		letrero.modulate = Color(1, 0.95, 0.6)
+		letrero.outline_modulate = Color(0.12, 0.1, 0.1)
+		letrero.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+		letrero.position = _desplazado(i + 6, -(ancho_carril + 1.0)) + Vector3.UP * 4.5
+		add_child(letrero)
+
+
+## Si alguna esquina (o el punto medio de un lado) de la planta del edificio queda sobre la
+## calle o la banqueta de cualquier tramo cercano.
+func _invade_calle(i: int, base: Basis, centro: Vector3, frente: float, fondo: float) -> bool:
+	var borde := ancho_carril + ancho_banqueta
+	var ventana := roundi((frente + fondo) / PASO) + 10
+	for x: float in [-0.5, 0.0, 0.5]:
+		for z: float in [-0.5, 0.0, 0.5]:
+			var punto := centro + base.x * fondo * x + base.z * frente * z
+			var k := indice_cercano(punto, i, ventana)
+			if Vector2(punto.x - puntos[k].x, punto.z - puntos[k].z).length() < borde:
+				return true
+	return false
+
+
+func _arbol(pie: Vector3) -> void:
+	var tronco := _malla_cilindro(0.18, 2.4, COLOR_TRONCO)
+	_solido(tronco, _cilindro_forma(0.18, 2.4), Vector3.ZERO, Transform3D(Basis(), pie + Vector3.UP * 1.2))
+	var copa := MeshInstance3D.new()
+	var esfera := SphereMesh.new()
+	esfera.radius = 1.3
+	esfera.height = 2.4
+	esfera.radial_segments = 10
+	esfera.rings = 6
+	esfera.material = _material(COLOR_FOLLAJE)
+	copa.mesh = esfera
+	copa.position = pie + Vector3.UP * 3.0
+	add_child(copa)
+
+
+## Ruta abierta: barrera al final, para que nada siga de largo.
+func _construir_fin() -> void:
+	var i := puntos.size() - 1
+	var medidas := Vector3(ancho_carril * 2.0 + ancho_banqueta * 2.0, 1.2, 0.6)
+	var centro := puntos[i] + direcciones[i] * 4.0 + Vector3.UP * (alto_calle + 0.6)
+	_solido(_malla_caja(medidas, Color(0.95, 0.85, 0.2)), BoxShape3D.new(), medidas, Transform3D(Basis.looking_at(direcciones[i], Vector3.UP), centro))
 
 
 func _construir_paradas(distancias: Array) -> void:
@@ -312,6 +469,8 @@ func _desplazado(i: int, lateral: float) -> Vector3:
 func _tira(i: int, j: int, lateral: float, ancho: float, alto_superior: float, grosor: float, grupo: String, color: Color) -> void:
 	var a := _desplazado(i, lateral)
 	var b := _desplazado(j, lateral)
+	if a.distance_to(b) < 0.01:
+		return
 	var largo := a.distance_to(b) + SOLAPE
 	var centro := (a + b) * 0.5
 	if grosor > 0.0:

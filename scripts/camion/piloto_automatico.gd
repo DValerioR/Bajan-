@@ -13,7 +13,7 @@ signal llego_a_parada(k: int)
 signal salio_de_parada(k: int)
 
 @export var camion: Camion
-@export var pista: PistaPrueba
+@export var pista: Calle
 @export var modo: Modo = Modo.NORMAL
 ## Si se detiene en las paradas de la pista (como un chofer de verdad).
 @export var detenerse_en_paradas: bool = true
@@ -22,6 +22,10 @@ signal salio_de_parada(k: int)
 var parada_actual: int = -1
 ## Mientras esto devuelva true (gente subiendo o bajando), espera un poco más en la parada.
 var esperar_mientras: Callable
+## Si es mayor que 0, espera exactamente esto en cada parada (la ventana de parada, D20).
+var espera_fija: float = -1.0
+## En una ruta abierta: ya llegó a la terminal y no se mueve más.
+var en_terminal: bool = false
 
 var parametros: ParametrosInterior
 var _indice: int = -1
@@ -56,6 +60,7 @@ func cambiar_modo(nuevo: Modo) -> void:
 ## Después de mover el camión a mano, buscar de nuevo dónde está.
 func reiniciar() -> void:
 	_indice = -1
+	en_terminal = false
 
 
 func _intervalo_sustos() -> float:
@@ -76,6 +81,12 @@ func _physics_process(delta: float) -> void:
 
 	_indice = pista.indice_cercano(camion.global_position, _indice)
 	var n := pista.puntos.size()
+	# Ruta abierta: después de la última parada, se queda en la terminal.
+	if not pista.cerrada and not pista.paradas.is_empty() and _indice >= pista.paradas[pista.paradas.size() - 1].indice_camion - 1 and parada_actual < 0 and _ultima_parada == pista.paradas.size() - 1:
+		en_terminal = true
+	if en_terminal:
+		c.frenar = 1.0 if camion.velocidad_adelante > 0.3 else 0.0
+		return
 	if _atender_paradas(delta, c):
 		return
 	var velocidad := camion.velocidad_adelante
@@ -110,6 +121,11 @@ func _physics_process(delta: float) -> void:
 	_sustos(delta, c)
 
 
+## Índice de la siguiente parada a la que va (o -1).
+func siguiente_parada() -> int:
+	return _proxima_parada() if _indice >= 0 else 0
+
+
 ## Detenido en una parada: frena, espera y avisa. Devuelve true mientras está ahí.
 func _atender_paradas(delta: float, c: ComandosConduccion) -> bool:
 	if not detenerse_en_paradas or pista.paradas.is_empty():
@@ -128,7 +144,7 @@ func _atender_paradas(delta: float, c: ComandosConduccion) -> bool:
 	var k := _proxima_parada()
 	if k >= 0 and _pasos_hasta(pista.paradas[k].indice_camion) <= 2.5 and absf(camion.velocidad_adelante) < 0.8:
 		parada_actual = k
-		_espera = parametros.espera_parada
+		_espera = espera_fija if espera_fija > 0.0 else parametros.espera_parada
 		_susto = ""
 		llego_a_parada.emit(k)
 		c.frenar = 1.0 if camion.velocidad_adelante > 0.3 else 0.0
@@ -160,7 +176,7 @@ func _distancia_a_proxima_parada() -> float:
 	if k < 0:
 		return -1.0
 	var pasos := _pasos_hasta(pista.paradas[k].indice_camion)
-	return pasos * PistaPrueba.PASO if pasos < 80 else -1.0
+	return pasos * Calle.PASO if pasos < 80 else -1.0
 
 
 ## Muestras por recorrer (hacia adelante) hasta el índice dado; si ya se pasó un poco, cuenta 0.

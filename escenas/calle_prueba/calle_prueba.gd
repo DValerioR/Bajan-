@@ -4,7 +4,7 @@ extends Node3D
 
 const ESCENA_MENU := "res://escenas/principal.tscn"
 
-@onready var pista: PistaPrueba = $Pista
+@onready var pista: Calle = $Pista
 @onready var camion: Camion = $Camion
 @onready var hud: HudConduccion = $Hud
 

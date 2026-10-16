@@ -6,6 +6,12 @@ extends Node
 ## Cada pasajero es un CuerpoPersonaje normal: recibe empujones, cae como ragdoll y puede salir
 ## volando. Si termina en la calle sin haber llegado a su destino, se pierde y se va.
 ## El "cerebro" de cada uno es una máquina de estados sencilla que llena sus ComandosPersonaje.
+##
+## Pasaje (etapa 4): cada quien sube sin pagar y trae un "$" encima hasta que el cobrador le
+## cobra. El que se baja (o sale volando) sin haber pagado es dinero perdido. Ventana de parada
+## (D20): si el camión se queda más de la cuenta, los de a bordo se desesperan, pagan menos y
+## alguno se baja enojado sin pagar. En una ruta abierta nadie va más allá de la terminal, y ahí
+## se bajan todos.
 
 enum Estado { ESPERANDO, SUBIENDO, CAMINANDO, SENTADO, DE_PIE, BAJANDO, ALEJANDOSE }
 
@@ -22,10 +28,12 @@ const LLEGADA := 0.35
 signal subio(cuerpo: CuerpoPersonaje)
 signal bajo(cuerpo: CuerpoPersonaje)
 signal se_perdio(cuerpo: CuerpoPersonaje)
+signal cobrado(cuerpo: CuerpoPersonaje, monto: int)
+signal bajo_sin_pagar(cuerpo: CuerpoPersonaje, monto: int)
 
 @export var interior: InteriorCamion
 @export var ragdolls: GestorRagdolls
-@export var pista: PistaPrueba
+@export var pista: Calle
 
 ## Parada donde está detenido el camión (con la puerta frente al poste), o -1.
 var parada_actual: int = -1
@@ -36,6 +44,10 @@ var pasajeros: Array[Pasajero] = []
 var total_subieron: int = 0
 var total_bajaron: int = 0
 var total_perdidos: int = 0
+var total_sin_pagar: int = 0
+## Segundos que lleva el camión en la parada actual y qué tan desesperada está la gente (0 a 1).
+var tiempo_en_parada: float = 0.0
+var desesperacion: float = 0.0
 
 var _azar := RandomNumberGenerator.new()
 var _cfg: ConfigFile
@@ -54,6 +66,8 @@ class Pasajero:
 	var ruta: Array[Vector3] = []
 	var espera_poste := Vector3.ZERO
 	var tiempo: float = 0.0
+	var pagado: bool = false
+	var marca: Label3D
 
 
 func _ready() -> void:
@@ -64,8 +78,53 @@ func _ready() -> void:
 	ragdolls.levantado.connect(_al_levantarse)
 	var inicial: Array = _cfg.get_value("pasajeros", "esperando_al_inicio", [1, 3])
 	for k in pista.paradas.size():
+		if _es_terminal(k):
+			continue
 		for _i in _azar.randi_range(inicial[0], inicial[1]):
 			_aparecer_en_parada(k)
+
+
+## En una ruta abierta, la última parada es la terminal: ahí no sube nadie y se bajan todos.
+func _es_terminal(k: int) -> bool:
+	return not pista.cerrada and k == pista.paradas.size() - 1
+
+
+## Le cobra el pasaje a este pasajero (si va a bordo y no ha pagado). Devuelve lo que pagó.
+func cobrar(cuerpo: CuerpoPersonaje) -> int:
+	for p in pasajeros:
+		if p.cuerpo != cuerpo or p.pagado or not _a_bordo(p):
+			continue
+		var monto := maxi(1, roundi(Juego.parametros.pasaje * (1.0 - 0.5 * desesperacion)))
+		p.pagado = true
+		cobrado.emit(cuerpo, monto)
+		return monto
+	return 0
+
+
+## El pasajero sin pagar más cercano a `desde`, hacia donde se mira, dentro del alcance (en el
+## espacio del interior). Lo usa el cobrador.
+func por_cobrar_cerca(desde: Vector3, mirada: Vector3, alcance: float) -> CuerpoPersonaje:
+	var mejor: CuerpoPersonaje = null
+	var mejor_puntaje := INF
+	for p in pasajeros:
+		if p.pagado or not _a_bordo(p) or p.cuerpo.desplomado or not interior.esta_dentro(p.cuerpo):
+			continue
+		var hacia := p.cuerpo.global_position + Vector3.UP * p.cuerpo.altura * 0.6 - desde
+		var distancia := hacia.length()
+		if distancia > alcance:
+			continue
+		var alineado := hacia.normalized().dot(mirada)
+		if alineado < 0.2:
+			continue
+		var puntaje := distancia * (2.0 - alineado)
+		if puntaje < mejor_puntaje:
+			mejor_puntaje = puntaje
+			mejor = p.cuerpo
+	return mejor
+
+
+func _a_bordo(p: Pasajero) -> bool:
+	return p.estado in [Estado.CAMINANDO, Estado.SENTADO, Estado.DE_PIE, Estado.BAJANDO]
 
 
 ## Sustos y llegadas repetibles (para las pruebas automáticas).
@@ -139,7 +198,8 @@ func _aparecer_en_parada(k: int) -> void:
 	var p := Pasajero.new()
 	p.origen = k
 	var viaje: Array = _cfg.get_value("pasajeros", "paradas_de_viaje", [1, 3])
-	p.destino = (k + _azar.randi_range(viaje[0], viaje[1])) % pista.paradas.size()
+	p.destino = k + _azar.randi_range(viaje[0], viaje[1])
+	p.destino = p.destino % pista.paradas.size() if pista.cerrada else mini(p.destino, pista.paradas.size() - 1)
 	var i: int = pista.paradas[k].indice_poste
 	var a_lo_largo: Vector3 = pista.direcciones[i]
 	p.espera_poste = pista.paradas[k].poste + a_lo_largo * _azar.randf_range(-2.0, 2.5) + pista.derecha(i) * _azar.randf_range(0.2, 1.2)
@@ -155,6 +215,7 @@ func _aparecer_en_parada(k: int) -> void:
 	cuerpo.add_child(visual)
 	cuerpo.visual = visual
 	p.cuerpo = cuerpo
+	_poner_marca(p)
 	interior.agregar_en_calle(cuerpo, null, Transform3D(Basis.looking_at(-pista.derecha(i), Vector3.UP), p.espera_poste + Vector3.UP * 0.05))
 	cuerpo.configurar(visual.altura, visual.altura_ojos)
 	cuerpo.orientar(cuerpo.giro_actual())
@@ -196,6 +257,7 @@ func llenar(cuantos: int) -> void:
 		cuerpo.add_child(visual)
 		cuerpo.visual = visual
 		p.cuerpo = cuerpo
+		_poner_marca(p)
 		interior.agregar(cuerpo, null, Transform3D(Basis(), p.lugar.pasillo + Vector3.UP * 0.02))
 		cuerpo.configurar(visual.altura, visual.altura_ojos)
 		cuerpo.atravesar_personajes(true)
@@ -203,6 +265,25 @@ func llenar(cuantos: int) -> void:
 		pasajeros.append(p)
 		p.estado = Estado.CAMINANDO
 		p.ruta = [p.lugar.pasillo]
+
+
+## "$" sobre la cabeza de quien va a bordo sin pagar (cuelga de su figura, así se ve adentro).
+func _poner_marca(p: Pasajero) -> void:
+	var marca := Label3D.new()
+	marca.name = "MarcaSinPagar"
+	marca.text = "$"
+	marca.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	marca.font_size = 96
+	marca.pixel_size = 0.004
+	marca.outline_size = 18
+	marca.modulate = Color(0.45, 1.0, 0.35)
+	marca.outline_modulate = Color(0.05, 0.2, 0.05)
+	marca.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	marca.no_depth_test = true
+	marca.position = Vector3(0.0, 2.1, 0.0)
+	marca.visible = false
+	p.cuerpo.visual.add_child(marca)
+	p.marca = marca
 
 
 func _desaparecer(p: Pasajero) -> void:
@@ -215,19 +296,24 @@ func _desaparecer(p: Pasajero) -> void:
 # --- Cada cuadro -------------------------------------------------------------
 
 func _physics_process(delta: float) -> void:
+	var antes := parada_actual
 	parada_actual = _detectar_parada()
+	_ventana_de_parada(delta, antes)
 	_turno_puerta = maxf(0.0, _turno_puerta - delta)
 	_tiempo_llegadas += delta
 	if llegadas_activas and _tiempo_llegadas > float(_cfg.get_value("pasajeros", "intervalo_llegadas", 12.0)):
 		_tiempo_llegadas = 0.0
 		for k in pista.paradas.size():
-			if k != parada_actual and _azar.randf() < float(_cfg.get_value("pasajeros", "probabilidad_llegada", 0.5)):
+			if k != parada_actual and not _es_terminal(k) and _azar.randf() < float(_cfg.get_value("pasajeros", "probabilidad_llegada", 0.5)):
 				_aparecer_en_parada(k)
 	for p: Pasajero in pasajeros.duplicate():
 		if not is_instance_valid(p.cuerpo):
 			pasajeros.erase(p)
 			continue
 		p.tiempo += delta
+		if p.marca != null:
+			p.marca.visible = _a_bordo(p) and not p.pagado and not p.cuerpo.desplomado
+			p.marca.position.y = p.cuerpo.altura + 0.35
 		var c: ComandosPersonaje = p.cuerpo.comandos
 		c.mover = Vector2.ZERO
 		c.sujetarse = false
@@ -246,6 +332,31 @@ func _physics_process(delta: float) -> void:
 				_bajar(p)
 			Estado.ALEJANDOSE:
 				_alejarse(p)
+
+
+## Ventana de parada (D20): pasado el tiempo, la gente se desespera y alguno se baja enojado.
+## En la terminal se bajan todos.
+func _ventana_de_parada(delta: float, parada_anterior: int) -> void:
+	if parada_actual < 0:
+		tiempo_en_parada = 0.0
+		desesperacion = 0.0
+		return
+	if parada_actual != parada_anterior:
+		tiempo_en_parada = 0.0
+		if _es_terminal(parada_actual):
+			for p in pasajeros:
+				if _a_bordo(p):
+					p.destino = parada_actual
+	tiempo_en_parada += delta
+	var parametros := Juego.parametros
+	if tiempo_en_parada <= parametros.ventana:
+		return
+	desesperacion = minf(1.0, desesperacion + parametros.desesperacion_por_segundo * delta)
+	if _azar.randf() < parametros.probabilidad_bajarse * delta:
+		var enojados := pasajeros.filter(func(p): return p.estado in [Estado.SENTADO, Estado.DE_PIE] and p.destino != parada_actual)
+		if not enojados.is_empty():
+			var p: Pasajero = enojados[_azar.randi() % enojados.size()]
+			p.destino = parada_actual
 
 
 ## El camión está en una parada si va casi parado y su puerta queda cerca del poste.
@@ -334,6 +445,7 @@ func _bajar(p: Pasajero) -> void:
 		p.tiempo = 0.0
 		total_bajaron += 1
 		bajo.emit(p.cuerpo)
+		_cobro_perdido(p)
 		return
 	if _seguir_ruta(p, true) or p.tiempo > 12.0:
 		# Si se atoró, ya llegó a la puerta de todos modos: un empujoncito hacia afuera.
@@ -349,6 +461,8 @@ func _alejarse(p: Pasajero) -> void:
 
 
 func _perderse(p: Pasajero) -> void:
+	if _a_bordo(p):
+		_cobro_perdido(p)
 	_liberar_lugar(p)
 	if p.cuerpo.sentado:
 		p.cuerpo.pararse(p.cuerpo.global_transform)
@@ -356,6 +470,15 @@ func _perderse(p: Pasajero) -> void:
 	p.tiempo = 0.0
 	total_perdidos += 1
 	se_perdio.emit(p.cuerpo)
+
+
+## El que se va del camión sin haber pagado es dinero perdido (DISEÑO.md, 6.0).
+func _cobro_perdido(p: Pasajero) -> void:
+	if p.pagado:
+		return
+	p.pagado = true
+	total_sin_pagar += 1
+	bajo_sin_pagar.emit(p.cuerpo, Juego.parametros.pasaje)
 
 
 ## Al levantarse de ser ragdoll: si quedó adentro, regresa a su lugar; si quedó afuera, se perdió.

@@ -327,3 +327,31 @@ Aquí se agregan las decisiones que se tomen durante el desarrollo: la elección
     - ~880 cuadros por segundo a 1080p con la RTX 5070.
     - 56–60 cuadros por segundo a 1080p con la GPU integrada Intel del mismo equipo, que es mucho más débil que una tarjeta de gama media.
 - *Secciones:* 4, 6.0, 7.5, etapa 3.
+
+**D39. Rol del jugador y morral del cobrador** (15/10/2026, etapa 4)
+- *Contexto:* la etapa 4 pide una ruta completa con cobro y cuota. Según D26, en esta etapa solo maneja el jugador, pero para probar el cobro hace falta alguien cobrando mientras el camión anda.
+- *Decisión:* en la escena de ruta, el jugador es el **cobrador** y el piloto automático hace de chofer, como sustituto del bot chofer de la etapa 6A. Esto amplía D26: manejar como jugador sigue disponible en la calle de prueba. Pendiente de que el dueño lo confirme.
+  - **Cobro:** con F (mando B), le cobras al pasajero que tengas enfrente (`alcance` 1.6 m). Cada pasajero paga su pasaje una vez y queda marcado con "$". El que se baja sin pagar cuenta como dinero perdido.
+  - **Morral (mecánica nueva, no viene en DISEÑO.md):** lo cobrado se guarda en el morral y se entrega al fondo en cada parada. Si tropiezas, se riega el 30 %; si caes como ragdoll, se riega todo, en monedas físicas de $2 (máximo 12). Se recogen caminando encima de ellas. Las que caen a la calle se pierden a los 3 s. Así el caos del camión le cuesta dinero al cobrador. Las monedas tienen fricción alta, no rebotan y no ruedan de canto: en la primera versión se salían rodando por la puerta y se perdía el 80 % de lo cobrado.
+  - **Balance medido:** en la ruta de prueba, un cobrador que va sujeto y le cobra a todos junta unos $210 contra una cuota de $60. Es holgado a propósito, porque los eventos y rivales de la etapa 5 van a apretar; el balance fino se hace después.
+  - **Ventana de parada (D20):** dura 10 s. En ese tiempo, a los que quieren bajar les sube la desesperación, y pueden bajarse enojados sin pagar.
+  - **Reaparecer:** si el jugador se queda abajo, reaparece en la siguiente parada pagando la penalización ($20). Si el fondo no alcanza, reaparece gratis (en la etapa 4 no hay otro castigo).
+  - **Cierre de ruta:** en la terminal, cuando todos bajaron o pasó la ventana, se cierra la ruta contra la cuota (`Juego.cerrar_ruta`). Se muestra el resultado y se sigue a la siguiente ruta o, sin cuota cumplida, termina la partida.
+  - **Configuración:** los números están en `config/partida.cfg` y el estado de la partida en el autoload `Juego` (`EstadoDinero`).
+- *Secciones:* 5, 6.0, 6.2, etapa 4.
+
+**D40. Generador de rutas por tramos** (15/10/2026, etapa 4)
+- *Contexto:* la sección 4 pide rutas distintas cada vez, con zonas (popular, centro, lujo, cruces) y dificultad creciente.
+- *Decisión:* `GeneradorRuta` encadena tramos prediseñados de `config/tramos.cfg` (12 tramos: 4 zonas × dificultad 1–3), a partir de una semilla:
+  - **Paradas:** de 6 a 10 por ruta, contando la terminal. Hay una recta de salida y una de llegada, y las paradas van en tramos rectos.
+  - **Zonas:** ninguna se repite más de dos veces seguidas. La dificultad sube con el avance dentro de la ruta y de una ruta a la siguiente.
+  - **Sin enroscarse:** las curvas se voltean en espejo para que el rumbo no se aleje más de 70° del de salida, así la ruta nunca se cruza consigo misma.
+  - **Paradas despejadas:** no queda ningún tope ni bache a menos de 12 m de una parada. Un tope junto a la parada atoraba al camión al arrancar.
+  - **Calle libre:** los edificios iban girados (el frente largo apuntaba hacia la calle) y en las curvas sus esquinas invadían el carril; eso atoraba al camión. Ahora se revisa la planta de cada edificio contra la calle: si invade, se prueba con la mitad del frente y, si aun así invade, no se pone. Hay una prueba que pasa una caja del ancho de la calle por 6 rutas completas.
+  - **La calle:** la clase `Calle` (antes la pista de prueba) arma tanto el circuito de prueba como estas rutas abiertas, con piso a la medida, letreros de zona, colores por zona y una barrera al final.
+- *Secciones:* 4, etapa 4.
+
+**D41. Modelos sueltos y en pose T** (15/10/2026, detalle menor)
+- *Contexto:* el dueño cambió el modelo del chofer por uno suelto de Tripo, en pose T y con otra escala.
+- *Decisión:* `procesar_personajes` acepta hojas de un solo personaje con su propia estatura (`altura`), textura y número de triángulos. Un modelo en pose T (`brazos_caidos`) se corta con los brazos extendidos y luego se giran en el hombro, para que en reposo cuelguen como los demás (la animación lo da por hecho). El chofer nuevo mide 1.72 m y va sin reducir (10 044 triángulos), porque reducirlo manchaba la textura. Su original está en `modelos/fuentes/chofer.glb`.
+- *Secciones:* 3.

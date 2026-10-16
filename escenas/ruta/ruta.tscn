@@ -1,0 +1,18 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://escenas/ruta/ruta.gd" id="1_ruta"]
+[ext_resource type="PackedScene" path="res://escenas/mundo/ambiente_dia.tscn" id="2_ambiente"]
+[ext_resource type="PackedScene" path="res://escenas/camion/camion.tscn" id="3_camion"]
+[ext_resource type="Script" path="res://escenas/ui/hud_interior.gd" id="4_hud"]
+
+[node name="Ruta" type="Node3D"]
+script = ExtResource("1_ruta")
+
+[node name="AmbienteDia" parent="." instance=ExtResource("2_ambiente")]
+
+[node name="Camion" parent="." instance=ExtResource("3_camion")]
+
+[node name="Mundo" type="Node3D" parent="."]
+
+[node name="Hud" type="CanvasLayer" parent="."]
+script = ExtResource("4_hud")

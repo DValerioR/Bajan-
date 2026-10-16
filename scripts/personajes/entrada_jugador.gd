@@ -35,3 +35,5 @@ func _physics_process(delta: float) -> void:
 		c.agarrar = true
 	if Input.is_action_just_pressed("accion_principal"):
 		c.accion = true
+	if Input.is_action_just_pressed("cobrar"):
+		c.cobrar = true

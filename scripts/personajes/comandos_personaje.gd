@@ -13,3 +13,5 @@ var sujetarse: bool = false
 var saltar: bool = false
 var agarrar: bool = false
 var accion: bool = false
+## Cobrar el pasaje (cobrador).
+var cobrar: bool = false

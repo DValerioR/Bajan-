@@ -6,7 +6,7 @@ extends Node
 const ESCENA := "res://escenas/calle_prueba/calle_prueba.tscn"
 
 var _camion: Camion
-var _pista: PistaPrueba
+var _pista: Calle
 var _carpeta: String = "user://capturas"
 var _indice: int = 0
 

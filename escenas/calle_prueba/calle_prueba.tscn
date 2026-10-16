@@ -1,7 +1,7 @@
 [gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://escenas/calle_prueba/calle_prueba.gd" id="1_calle"]
-[ext_resource type="Script" path="res://scripts/mundo/pista_prueba.gd" id="2_pista"]
+[ext_resource type="Script" path="res://scripts/mundo/calle.gd" id="2_pista"]
 [ext_resource type="PackedScene" path="res://escenas/camion/camion.tscn" id="3_camion"]
 [ext_resource type="Script" path="res://scripts/camion/entrada_chofer.gd" id="4_entrada"]
 [ext_resource type="PackedScene" path="res://escenas/ui/hud_conduccion.tscn" id="5_hud"]

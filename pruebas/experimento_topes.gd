@@ -5,7 +5,7 @@ extends Node
 const ESCENA := "res://escenas/calle_prueba/calle_prueba.tscn"
 
 var camion: Camion
-var pista: PistaPrueba
+var pista: Calle
 
 
 func _ready() -> void:

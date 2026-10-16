@@ -34,17 +34,19 @@ Herramientas de desarrollo (se abren desde el editor o con Godot por línea de c
 - `pruebas/captura_ventana.tscn`: llena el camión, avienta a un pasajero y toma capturas desde afuera.
 - `pruebas/experimento_rendimiento.tscn`: tiempo por cuadro con 0, 5 y 15 pasajeros; sin `--headless` mide cuadros por segundo con gráficos (`--gpu-index 1` usa la otra GPU).
 - `pruebas/experimento_ragdoll.tscn`: suelta un ragdoll en el aire y reporta cómo caen sus piezas.
+- `pruebas/captura_ruta.tscn`: genera una ruta (`-- <carpeta> [semilla]`), deja que el chofer automático la maneje a velocidad ×3 y toma una vista aérea y capturas siguiendo al camión, con la zona en el nombre del archivo.
 
 ## Estructura
 
 | Carpeta | Contenido |
 |---|---|
 | `audio/musica/`, `audio/efectos/`, `audio/murmullos/` | Audio por tipo (por ahora vacío; ver DISEÑO.md, sección 10). |
-| `config/` | Números de diseño: `juego.cfg` (jugadores, idiomas), `conduccion.cfg` (manejo del camión), `calle_prueba.cfg` (trazado, topes, baches y paradas), `interior.cfg` (caminar adentro, ragdolls, chofer automático), `pasajeros.cfg`. Nunca van en los scripts. |
-| `escenas/` | Escenas: `principal.tscn` (menú de pruebas, escena de arranque), `camion/`, `calle_prueba/`, `ui/`. |
-| `scripts/autoload/` | Nodos globales: `Config` (lee `config/`, F9 recarga) y `Preferencias` (idioma y ajustes locales del jugador). |
+| `config/` | Números de diseño: `juego.cfg` (jugadores, idiomas), `conduccion.cfg` (manejo del camión), `calle_prueba.cfg` (trazado, topes, baches y paradas), `interior.cfg` (caminar adentro, ragdolls, chofer automático), `pasajeros.cfg`, `partida.cfg` (dinero, cobro, paradas), `tramos.cfg` (tramos para generar rutas). Nunca van en los scripts. |
+| `escenas/` | Escenas: `principal.tscn` (menú de pruebas, escena de arranque), `camion/`, `calle_prueba/`, `ruta/` (una ruta completa), `ui/`. |
+| `scripts/autoload/` | Nodos globales: `Config` (lee `config/`, F9 recarga), `Preferencias` (idioma y ajustes locales del jugador) y `Juego` (estado de la partida: dinero y número de ruta). |
 | `scripts/camion/` | Simulación del camión (`camion.gd`), comandos de manejo, entrada del jugador, cámara del chofer y carrocería de formas básicas. |
-| `scripts/mundo/`, `scripts/estilo/`, `scripts/audio/` | Calle de prueba, conversión al estilo toon y sonidos generados en código. |
+| `scripts/mundo/`, `scripts/estilo/`, `scripts/audio/` | Calle (circuito de prueba y rutas generadas), generador de rutas, conversión al estilo toon y sonidos generados en código. |
+| `scripts/partida/`, `scripts/roles/` | Dinero y parámetros de la partida; el cobrador. |
 | `materiales/` | Shaders del estilo toon y del contorno. |
 | `modelos/` | `personajes/` (16 personajes procesados), `personajes.cfg` (cómo se procesan) y `fuentes/` (originales de Tripo, fuera de git). Formato y escala en `DECISIONES.md`, D33 y D34. |
 | `scripts/personajes/`, `scripts/interior/`, `scripts/objetos/`, `scripts/pasajeros/` | Personaje (figura, cuerpo, ragdoll), interior del camión (inercia y espacio de física propio), objetos sueltos y pasajeros. |
@@ -62,6 +64,8 @@ Cada personaje es `modelos/personajes/<nombre>.glb`, con 6 objetos: `Cabeza`, `T
 4. Al abrir Godot, se reimporta solo. La estatura, el cuello, la cadera y las manos se recalculan con las piezas.
 
 No corras `procesar_personajes.bat --forzar` con ese personaje, o regresa a la versión original.
+
+Para cambiar un personaje por un modelo suelto de Tripo (como el chofer): copia el `.glb` original a `modelos/fuentes/`, agrega en `modelos/personajes.cfg` una sección con el archivo y la `altura`, y otra con sus medidas (con `brazos_caidos` si viene en pose T), y corre `procesar_personajes.bat --forzar <nombre>`. Ver D41.
 
 ## Reglas rápidas
 
@@ -104,4 +108,13 @@ Para ajustar el manejo: con el juego abierto, edita `config/conduccion.cfg`, gua
 
 Hay un maniquí, bolsas y monedas para agarrar y lanzar. Los empujones, el tropiezo y el pasamanos se ajustan en `config/interior.cfg` (F9 recarga).
 
-**Etapa 3 (pasajeros): en revisión.** En la misma escena, el chofer automático se detiene en las 5 paradas (postes azules con letrero); los pasajeros que esperan suben, se sientan o van de pie sujetos, y bajan en su parada. Con un frenazo fuerte, quien va de pie sin sujetarse cae como ragdoll (también tú), y un empujón o algo que vuela puede sacar a alguien por la puerta o una ventana; el que cae a la calle se pierde. Las piezas de un ragdoll se pueden agarrar (E) y aventar. Los pasajeros se ajustan en `config/pasajeros.cfg` y los ragdolls en `config/interior.cfg` (sección `[ragdoll]`).
+**Etapa 3 (pasajeros): completa.** En la misma escena, el chofer automático se detiene en las 5 paradas (postes azules con letrero); los pasajeros que esperan suben, se sientan o van de pie sujetos, y bajan en su parada. Con un frenazo fuerte, quien va de pie sin sujetarse cae como ragdoll (también tú), y un empujón o algo que vuela puede sacar a alguien por la puerta o una ventana; el que cae a la calle se pierde. Las piezas de un ragdoll se pueden agarrar (E) y aventar. Los pasajeros se ajustan en `config/pasajeros.cfg` y los ragdolls en `config/interior.cfg` (sección `[ragdoll]`).
+
+**Etapa 4 (una ruta completa): en revisión.** En el menú, **Jugar una ruta**. Cada ruta se arma distinta con tramos de cuatro zonas (popular, centro, lujo y cruces) y tiene de 6 a 10 paradas. El chofer automático maneja y se detiene en cada parada. Tú eres el cobrador:
+
+- Ponte frente a cada pasajero y cóbrale con **F** (mando: **B**). Los que ya pagaron llevan "$".
+- Lo cobrado va en tu morral y se entrega solo al fondo en cada parada. Si tropiezas, se te riega una parte, y si te caes, todo. Recoge las monedas caminando sobre ellas antes de que se pierdan.
+- Si te quedas abajo, reapareces en la siguiente parada pagando una multa.
+- En la terminal se cierra la ruta: si llegaste a la cuota, sigues a la siguiente ruta (con una cuota más alta). Si no, se acaba la partida.
+
+Los números del dinero, el cobro y la ventana de parada están en `config/partida.cfg`, y los tramos de calle en `config/tramos.cfg` (F9 recarga).

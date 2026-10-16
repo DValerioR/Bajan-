@@ -10,6 +10,9 @@ const CAPA := 16
 const VELOCIDAD_GOLPE := 3.0
 
 var marco := MarcoMovimiento.new()
+## Material físico (las monedas usan más fricción y nada de rebote para no rodar lejos).
+var friccion: float = 0.8
+var rebote: float = 0.15
 
 
 func _ready() -> void:
@@ -17,8 +20,8 @@ func _ready() -> void:
 	collision_mask = 1 | 4 | 8 | CAPA
 	continuous_cd = true
 	var material := PhysicsMaterial.new()
-	material.friction = 0.8
-	material.bounce = 0.15
+	material.friction = friccion
+	material.bounce = rebote
 	physics_material_override = material
 	contact_monitor = true
 	max_contacts_reported = 2

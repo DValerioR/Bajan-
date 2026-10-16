@@ -8,7 +8,7 @@ const ESCENA_MENU := "res://escenas/principal.tscn"
 const PUESTO_JUGADOR := Vector3(0.35, -0.28, -3.0)
 const MANIQUI := "chavo_sudadera"
 
-@onready var pista: PistaPrueba = $Pista
+@onready var pista: Calle = $Pista
 @onready var camion: Camion = $Camion
 @onready var piloto: PilotoAutomatico = $PilotoAutomatico
 @onready var mundo: Node3D = $Mundo

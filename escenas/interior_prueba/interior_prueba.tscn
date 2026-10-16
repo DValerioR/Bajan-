@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://escenas/interior_prueba/interior_prueba.gd" id="1_interior"]
 [ext_resource type="PackedScene" path="res://escenas/mundo/ambiente_dia.tscn" id="2_ambiente"]
-[ext_resource type="Script" path="res://scripts/mundo/pista_prueba.gd" id="3_pista"]
+[ext_resource type="Script" path="res://scripts/mundo/calle.gd" id="3_pista"]
 [ext_resource type="PackedScene" path="res://escenas/camion/camion.tscn" id="4_camion"]
 [ext_resource type="Script" path="res://scripts/camion/piloto_automatico.gd" id="5_piloto"]
 [ext_resource type="Script" path="res://escenas/ui/hud_interior.gd" id="6_hud"]

@@ -11,7 +11,7 @@ var _fallos: int = 0
 const VERIFICACIONES_MINIMAS := 17
 var _verificaciones: int = 0
 var camion: Camion
-var pista: PistaPrueba
+var pista: Calle
 
 # Estado del piloto de prueba y de las mediciones.
 var _indice: int = -1
@@ -221,7 +221,7 @@ func _pilotear(velocidad_kmh: float, aceleracion_lateral: float) -> void:
 	_indice = pista.indice_cercano(camion.global_position, _indice)
 	var paso := posmod(_indice - anterior, pista.puntos.size())
 	if paso < pista.puntos.size() / 2:
-		_avance += paso * PistaPrueba.PASO
+		_avance += paso * Calle.PASO
 
 	var velocidad := camion.velocidad_adelante
 	var adelante := roundi(7.0 + maxf(velocidad, 0.0) * 0.6)

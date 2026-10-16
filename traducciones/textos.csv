@@ -6,7 +6,7 @@ IDIOMA_ACTUAL,Idioma: Español,Language: English
 BOTON_CAMBIAR_IDIOMA,Cambiar idioma (L),Change language (L)
 BOTON_CALLE_PRUEBA,Manejar en la calle de prueba,Drive on the test street
 BOTON_INTERIOR,Caminar dentro del camión,Walk inside the bus
-PRUEBA_ETAPA,Menú de pruebas · Etapa 3,Test menu · Stage 3
+PRUEBA_ETAPA,Menú de pruebas · Etapa 4,Test menu · Stage 4
 LETRERO_RUTA,CENTRO · TIANGUIS,DOWNTOWN · MARKET
 HUD_VELOCIDAD,%d km/h,%d km/h
 AYUDA_TITULO,Controles,Controls
@@ -38,3 +38,33 @@ AYUDA_REINICIAR_INTERIOR,R: volver a la puerta del camión,R: back to the bus do
 LETRERO_PARADA,PARADA,BUS STOP
 HUD_PASAJEROS,Pasajeros a bordo: %d,Passengers on board: %d
 HUD_SUSTO_PARADA,¡Bajan!,Getting off!
+AYUDA_COBRAR,F: cobrar el pasaje al que tiene $,F: collect the fare from whoever shows $
+HUD_FONDO,Fondo: $%d,Fund: $%d
+HUD_GANANCIA,Ganancia de la ruta: $%d / cuota $%d,Route earnings: $%d / quota $%d
+HUD_MORRAL,En el morral: $%d,In your bag: $%d
+HUD_PARADA,Parada %d de %d,Stop %d of %d
+HUD_VENTANA,¡Bajan! · Salimos en %d,Getting off! · Leaving in %d
+HUD_VENTANA_PASADA,¡Ya vámonos! La gente se desespera,Let's go already! People are getting angry
+MSJ_COBRO,+$%d,+$%d
+MSJ_REGO,¡Se te regaron $%d!,You dropped $%d!
+MSJ_ENTREGA,Entregaste $%d al fondo,You handed $%d to the fund
+MSJ_SIN_PAGAR,Se bajó sin pagar: -$%d,Got off without paying: -$%d
+MSJ_MONEDA_PERDIDA,Se perdió una moneda en la calle: -$%d,A coin rolled into the street: -$%d
+MSJ_REAPARECER,Reapareces aquí · multa de $%d,You're back · $%d fine
+MSJ_REAPARECER_GRATIS,Reapareces aquí (no alcanzó para la multa),You're back (the fund couldn't cover the fine)
+HUD_ESPERANDO_PARADA,Te quedaste abajo · reapareces en la siguiente parada,You got left behind · you'll be back at the next stop
+BOTON_RUTA,Jugar una ruta,Play a route
+RESULTADO_CUMPLIDA,¡Ruta cumplida!,Route complete!
+RESULTADO_FALLIDA,No alcanzó para la cuota,You missed the quota
+RESULTADO_GANANCIA,Ganancia de la ruta: $%d,Route earnings: $%d
+RESULTADO_CUOTA,Cuota: $%d,Quota: $%d
+RESULTADO_FONDO,Fondo después de pagar: $%d,Fund after paying: $%d
+RESULTADO_COBRADOS,Pasajes cobrados: %d · Se bajaron sin pagar: %d,Fares collected: %d · Left without paying: %d
+RESULTADO_REGADO,Dinero regado: $%d · Perdido en la calle: $%d,Money dropped: $%d · Lost in the street: $%d
+RESULTADO_FIN,Fin de la partida · Rutas cumplidas: %d · Dinero total: $%d,Game over · Routes completed: %d · Total money: $%d
+BOTON_SIGUIENTE_RUTA,Siguiente ruta (cuota más alta),Next route (higher quota)
+BOTON_MENU,Volver al menú,Back to menu
+ZONA_POPULAR,Colonia El Tianguis,El Tianguis Neighborhood
+ZONA_CENTRO,Centro Histórico,Historic Downtown
+ZONA_LUJO,Lomas del Billete,Money Hills
+ZONA_CRUCE,Periférico Exprés,Ring Road Express
