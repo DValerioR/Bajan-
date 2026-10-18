@@ -34,6 +34,9 @@ var _resumen: Array[String] = []
 var _cfg: ConfigFile
 ## Nombres a regenerar aunque ya existan; "*" = todos.
 var _forzar: Array = []
+## Con --sin-reducir las piezas salen completas y con la textura sin pérdida: las reduce después
+## Blender (scripts/herramientas/tapar_cortes.py), que no abre grietas en las costuras de la textura.
+var _sin_reducir := false
 ## Estatura en metros de los personajes de la hoja actual (0 = usar la escala).
 var _altura_objetivo := 0.0
 
@@ -50,6 +53,8 @@ func _init() -> void:
 	DirAccess.make_dir_recursive_absolute(SALIDA)
 	_cfg = cfg
 	var argumentos := OS.get_cmdline_user_args()
+	_sin_reducir = argumentos.has("--sin-reducir")
+	argumentos.erase("--sin-reducir")
 	if argumentos.has("--forzar"):
 		_forzar = argumentos.slice(argumentos.find("--forzar") + 1)
 		if _forzar.is_empty():
@@ -258,7 +263,7 @@ func _procesar_personaje(nombre: String, componente: Dictionary, vertices: Packe
 
 	# Un .glb por personaje, con la textura adentro. El juego saca alturas y manos de las piezas.
 	var documento := GLTFDocument.new()
-	documento.image_format = "JPEG"
+	documento.image_format = "PNG" if _sin_reducir else "JPEG"
 	documento.lossy_quality = 0.88
 	var estado := GLTFState.new()
 	documento.append_from_scene(raiz, estado)
@@ -428,6 +433,10 @@ func _aplicar_medidas(e: Dictionary, nombre: String) -> void:
 	e.pivotes[BRAZO_DER] = Vector3(hombro_x, hombro_y, 0.0)
 	e.pivotes[PIERNA_IZQ] = Vector3(-cadera_x, entrepierna, 0.0)
 	e.pivotes[PIERNA_DER] = Vector3(cadera_x, entrepierna, 0.0)
+	if _cfg.has_section_key(nombre, "cara_x"):
+		e.cara_x = float(_cfg.get_value(nombre, "cara_x")) * h
+	if _cfg.has_section_key(nombre, "nuca_z"):
+		e.nuca_z = float(_cfg.get_value(nombre, "nuca_z")) * h
 	# Modelos en pose T: los brazos se cortan extendidos y se bajan (grados desde la vertical).
 	if _cfg.has_section_key(nombre, "brazos_caidos"):
 		e.brazos_caidos = float(_cfg.get_value(nombre, "brazos_caidos"))
@@ -486,6 +495,9 @@ func _etiquetar(puntos: PackedVector3Array, triangulos: PackedInt32Array, e: Dic
 	var radio_brazo := maxf(altura * 0.045, float(e.torso_medio) * 0.35)
 	var radio_pierna := altura * 0.07
 	var hombro_tope: float = piv[BRAZO_IZQ].y + altura * 0.04
+	# Profundidad de cada brazo (la de su mano): el brazo es un cilindro, no una rebanada de todo
+	# el grueso del cuerpo. Así la ropa de los costados que queda adelante o atrás del brazo es torso.
+	var z_brazo := {BRAZO_IZQ: _profundidad_cerca(puntos, e.mano_izq, altura * 0.06), BRAZO_DER: _profundidad_cerca(puntos, e.mano_der, altura * 0.06)}
 	var huesos := [
 		[TORSO, Vector2(0.0, entrepierna), Vector2(0.0, cuello), radio_torso],
 		[BRAZO_IZQ, Vector2(piv[BRAZO_IZQ].x, piv[BRAZO_IZQ].y), Vector2(e.mano_izq.x, e.mano_izq.y), radio_brazo],
@@ -499,6 +511,15 @@ func _etiquetar(puntos: PackedVector3Array, triangulos: PackedInt32Array, e: Dic
 		# En pose T, lo que queda arriba del cuello pero lejos del centro es la mano (el pulgar), no la cabeza.
 		if c.y > cuello and not (e.has("brazos_caidos") and absf(c.x) > float(e.hombro_x)):
 			etiqueta = CABEZA
+			# En los de hombros altos (o encorvados) la parte de arriba de los hombros también queda
+			# sobre esa línea: justo arriba del cuello, lo que queda más afuera que la cara (cara_x)
+			# es hombro y lo que queda más atrás que la nuca (nuca_z) es espalda. Más arriba ya todo
+			# es cabeza (orejas, lentes, sombrero).
+			if c.y < cuello + (altura - cuello) * 0.3:
+				if e.has("cara_x") and absf(c.x) > float(e.cara_x):
+					etiqueta = TORSO
+				elif e.has("nuca_z") and c.z > float(e.nuca_z):
+					etiqueta = TORSO
 		else:
 			var p := Vector2(c.x, c.y)
 			var mejor := INF
@@ -518,7 +539,11 @@ func _etiquetar(puntos: PackedVector3Array, triangulos: PackedInt32Array, e: Dic
 							continue
 					elif c.y > hombro_tope:
 						continue
-				var d := _distancia_segmento(p, h[1], h[2]) / float(h[3])
+				var d := _distancia_segmento(p, h[1], h[2])
+				# En pose T el brazo va acostado y se baja después: ahí basta con la vista de frente.
+				if z_brazo.has(pieza) and not e.has("brazos_caidos"):
+					d = Vector2(d, c.z - float(z_brazo[pieza])).length()
+				d /= float(h[3])
 				if d < mejor:
 					mejor = d
 					etiqueta = pieza
@@ -574,7 +599,15 @@ func _limpiar_islas(puntos: PackedVector3Array, triangulos: PackedInt32Array, et
 		var cambios := 0
 		for datos in islas:
 			var isla: PackedInt32Array = datos[1]
-			if isla.size() >= tamano_mayor[datos[0]] * 0.2 or (datos[2] as Dictionary).is_empty():
+			if isla.size() >= tamano_mayor[datos[0]] * 0.2:
+				continue
+			if (datos[2] as Dictionary).is_empty():
+				# Pedazo suelto que no toca a nadie (un mechón, un arete): va con la pieza que tenga más cerca.
+				var cercana := _pieza_mas_cercana(puntos, triangulos, etiquetas, isla)
+				if cercana >= 0 and cercana != datos[0]:
+					for t in isla:
+						etiquetas[t] = cercana
+					cambios += 1
 				continue
 			var mejor := -1
 			var mejor_conteo := -1
@@ -587,6 +620,37 @@ func _limpiar_islas(puntos: PackedVector3Array, triangulos: PackedInt32Array, et
 			cambios += 1
 		if cambios == 0:
 			break
+
+
+## Profundidad (z) promedio de los vértices cerca de `punto`, visto de frente.
+func _profundidad_cerca(puntos: PackedVector3Array, punto: Vector3, radio: float) -> float:
+	var suma := 0.0
+	var n := 0
+	for q in puntos:
+		if Vector2(q.x - punto.x, q.y - punto.y).length() < radio:
+			suma += q.z
+			n += 1
+	return suma / n if n > 0 else 0.0
+
+
+## La pieza del triángulo más cercano al centro de la isla, sin contar a la isla misma (-1 si no hay).
+func _pieza_mas_cercana(puntos: PackedVector3Array, triangulos: PackedInt32Array, etiquetas: PackedByteArray, isla: PackedInt32Array) -> int:
+	var propios := {}
+	var centro := Vector3.ZERO
+	for t in isla:
+		propios[t] = true
+		centro += puntos[triangulos[t * 3]]
+	centro /= isla.size()
+	var mejor := -1
+	var mejor_distancia := INF
+	for t in etiquetas.size():
+		if propios.has(t):
+			continue
+		var d := puntos[triangulos[t * 3]].distance_squared_to(centro)
+		if d < mejor_distancia:
+			mejor_distancia = d
+			mejor = etiquetas[t]
+	return mejor
 
 
 func _distancia_segmento(p: Vector2, a: Vector2, b: Vector2) -> float:
@@ -621,7 +685,7 @@ func _construir_pieza(pieza: int, etiquetas: PackedByteArray, triangulos: Packed
 	arreglos[Mesh.ARRAY_NORMAL] = n
 	arreglos[Mesh.ARRAY_TEX_UV] = uv
 	arreglos[Mesh.ARRAY_INDEX] = idx
-	if _triangulos_objetivo <= 0:
+	if _triangulos_objetivo <= 0 or _sin_reducir:
 		var completa := ArrayMesh.new()
 		completa.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arreglos)
 		completa.resource_name = PIEZAS[pieza]

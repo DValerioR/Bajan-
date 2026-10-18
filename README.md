@@ -22,7 +22,7 @@ Si se cambia de versión de Godot, hay que actualizar la ruta en los tres `.bat`
 | `ejecutar.bat` | Abre el proyecto en el editor de Godot. |
 | `jugar.bat` | Lanza el juego directamente (la primera vez importa los recursos). |
 | `pruebas.bat` | Corre las pruebas automáticas sin ventana. Sale con código 0 si todo pasa. |
-| `procesar_personajes.bat` | Convierte los modelos originales de `modelos/fuentes/` (no están en git) en personajes de muñeco por piezas: `modelos/personajes/<nombre>.glb`. No toca los `.glb` que ya existen; `procesar_personajes.bat --forzar [nombre]` los regenera. |
+| `procesar_personajes.bat` | Convierte los modelos originales de `modelos/fuentes/` (no están en git) en personajes de muñeco por piezas: `modelos/personajes/<nombre>.glb`. No toca los `.glb` que ya existen; `procesar_personajes.bat --forzar [nombre]` los regenera. Si encuentra Blender, Blender tapa los cortes y reduce las piezas (D45). |
 
 Herramientas de desarrollo (se abren desde el editor o con Godot por línea de comandos; no son pruebas automáticas):
 
@@ -61,7 +61,7 @@ Cada personaje es `modelos/personajes/<nombre>.glb`, con 6 objetos: `Cabeza`, `T
 
 1. En Blender: **Archivo → Importar → glTF 2.0**, y abre el `.glb`.
 2. Edita lo que quieras (forma, textura, proporciones). Conserva los **nombres** de los 6 objetos; un sufijo como `.001` no importa. Si mueves una articulación, mueve también el **origen** del objeto.
-3. **Archivo → Exportar → glTF 2.0**, formato **glTF Binary (.glb)**, con "+Y Up" activado (viene así por defecto), encima del mismo archivo.
+3. **Archivo → Exportar → glTF 2.0**, formato **glTF Binary (.glb)**, con "+Y Up" activado (viene así por defecto) y **Incluir → Propiedades personalizadas** marcado, encima del mismo archivo. Esas propiedades llevan la marca `cortes_tapados`; sin ella, `procesar_personajes.bat` lo volvería a pasar por Blender.
 4. Al abrir Godot, se reimporta solo. La estatura, el cuello, la cadera y las manos se recalculan con las piezas.
 
 No corras `procesar_personajes.bat --forzar` con ese personaje, o regresa a la versión original.

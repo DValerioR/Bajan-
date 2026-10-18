@@ -232,8 +232,9 @@ func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, 
 		brazo_izq = Vector3(deg_to_rad(70.0 + 12.0 * empujon.x), 0.0, deg_to_rad(12.0))
 		brazo_der = Vector3(deg_to_rad(70.0 - 12.0 * empujon.x), 0.0, deg_to_rad(-12.0))
 	if sujetado:
-		# Brazo derecho arriba, agarrado del pasamanos o del respaldo.
-		brazo_der = Vector3(deg_to_rad(160.0), 0.0, deg_to_rad(-10.0))
+		# Brazo derecho arriba, agarrado del pasamanos o del respaldo. Se abre hacia afuera (+Z gira
+		# la mano hacia la derecha) para que no pase por enfrente de la cara.
+		brazo_der = Vector3(deg_to_rad(165.0), 0.0, deg_to_rad(25.0))
 
 	var t := 1.0 - exp(-14.0 * delta)
 	_girar("PiernaIzquierda", Vector3(pierna_izq, 0.0, 0.0), t)

@@ -388,3 +388,13 @@ Aquí se agregan las decisiones que se tomen durante el desarrollo: la elección
   - **Recolocar sin aventar nada:** `InteriorCamion.recolocar` saca el cuerpo del espacio y lo vuelve a meter. Si solo se movía, Jolt lo tomaba como un movimiento cinemático rapidísimo y aventaba a 60 m/s lo que estuviera tocando (pasó con el maniquí recargado en un asiento al reiniciar).
   - **Caminado:** el ritmo de los pasos sigue a la velocidad (los pies no patinan), el cuerpo sube y baja como péndulo para que las piernas rígidas no floten, la cadera se mece, los hombros giran contra las piernas, se echa un poco hacia adelante y en reposo respira. Todo entra y sale suavizado.
 - *Secciones:* 3, 5.1, 7.2.
+
+**D45. Personajes sin huecos ni grietas** (18/10/2026, pedido del dueño)
+- *Contexto:* al revisar los 16 personajes en las poses del juego, todos mostraban el interior negro al levantar un brazo o sentarse: los cortes entre piezas quedaban abiertos. Además, la reducción de Godot (de ~250 000 a ~6 000 triángulos) abría grietas en todas las costuras de la textura (rayones negros en los brazos), la cabeza de los de hombros altos se llevaba los hombros, y el brazo levantado tapaba la cara.
+- *Decisión:*
+  - **Blender termina los personajes:** `procesar_personajes.bat` busca Blender (o `BLENDER_EXE`). Si lo encuentra, Godot corta las piezas sin reducir y `scripts/herramientas/tapar_cortes.py` las suelda, tapa cada corte con un abanico de triángulos del color de la orilla, las reduce (Blender reduce la malla soldada y no abre grietas) y les copia las normales del modelo completo. Sin Blender se hace como antes. Cada pieza terminada lleva la marca `cortes_tapados` para no volver a comprimir su textura.
+  - **Cuello:** en `modelos/personajes.cfg`, `cara_x` (medio ancho de la cara) y `nuca_z` (dónde está la nuca, de lado) para los de hombros altos o encorvados: justo arriba del cuello, lo que queda más afuera que la cara o más atrás que la nuca es torso.
+  - **Brazos con profundidad:** el brazo se corta como un cilindro a la profundidad de su mano, no como una rebanada de todo el grueso del cuerpo, así la ropa de los costados se queda en el torso. Los modelos en pose T (el chofer) se cortan como antes.
+  - **Pedazos sueltos** que no tocan ninguna pieza (un mechón, un arete) se van con la pieza más cercana.
+  - **Sujetarse:** el brazo sube abierto hacia afuera y ya no pasa por enfrente de la cara.
+- *Secciones:* 3, 8.
