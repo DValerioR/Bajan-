@@ -3,23 +3,24 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dbycrygwsbngy"
-path="res://.godot/imported/turista_turista_albedo.jpg-4779abd265670de9404cf1325cf7d3cf.ctex"
+path.bptc="res://.godot/imported/turista_turista_albedo.jpg-4779abd265670de9404cf1325cf7d3cf.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
-"md5": "3e877568b5168d6e88f2bf5d3213e63e"
+"md5": "371bd5595ba9e8596062d52a0376d939"
 }
 
 [deps]
 
 source_file="res://modelos/personajes/turista_turista_albedo.jpg"
-dest_files=["res://.godot/imported/turista_turista_albedo.jpg-4779abd265670de9404cf1325cf7d3cf.ctex"]
+dest_files=["res://.godot/imported/turista_turista_albedo.jpg-4779abd265670de9404cf1325cf7d3cf.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

@@ -3,23 +3,24 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://lxrn4h7jk84b"
-path="res://.godot/imported/vendedora_vendedora_albedo.jpg-17f6876308eaf2fdcbb621dbc3ee1a8b.ctex"
+path.bptc="res://.godot/imported/vendedora_vendedora_albedo.jpg-17f6876308eaf2fdcbb621dbc3ee1a8b.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
-"md5": "466dda5e918b6a876a3d77f9c6a057e3"
+"md5": "1f1b813ca219807c7ac71f9ccaab227f"
 }
 
 [deps]
 
 source_file="res://modelos/personajes/vendedora_vendedora_albedo.jpg"
-dest_files=["res://.godot/imported/vendedora_vendedora_albedo.jpg-17f6876308eaf2fdcbb621dbc3ee1a8b.ctex"]
+dest_files=["res://.godot/imported/vendedora_vendedora_albedo.jpg-17f6876308eaf2fdcbb621dbc3ee1a8b.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

@@ -3,23 +3,24 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://caap8ctao3fr5"
-path="res://.godot/imported/abuelita_abuelita_albedo.jpg-409c6a864285f005b029be1a086c0025.ctex"
+path.bptc="res://.godot/imported/abuelita_abuelita_albedo.jpg-409c6a864285f005b029be1a086c0025.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
-"md5": "9c01386d036c87c8d003c0abf16d9aa7"
+"md5": "d7500e3e2761608b7f97210c1073c837"
 }
 
 [deps]
 
 source_file="res://modelos/personajes/abuelita_abuelita_albedo.jpg"
-dest_files=["res://.godot/imported/abuelita_abuelita_albedo.jpg-409c6a864285f005b029be1a086c0025.ctex"]
+dest_files=["res://.godot/imported/abuelita_abuelita_albedo.jpg-409c6a864285f005b029be1a086c0025.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

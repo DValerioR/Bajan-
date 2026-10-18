@@ -13,6 +13,9 @@ const SHADER_CONTORNO := preload("res://materiales/contorno.gdshader")
 
 enum ModoContorno { NORMAL, CAJA, NORMAL_EN_COLOR }
 const GROSOR := {ModoContorno.NORMAL: 0.035, ModoContorno.CAJA: 0.035, ModoContorno.NORMAL_EN_COLOR: 0.012}
+## Cuánto se aleja el contorno de la cámara (m). En los personajes evita que se asome por orejas,
+## boca y visera como astillas negras; en las cajas no hace falta.
+const EMPUJE := {ModoContorno.NORMAL: 0.0, ModoContorno.CAJA: 0.0, ModoContorno.NORMAL_EN_COLOR: 0.04}
 
 static var _materiales: Dictionary = {}
 static var _contornos: Dictionary = {}
@@ -71,5 +74,6 @@ static func _contorno(modo: ModoContorno) -> ShaderMaterial:
 		m.set_shader_parameter("modo_caja", modo == ModoContorno.CAJA)
 		m.set_shader_parameter("normal_en_color", modo == ModoContorno.NORMAL_EN_COLOR)
 		m.set_shader_parameter("grosor", GROSOR[modo])
+		m.set_shader_parameter("empuje", EMPUJE[modo])
 		_contornos[modo] = m
 	return _contornos[modo]

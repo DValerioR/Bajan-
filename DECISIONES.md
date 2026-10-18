@@ -398,3 +398,12 @@ Aquí se agregan las decisiones que se tomen durante el desarrollo: la elección
   - **Pedazos sueltos** que no tocan ninguna pieza (un mechón, un arete) se van con la pieza más cercana.
   - **Sujetarse:** el brazo sube abierto hacia afuera y ya no pasa por enfrente de la cara.
 - *Secciones:* 3, 8.
+
+**D46. Caras nítidas: textura propia y contorno sin astillas** (18/10/2026, pedido del dueño)
+- *Contexto:* en el juego las caras se veían borrosas y con "pinceladas". Había dos causas: (1) Tripo pinta a 6–9 personajes en una sola hoja de 4096 px con sus pedazos revueltos, así que el recorte de cada personaje era la hoja entera, que se encogía a 1024 px (25 %); además, los bordes de cada pedazo se mezclaban con los vecinos, que muchas veces son de otro personaje, y salían rayas. (2) El contorno de casco invertido se asomaba por las partes hundidas (orejas, boca, bajo la visera) como astillas negras.
+- *Decisión:*
+  - **Textura propia:** `tapar_cortes.py` acomoda solo los pedazos de cada personaje en una imagen nueva de `tamano_textura` (ahora 2048 px) y copia ahí los colores de la hoja a resolución completa (horneado con Cycles), con 16 px de margen del mismo color. Godot ya no encoge la hoja cuando sigue Blender. Las tapas de los cortes toman el color de su orilla.
+  - **Contorno:** `contorno.gdshader` aleja el casco de la cámara (`empuje`, 4 cm en los personajes), así solo asoma en la silueta. El camión y la calle no cambian.
+  - **Memoria:** las texturas de los personajes se importan con compresión de video de alta calidad (BPTC) en lugar de sin pérdida: unos 90 MB en lugar de 340 MB para los 16, sin diferencia visible. Un personaje nuevo hay que ponerlo igual (en el editor: Importar → Compress Mode: VRAM Compressed, High Quality).
+  - Lo que queda en las caras (manchitas, trazos alrededor de los ojos) viene pintado así por Tripo.
+- *Secciones:* 3, 8.

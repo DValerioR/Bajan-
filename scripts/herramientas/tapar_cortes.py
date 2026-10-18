@@ -6,6 +6,10 @@
 #   3. Se reduce a los triángulos de modelos/personajes.cfg. Blender reduce la malla soldada, así
 #      que no abre grietas en las costuras (la reducción de Godot sí las abría).
 #   4. Se le copian las normales del modelo completo, para que se vea suave como el original.
+#   5. Se le arma su propia textura: Tripo pinta a varios personajes en una sola hoja de 4096 px,
+#      con sus pedazos revueltos. Aquí se acomodan solo los pedazos de este personaje en una
+#      imagen nueva (tamano_textura de personajes.cfg) y se copian ahí los colores de la hoja a
+#      resolución completa. Así la cara no se ve borrosa ni con rayas de los pedazos vecinos.
 #
 # Uso (lo llama procesar_personajes.bat si encuentra Blender):
 #   blender --background --factory-startup --python scripts/herramientas/tapar_cortes.py -- <carpeta> [nombre ...]
@@ -26,9 +30,8 @@ SOLDAR = 0.0002
 CONFIG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "modelos", "personajes.cfg")
 
 
-def triangulos_objetivo(nombre):
-	"""Triángulos del personaje según personajes.cfg: los de su hoja o los generales (0 = sin reducir)."""
-	general = 6000
+def valor_de_hoja(nombre, clave, general):
+	"""Un valor de personajes.cfg para este personaje: el de su hoja o, si no lo trae, el general."""
 	por_hoja = {}
 	seccion = ""
 	with open(CONFIG, encoding="utf-8") as archivo:
@@ -38,12 +41,12 @@ def triangulos_objetivo(nombre):
 				seccion = linea[1:-1]
 				por_hoja.setdefault(seccion, {})
 			elif "=" in linea and not linea.startswith(";"):
-				clave, valor = [t.strip() for t in linea.split("=", 1)]
-				por_hoja.setdefault(seccion, {})[clave] = valor
-	general = int(por_hoja.get("general", {}).get("triangulos_por_personaje", general))
+				llave, valor = [t.strip() for t in linea.split("=", 1)]
+				por_hoja.setdefault(seccion, {})[llave] = valor
+	general = int(por_hoja.get("general", {}).get(clave, general))
 	for datos in por_hoja.values():
 		if nombre in re.findall(r'"([^"]*)"', datos.get("nombres", "")):
-			return int(datos.get("triangulos_por_personaje", general))
+			return int(datos.get(clave, general))
 	return general
 
 
@@ -115,6 +118,91 @@ def _abanicos(bm, bordes):
 	return nuevas
 
 
+def reempacar(piezas, nombre, tamano):
+	"""Le arma al personaje su propia textura de `tamano` px con solo sus pedazos de UV."""
+	material = piezas[0].active_material
+	arbol = material.node_tree
+	textura = next(n for n in arbol.nodes if n.type == "TEX_IMAGE")
+	salida = next(n for n in arbol.nodes if n.type == "OUTPUT_MATERIAL")
+	superficie = salida.inputs["Surface"].links[0].from_socket
+	for objeto in piezas:
+		capas = objeto.data.uv_layers
+		capas[0].name = "Hoja"
+		capas.active = capas.new(name="Propia")
+
+	# Acomodar los pedazos de las 6 piezas juntos en la imagen nueva.
+	bpy.ops.object.select_all(action="DESELECT")
+	for objeto in piezas:
+		objeto.select_set(True)
+	bpy.context.view_layer.objects.active = piezas[0]
+	bpy.context.scene.tool_settings.use_uv_select_sync = True
+	bpy.ops.object.mode_set(mode="EDIT")
+	bpy.ops.mesh.select_all(action="SELECT")
+	bpy.ops.uv.pack_islands(rotate=True, margin=0.004)
+	bpy.ops.object.mode_set(mode="OBJECT")
+	for objeto in piezas:
+		_colorear_tapas(objeto)
+
+	# Copiar los colores de la hoja (con las UV viejas) a la imagen nueva (con las nuevas).
+	escena = bpy.context.scene
+	escena.render.engine = "CYCLES"
+	escena.cycles.device = "CPU"
+	escena.cycles.samples = 1
+	imagen = bpy.data.images.new(nombre + "_albedo", tamano, tamano)
+	mapa = arbol.nodes.new("ShaderNodeUVMap")
+	mapa.uv_map = "Hoja"
+	emision = arbol.nodes.new("ShaderNodeEmission")
+	destino = arbol.nodes.new("ShaderNodeTexImage")
+	destino.image = imagen
+	arbol.links.new(mapa.outputs["UV"], textura.inputs["Vector"])
+	arbol.links.new(textura.outputs["Color"], emision.inputs["Color"])
+	arbol.links.new(emision.outputs["Emission"], salida.inputs["Surface"])
+	arbol.nodes.active = destino
+	bpy.ops.object.bake(type="EMIT", margin=16, margin_type="EXTEND", use_clear=True)
+
+	# El material vuelve a ser el de siempre, ahora con la imagen nueva y una sola capa de UV.
+	arbol.links.new(superficie, salida.inputs["Surface"])
+	textura.image = imagen
+	for nodo in (mapa, emision, destino):
+		arbol.nodes.remove(nodo)
+	for objeto in piezas:
+		capas = objeto.data.uv_layers
+		capas.remove(capas["Hoja"])
+		capas["Propia"].active_render = True
+
+
+def _colorear_tapas(objeto):
+	"""Las tapas tienen todas sus esquinas en el mismo punto de la hoja (el color de la orilla),
+	así que al acomodar no ocupan lugar. Se les da a todas sus esquinas un mismo punto: el que ya
+	tiene uno de sus vértices en una cara normal, que sí recibe color. (Si cada esquina tomara el
+	de su vértice, la tapa se estiraría entre pedazos lejanos y pintaría encima de ellos.)"""
+	bm = bmesh.new()
+	bm.from_mesh(objeto.data)
+	hoja = bm.loops.layers.uv["Hoja"]
+	propia = bm.loops.layers.uv["Propia"]
+
+	def es_tapa(cara):
+		a, b, c = (esquina[hoja].uv for esquina in cara.loops[:3])
+		return abs((b - a).cross(c - a)) < 1e-10
+
+	tapas = {cara for cara in bm.faces if es_tapa(cara)}
+	for cara in tapas:
+		punto = None
+		for esquina in cara.loops:
+			for otra in esquina.vert.link_loops:
+				if otra.face not in tapas:
+					punto = otra[propia].uv.copy()
+					break
+			if punto is not None:
+				break
+		if punto is None:
+			continue
+		for esquina in cara.loops:
+			esquina[propia].uv = punto
+	bm.to_mesh(objeto.data)
+	bm.free()
+
+
 def aplicar(objeto, modificador):
 	with bpy.context.temp_override(object=objeto, active_object=objeto, selected_objects=[objeto]):
 		bpy.ops.object.modifier_apply(modifier=modificador.name)
@@ -157,10 +245,12 @@ def procesar(ruta):
 		print("  %s: ya estaba terminado" % nombre)
 		return
 	antes = sum(len(o.data.polygons) for o in piezas)
-	objetivo = triangulos_objetivo(nombre)
+	objetivo = valor_de_hoja(nombre, "triangulos_por_personaje", 6000)
 	proporcion = 1.0 if objetivo <= 0 else min(1.0, objetivo / max(antes, 1))
 	tapas = sum(terminar_pieza(o, proporcion) for o in piezas)
 	despues = sum(len(o.data.polygons) for o in piezas)
+	tamano = valor_de_hoja(nombre, "tamano_textura", 2048)
+	reempacar(piezas, nombre, tamano)
 	bpy.ops.export_scene.gltf(
 		filepath=ruta,
 		export_format="GLB",
@@ -173,7 +263,7 @@ def procesar(ruta):
 		export_cameras=False,
 		export_lights=False,
 	)
-	print("  %s: %d -> %d triángulos, %d caras de tapa" % (nombre, antes, despues, tapas))
+	print("  %s: %d -> %d triángulos, %d caras de tapa, textura de %d px" % (nombre, antes, despues, tapas, tamano))
 
 
 def main():

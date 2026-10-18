@@ -3,23 +3,24 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dc4ospn0u01a7"
-path="res://.godot/imported/voceador_voceador_albedo.jpg-2f31c9eac001fff71b91c56383ab817b.ctex"
+path.bptc="res://.godot/imported/voceador_voceador_albedo.jpg-2f31c9eac001fff71b91c56383ab817b.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
-"md5": "9c01386d036c87c8d003c0abf16d9aa7"
+"md5": "f745f1143e55c871d373ac60b54c5a27"
 }
 
 [deps]
 
 source_file="res://modelos/personajes/voceador_voceador_albedo.jpg"
-dest_files=["res://.godot/imported/voceador_voceador_albedo.jpg-2f31c9eac001fff71b91c56383ab817b.ctex"]
+dest_files=["res://.godot/imported/voceador_voceador_albedo.jpg-2f31c9eac001fff71b91c56383ab817b.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

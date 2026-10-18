@@ -3,23 +3,24 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dpg1wb7f6hm5k"
-path="res://.godot/imported/abuelo_vaquero_abuelo_vaquero_albedo.jpg-8d8e590f5417ae5a2483b0b0d036a7a8.ctex"
+path.bptc="res://.godot/imported/abuelo_vaquero_abuelo_vaquero_albedo.jpg-8d8e590f5417ae5a2483b0b0d036a7a8.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
-"md5": "0717ef00bf235b77e3365ada371ea1c2"
+"md5": "ef54e5215563f65c9c6e9f004a7f26e3"
 }
 
 [deps]
 
 source_file="res://modelos/personajes/abuelo_vaquero_abuelo_vaquero_albedo.jpg"
-dest_files=["res://.godot/imported/abuelo_vaquero_abuelo_vaquero_albedo.jpg-8d8e590f5417ae5a2483b0b0d036a7a8.ctex"]
+dest_files=["res://.godot/imported/abuelo_vaquero_abuelo_vaquero_albedo.jpg-8d8e590f5417ae5a2483b0b0d036a7a8.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

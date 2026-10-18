@@ -3,23 +3,24 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c0yssaxj3u4d7"
-path="res://.godot/imported/chavo_sudadera_chavo_sudadera_albedo.jpg-a31aa2df9c73cec4c4ec2fead7253192.ctex"
+path.bptc="res://.godot/imported/chavo_sudadera_chavo_sudadera_albedo.jpg-a31aa2df9c73cec4c4ec2fead7253192.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
-"md5": "794a559535f9e437732b3cc8a94dc984"
+"md5": "ae1f64d9c3e0bedf18bcdb96eafc778c"
 }
 
 [deps]
 
 source_file="res://modelos/personajes/chavo_sudadera_chavo_sudadera_albedo.jpg"
-dest_files=["res://.godot/imported/chavo_sudadera_chavo_sudadera_albedo.jpg-a31aa2df9c73cec4c4ec2fead7253192.ctex"]
+dest_files=["res://.godot/imported/chavo_sudadera_chavo_sudadera_albedo.jpg-a31aa2df9c73cec4c4ec2fead7253192.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

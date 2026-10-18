@@ -3,23 +3,24 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://djg2qcput75c3"
-path="res://.godot/imported/cobrador_cobrador_albedo.jpg-1152717d963385a7fed9afae336ced8c.ctex"
+path.bptc="res://.godot/imported/cobrador_cobrador_albedo.jpg-1152717d963385a7fed9afae336ced8c.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
-"md5": "9c01386d036c87c8d003c0abf16d9aa7"
+"md5": "5fa515a40c88bc0a0200b9e92fa9375b"
 }
 
 [deps]
 
 source_file="res://modelos/personajes/cobrador_cobrador_albedo.jpg"
-dest_files=["res://.godot/imported/cobrador_cobrador_albedo.jpg-1152717d963385a7fed9afae336ced8c.ctex"]
+dest_files=["res://.godot/imported/cobrador_cobrador_albedo.jpg-1152717d963385a7fed9afae336ced8c.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

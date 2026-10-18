@@ -3,23 +3,24 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cu6bnvcyljgkm"
-path="res://.godot/imported/punk_punk_albedo.jpg-612f0795ff73a9be0b9c1158a5a00933.ctex"
+path.bptc="res://.godot/imported/punk_punk_albedo.jpg-612f0795ff73a9be0b9c1158a5a00933.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
-"md5": "0717ef00bf235b77e3365ada371ea1c2"
+"md5": "2ef98047c3dfb0b2f69b311c522da8a0"
 }
 
 [deps]
 
 source_file="res://modelos/personajes/punk_punk_albedo.jpg"
-dest_files=["res://.godot/imported/punk_punk_albedo.jpg-612f0795ff73a9be0b9c1158a5a00933.ctex"]
+dest_files=["res://.godot/imported/punk_punk_albedo.jpg-612f0795ff73a9be0b9c1158a5a00933.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

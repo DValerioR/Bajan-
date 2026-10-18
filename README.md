@@ -66,6 +66,8 @@ Cada personaje es `modelos/personajes/<nombre>.glb`, con 6 objetos: `Cabeza`, `T
 
 No corras `procesar_personajes.bat --forzar` con ese personaje, o regresa a la versión original.
 
+Las texturas de los personajes se importan con **Compress Mode: VRAM Compressed** y **High Quality** (D46). Si agregas un personaje nuevo, ponle lo mismo a su `*_albedo.jpg` en la pestaña Importar.
+
 Para cambiar un personaje por un modelo suelto de Tripo (como el chofer): copia el `.glb` original a `modelos/fuentes/`, agrega en `modelos/personajes.cfg` una sección con el archivo y la `altura`, y otra con sus medidas (con `brazos_caidos` si viene en pose T), y corre `procesar_personajes.bat --forzar <nombre>`. Ver D41.
 
 ## Reglas rápidas

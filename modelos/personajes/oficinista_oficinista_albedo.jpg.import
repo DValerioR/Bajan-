@@ -3,23 +3,24 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c4bdh1qwh6hbu"
-path="res://.godot/imported/oficinista_oficinista_albedo.jpg-9cc3b4e75fa42c254a2a316bb3728310.ctex"
+path.bptc="res://.godot/imported/oficinista_oficinista_albedo.jpg-9cc3b4e75fa42c254a2a316bb3728310.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
-"md5": "0717ef00bf235b77e3365ada371ea1c2"
+"md5": "9f6d65e091856327ab20258f6b2becf4"
 }
 
 [deps]
 
 source_file="res://modelos/personajes/oficinista_oficinista_albedo.jpg"
-dest_files=["res://.godot/imported/oficinista_oficinista_albedo.jpg-9cc3b4e75fa42c254a2a316bb3728310.ctex"]
+dest_files=["res://.godot/imported/oficinista_oficinista_albedo.jpg-9cc3b4e75fa42c254a2a316bb3728310.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

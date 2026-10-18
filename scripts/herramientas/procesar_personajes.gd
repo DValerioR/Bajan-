@@ -177,7 +177,8 @@ func _recortar_textura(hoja: Image, uvs: PackedVector2Array) -> Array:
 	var tamano := Vector2(hoja.get_size())
 	var region := Rect2i(Vector2i((minimo * tamano).floor()), Vector2i(((maximo - minimo) * tamano).ceil()))
 	var recorte := hoja.get_region(region)
-	var escala := minf(1.0, float(_tamano_textura) / maxf(region.size.x, region.size.y))
+	# Sin reducir, la hoja va completa: Blender le arma a cada personaje su propia textura.
+	var escala := 1.0 if _sin_reducir else minf(1.0, float(_tamano_textura) / maxf(region.size.x, region.size.y))
 	if escala < 1.0:
 		recorte.resize(maxi(1, roundi(region.size.x * escala)), maxi(1, roundi(region.size.y * escala)), Image.INTERPOLATE_LANCZOS)
 	var real_min := Vector2(region.position) / tamano
