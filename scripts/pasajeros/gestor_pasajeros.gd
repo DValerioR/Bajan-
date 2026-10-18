@@ -17,12 +17,15 @@ enum Estado { ESPERANDO, SUBIENDO, CAMINANDO, SENTADO, DE_PIE, BAJANDO, ALEJANDO
 
 const RUTA := "res://config/pasajeros.cfg"
 ## Puntos de la puerta en coordenadas del camión: abajo de los escalones, en el umbral y ya adentro.
-const PUERTA_AFUERA := Vector3(2.6, -0.95, -3.15)
-const PUERTA_UMBRAL := Vector3(1.0, -0.3, -3.15)
+const PUERTA_AFUERA := Vector3(2.85, -0.95, -3.15)
+const PUERTA_UMBRAL := Vector3(1.25, -0.3, -3.15)
 const PUERTA_ADENTRO := Vector3(0.15, -0.3, -2.85)
 const PISO := -0.3
-## Lugares para ir de pie, a lo largo del pasillo.
+## Lugares para ir de pie, a lo largo del pasillo, en dos filas (el pasillo es de dos personas).
 const LUGARES_DE_PIE := [-1.7, -0.5, 0.7, 1.9, 3.1]
+const FILAS_DE_PIE := [-0.3, 0.3]
+## Por qué lado del pasillo caminan hacia su asiento (no por el centro, para dejar pasar).
+const CARRIL_PASILLO := 0.35
 const LLEGADA := 0.35
 
 signal subio(cuerpo: CuerpoPersonaje)
@@ -40,6 +43,8 @@ var parada_actual: int = -1
 ## Si llega gente nueva a las paradas con el tiempo (las pruebas lo apagan).
 var llegadas_activas: bool = true
 var pasajeros: Array[Pasajero] = []
+## Jugadores que pueden sentarse en los asientos libres (D44). Cada uno: cuerpo -> su lugar.
+var jugadores: Dictionary = {}
 ## Totales para las pruebas y la interfaz.
 var total_subieron: int = 0
 var total_bajaron: int = 0
@@ -158,10 +163,11 @@ func _armar_lugares() -> void:
 	_lugares.clear()
 	var carroceria := GeometriaInterior.Carroceria
 	for z in carroceria.FILAS_ASIENTOS:
-		for x in [-0.72, 0.72]:
-			_lugares.append({"asiento": true, "punto": Vector3(x, PISO, z - 0.02), "pasillo": Vector3(0.0, PISO, z), "ocupado": null})
+		for x in carroceria.X_ASIENTOS:
+			_lugares.append({"asiento": true, "punto": Vector3(x, PISO, z - 0.02), "pasillo": Vector3(CARRIL_PASILLO * signf(x), PISO, z), "ocupado": null})
 	for z in LUGARES_DE_PIE:
-		_lugares.append({"asiento": false, "punto": Vector3(0.0, PISO, z), "pasillo": Vector3(0.0, PISO, z), "ocupado": null})
+		for x in FILAS_DE_PIE:
+			_lugares.append({"asiento": false, "punto": Vector3(x, PISO, z), "pasillo": Vector3(x, PISO, z), "ocupado": null})
 
 
 func _hay_lugar() -> bool:
@@ -257,6 +263,59 @@ func vaciar_paradas() -> void:
 			_desaparecer(p)
 
 
+# --- Jugadores en los asientos (D44) ------------------------------------------
+
+## Deja que este jugador se siente en los asientos libres con su comando `sentarse`.
+func agregar_jugador(cuerpo: CuerpoPersonaje) -> void:
+	jugadores[cuerpo] = {}
+
+
+## El asiento libre más cercano a `pies` (coordenadas del camión) a menos de `alcance`, o {}.
+func asiento_libre_cerca(pies: Vector3, alcance: float) -> Dictionary:
+	var mejor := {}
+	var mejor_distancia := alcance
+	for l in _lugares:
+		if not l.asiento or l.ocupado != null:
+			continue
+		var distancia := Vector2(pies.x - l.punto.x, pies.z - l.punto.z).length()
+		if distancia < mejor_distancia:
+			mejor_distancia = distancia
+			mejor = l
+	return mejor
+
+
+func _atender_jugadores() -> void:
+	for cuerpo: CuerpoPersonaje in jugadores.keys():
+		if not is_instance_valid(cuerpo):
+			jugadores.erase(cuerpo)
+			continue
+		var lugar: Dictionary = jugadores[cuerpo]
+		# Si ya no está sentado (cayó como ragdoll, lo recolocaron), el asiento queda libre.
+		if not lugar.is_empty() and not cuerpo.sentado:
+			lugar.ocupado = null
+			jugadores[cuerpo] = {}
+			lugar = {}
+		if not cuerpo.comandos.sentarse:
+			continue
+		cuerpo.comandos.sentarse = false
+		if not lugar.is_empty():
+			# Se para en el pasillo, frente a su asiento.
+			lugar.ocupado = null
+			jugadores[cuerpo] = {}
+			cuerpo.pararse(Transform3D(cuerpo.global_basis, lugar.pasillo + Vector3.UP * 0.02))
+			continue
+		if cuerpo.desplomado or not cuerpo.en_suelo or not interior.esta_dentro(cuerpo):
+			continue
+		var libre := asiento_libre_cerca(cuerpo.global_position, interior.parametros.alcance_asiento)
+		if libre.is_empty():
+			continue
+		libre.ocupado = cuerpo
+		jugadores[cuerpo] = libre
+		var punto: Vector3 = libre.punto
+		punto.y = PISO + 0.45 - cuerpo.visual.altura_cadera
+		cuerpo.sentarse(Transform3D(Basis(), punto))
+
+
 ## Sube de golpe a `cuantos` pasajeros ya acomodados en sus lugares (para pruebas de rendimiento).
 func llenar(cuantos: int) -> void:
 	for _i in cuantos:
@@ -320,6 +379,7 @@ func _physics_process(delta: float) -> void:
 	parada_actual = _detectar_parada()
 	_ventana_de_parada(delta, antes)
 	_turno_puerta = maxf(0.0, _turno_puerta - delta)
+	_atender_jugadores()
 	_tiempo_llegadas += delta
 	if llegadas_activas and _tiempo_llegadas > float(_cfg.get_value("pasajeros", "intervalo_llegadas", 12.0)):
 		_tiempo_llegadas = 0.0

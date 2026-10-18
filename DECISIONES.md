@@ -378,3 +378,13 @@ Aquí se agregan las decisiones que se tomen durante el desarrollo: la elección
   - **Prisa (conducción variable):** el chofer maneja en modo loco 120 m.
 - *Para las pruebas:* `Ruta.eventos_activos` fija qué tipos pueden salir; la prueba de la etapa 4 corre sin eventos.
 - *Secciones:* 7.1, 7.3, etapa 5.
+
+**D44. Camión más ancho, sentarse y mejor caminado** (17/10/2026, pedido del dueño)
+- *Contexto:* el dueño pidió un camión más espacioso con un pasillo de al menos dos personas, una animación al caminar más fluida y que los jugadores también se puedan sentar. Nada de esto estaba en una etapa del plan.
+- *Decisión:*
+  - **Camión de 3.0 m** (antes 2.5 m): los asientos se pegan a las paredes (`X_ASIENTOS`, x = ±1.03) y el pasillo queda de 1.2 m, donde caben dos cápsulas de 0.54 m lado a lado. Se movieron con él el chofer, el tablero, la puerta, los escalones, el poste, los pasamanos (x = ±0.5), la caja de choque y las ruedas (x = ±1.25). El largo no cambió.
+  - **Pasajeros:** van de pie en dos filas (10 lugares, antes 5) y caminan a su asiento por su lado del pasillo. La capacidad sigue en 15 (`config/pasajeros.cfg`).
+  - **Sentarse (tecla C, botón Y del mando):** el jugador se sienta en el asiento libre más cercano a menos de `alcance_asiento` (1.2 m, `config/interior.cfg`) y se para con la misma tecla. Usa los mismos asientos que los pasajeros (`GestorPasajeros`), así que nadie le gana el suyo. Sentado no lo mueve nada, igual que a los pasajeros, y puede voltear la cabeza hasta 110° y cobrar a quien alcance.
+  - **Recolocar sin aventar nada:** `InteriorCamion.recolocar` saca el cuerpo del espacio y lo vuelve a meter. Si solo se movía, Jolt lo tomaba como un movimiento cinemático rapidísimo y aventaba a 60 m/s lo que estuviera tocando (pasó con el maniquí recargado en un asiento al reiniciar).
+  - **Caminado:** el ritmo de los pasos sigue a la velocidad (los pies no patinan), el cuerpo sube y baja como péndulo para que las piernas rígidas no floten, la cadera se mece, los hombros giran contra las piernas, se echa un poco hacia adelante y en reposo respira. Todo entra y sale suavizado.
+- *Secciones:* 3, 5.1, 7.2.

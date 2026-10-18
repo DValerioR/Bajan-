@@ -33,6 +33,10 @@ var _figura: Node3D
 var _piezas: Dictionary = {}
 var _fase: float = 0.0
 var _inclinacion := Vector3.ZERO
+## Qué tanto está caminando (0 a 1), suavizado: los pasos empiezan y terminan sin brincos.
+var _paso: float = 0.0
+## Reloj para la respiración y el peso en reposo (cada quien empieza en otro punto).
+var _reposo: float = randf() * TAU
 
 
 func _ready() -> void:
@@ -168,24 +172,45 @@ func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, 
 	if _piezas.is_empty():
 		return
 	var rapidez := Vector2(velocidad.x, velocidad.z).length()
-	var paso := clampf(rapidez / 2.5, 0.0, 1.0)
-	_fase = wrapf(_fase + delta * (4.0 + rapidez * 2.2), 0.0, TAU)
-	var balanceo := sin(_fase) * deg_to_rad(38.0) * paso
+	# El ritmo sigue a la velocidad: un ciclo (dos pasos) cada dos zancadas, así los pies no patinan.
+	var zancada := maxf(altura * 0.42, 0.3)
+	_paso = lerpf(_paso, clampf(rapidez / 2.2, 0.0, 1.0), 1.0 - exp(-8.0 * delta))
+	_fase = wrapf(_fase + delta * PI * rapidez / zancada, 0.0, TAU)
+	_reposo = wrapf(_reposo + delta * 1.7, 0.0, TAU)
+	var amplitud := deg_to_rad(18.0 + 12.0 * _paso) * _paso
+	var balanceo := sin(_fase) * amplitud
+	# Caminando de lado o hacia atrás se balancea menos (no tiene rodillas).
+	var de_frente := absf(velocidad.z) / maxf(rapidez, 0.001)
+	balanceo *= lerpf(0.6, 1.0, de_frente)
 
 	var pierna_izq := balanceo
 	var pierna_der := -balanceo
-	var brazo_izq := Vector3(-balanceo * 0.8, 0.0, 0.0)
-	var brazo_der := Vector3(balanceo * 0.8, 0.0, 0.0)
-	var cabeza := Vector3.ZERO
+	# Brazos al revés de las piernas, un poco abiertos; en reposo cuelgan respirando.
+	var respiro := sin(_reposo) * (1.0 - _paso)
+	var abrir := deg_to_rad(4.0 + 2.0 * respiro)
+	var brazo_izq := Vector3(-balanceo * 0.9, 0.0, -abrir)
+	var brazo_der := Vector3(balanceo * 0.9, 0.0, abrir)
+	var cabeza := Vector3(deg_to_rad(1.5) * respiro, -balanceo * 0.15, 0.0)
+	# Los hombros giran contra la cadera y la cabeza sigue viendo al frente.
+	var torso := Vector3(0.0, balanceo * 0.15, 0.0)
+	# Con piernas rígidas, la cadera baja cuando las piernas se abren: el cuerpo sube y baja como
+	# un péndulo y los pies se quedan en el piso. La cadera se mece hacia la pierna que apoya.
+	var rebote := -altura_cadera * (1.0 - cos(balanceo)) * 0.8 + 0.004 * respiro
+	var meneo := cos(_fase) * deg_to_rad(3.0) * _paso
+	# Caminando se echa un poco hacia adelante.
+	var adelante := -deg_to_rad(4.0) * _paso
+	var andando := true
 
 	if en_el_aire:
+		andando = false
 		pierna_izq = deg_to_rad(-25.0)
 		pierna_der = deg_to_rad(15.0)
 		brazo_izq = Vector3(0.0, 0.0, deg_to_rad(-60.0))
 		brazo_der = Vector3(0.0, 0.0, deg_to_rad(60.0))
 	if tropezando:
 		# Aspavientos: brazos girando y piernas trastabillando.
-		var agitar := sin(_fase * 3.0)
+		andando = false
+		var agitar := sin(_reposo * 6.0)
 		brazo_izq = Vector3(deg_to_rad(100.0 + 60.0 * agitar), 0.0, deg_to_rad(-40.0))
 		brazo_der = Vector3(deg_to_rad(100.0 - 60.0 * agitar), 0.0, deg_to_rad(40.0))
 		pierna_izq = deg_to_rad(25.0) * agitar
@@ -196,12 +221,14 @@ func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, 
 		brazo_der = Vector3(deg_to_rad(75.0), 0.0, deg_to_rad(-10.0))
 	if sentado:
 		# Piernas al frente y manos sobre las rodillas.
+		andando = false
 		pierna_izq = deg_to_rad(85.0)
 		pierna_der = deg_to_rad(85.0)
 		brazo_izq = Vector3(deg_to_rad(35.0), 0.0, 0.0)
 		brazo_der = Vector3(deg_to_rad(35.0), 0.0, 0.0)
 	if manejando:
 		# Las dos manos al volante, que se mueve con la vuelta (empujon.x trae el volante).
+		andando = false
 		brazo_izq = Vector3(deg_to_rad(70.0 + 12.0 * empujon.x), 0.0, deg_to_rad(12.0))
 		brazo_der = Vector3(deg_to_rad(70.0 - 12.0 * empujon.x), 0.0, deg_to_rad(-12.0))
 	if sujetado:
@@ -214,12 +241,18 @@ func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, 
 	_girar("BrazoIzquierdo", brazo_izq, t)
 	_girar("BrazoDerecho", brazo_der, t)
 	_girar("Cabeza", cabeza, t)
+	_girar("Torso", torso if andando else Vector3.ZERO, t)
 
 	# Todo el cuerpo se ladea hacia donde lo empuja el camión (frente = -Z).
 	var objetivo := Vector3(empujon.z, 0.0, -empujon.x) * deg_to_rad(2.2)
 	objetivo = objetivo.limit_length(deg_to_rad(25.0))
 	_inclinacion = _inclinacion.lerp(objetivo, 1.0 - exp(-6.0 * delta))
-	_figura.rotation = Vector3(_inclinacion.x, 0.0, _inclinacion.z)
+	if not andando:
+		rebote = 0.0
+		meneo = 0.0
+		adelante = 0.0
+	_figura.rotation = Vector3(_inclinacion.x + adelante, 0.0, _inclinacion.z + meneo)
+	_figura.position.y = lerpf(_figura.position.y, rebote, t)
 
 
 func _girar(nombre: String, objetivo: Vector3, t: float) -> void:

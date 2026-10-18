@@ -95,6 +95,7 @@ func _ready() -> void:
 	add_child(eventos)
 
 	jugador = _crear_jugador()
+	pasajeros.agregar_jugador(jugador)
 	cobrador = Cobrador.new()
 	cobrador.name = "Cobrador"
 	cobrador.cuerpo = jugador

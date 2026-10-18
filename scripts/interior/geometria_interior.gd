@@ -11,10 +11,10 @@ const DESPLAZAMIENTO := Vector3(0.0, -0.3, 0.0)
 const SIN_COLISION := ["FranjaIzquierda", "FranjaDerecha", "ParachoquesDelantero", "ParachoquesTrasero", "EscalonAlto", "EscalonBajo"]
 ## Los escalones de la puerta chocan como una rampa (33°), que el personaje sube caminando:
 ## va del borde de la puerta (piso del camión) hasta la calle, 0.66 m más abajo.
-const RAMPA_PUERTA := [Vector3(1.2, 0.1, 1.0), Vector3(1.75, -0.38, -3.15), Vector3(0.0, 0.0, -33.4)]
+const RAMPA_PUERTA := [Vector3(1.2, 0.1, 1.0), Vector3(2.0, -0.38, -3.15), Vector3(0.0, 0.0, -33.4)]
 
 ## Volumen del interior, en coordenadas del camión (para saber si algo está adentro).
-const LIMITES := AABB(Vector3(-1.25, -0.4, -4.02), Vector3(2.5, 2.75, 8.04))
+const LIMITES := AABB(Vector3(-1.5, -0.4, -4.02), Vector3(3.0, 2.75, 8.04))
 
 
 ## Formas sólidas del interior: [Shape3D, Transform3D], en coordenadas del camión.
@@ -26,11 +26,11 @@ static func formas() -> Array:
 		lista.append(_caja(pieza[2], pieza[3], pieza[4]))
 	lista.append(_caja(RAMPA_PUERTA[0], RAMPA_PUERTA[1], RAMPA_PUERTA[2]))
 	for z in Carroceria.PILARES_IZQUIERDA:
-		lista.append(_caja(Vector3(0.08, 1.0, 0.12), Vector3(-1.21, 1.5, z), Vector3.ZERO))
+		lista.append(_caja(Vector3(0.08, 1.0, 0.12), Vector3(-1.46, 1.5, z), Vector3.ZERO))
 	for z in Carroceria.PILARES_DERECHA:
-		lista.append(_caja(Vector3(0.08, 1.0, 0.12), Vector3(1.21, 1.5, z), Vector3.ZERO))
+		lista.append(_caja(Vector3(0.08, 1.0, 0.12), Vector3(1.46, 1.5, z), Vector3.ZERO))
 	for z in Carroceria.FILAS_ASIENTOS:
-		for x in [-0.72, 0.72]:
+		for x in Carroceria.X_ASIENTOS:
 			lista.append(_caja(Vector3(0.85, 0.45, 0.5), Vector3(x, 0.225, z), Vector3.ZERO))
 			lista.append(_caja(Vector3(0.85, 0.6, 0.1), Vector3(x, 0.75, z + 0.25), Vector3.ZERO))
 	return lista
@@ -39,13 +39,13 @@ static func formas() -> Array:
 ## Agarraderas: segmentos [desde, hasta] en coordenadas del camión.
 static func agarraderas() -> Array:
 	var lista := []
-	for x in [-0.45, 0.45]:
+	for x in [-0.5, 0.5]:
 		lista.append([Vector3(x, 2.05, 0.2 - 3.7) + DESPLAZAMIENTO, Vector3(x, 2.05, 0.2 + 3.7) + DESPLAZAMIENTO])
-	lista.append([Vector3(0.95, 0.2, -2.5) + DESPLAZAMIENTO, Vector3(0.95, 2.3, -2.5) + DESPLAZAMIENTO])
+	lista.append([Vector3(1.2, 0.2, -2.5) + DESPLAZAMIENTO, Vector3(1.2, 2.3, -2.5) + DESPLAZAMIENTO])
 	# El borde de arriba de cada respaldo, del lado del pasillo: para quien no alcanza el pasamanos.
 	for z in Carroceria.FILAS_ASIENTOS:
 		for lado in [-1.0, 1.0]:
-			lista.append([Vector3(0.3 * lado, 1.05, z + 0.25) + DESPLAZAMIENTO, Vector3(0.75 * lado, 1.05, z + 0.25) + DESPLAZAMIENTO])
+			lista.append([Vector3(0.6 * lado, 1.05, z + 0.25) + DESPLAZAMIENTO, Vector3(1.05 * lado, 1.05, z + 0.25) + DESPLAZAMIENTO])
 	return lista
 
 

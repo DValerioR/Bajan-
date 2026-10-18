@@ -44,6 +44,7 @@ func _ready() -> void:
 	piloto.susto.connect(hud.avisar_susto)
 
 	jugador = _crear_jugador()
+	pasajeros.agregar_jugador(jugador)
 	_crear_objetos()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 

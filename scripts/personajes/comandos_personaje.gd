@@ -15,3 +15,5 @@ var agarrar: bool = false
 var accion: bool = false
 ## Cobrar el pasaje (cobrador).
 var cobrar: bool = false
+## Sentarse en el asiento libre más cercano, o pararse si ya va sentado.
+var sentarse: bool = false

@@ -20,6 +20,7 @@ var umbral_tropiezo := 8.0
 var duracion_tropiezo := 1.1
 var factor_sujetado := 0.15
 var alcance_pasamanos := 1.0
+var alcance_asiento := 1.2
 
 var max_ragdolls := 6
 var umbral_empujon_ragdoll := 8.8
@@ -58,6 +59,7 @@ static func cargar() -> ParametrosInterior:
 	p.velocidad_maxima = c.get_value("jugador", "velocidad_maxima", p.velocidad_maxima)
 	p.radio = c.get_value("jugador", "radio", p.radio)
 	p.modelo = c.get_value("jugador", "modelo", p.modelo)
+	p.alcance_asiento = c.get_value("jugador", "alcance_asiento", p.alcance_asiento)
 
 	p.exageracion = c.get_value("inercia", "exageracion", p.exageracion)
 	p.empujon_maximo = c.get_value("inercia", "empujon_maximo", p.empujon_maximo)

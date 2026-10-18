@@ -145,7 +145,14 @@ func recolocar(entidad: Node3D, donde: Transform3D) -> void:
 		if registro.entidad == entidad:
 			if not registro.dentro:
 				_cambiar_espacio(registro, true)
+			if entidad.get("sentado"):
+				entidad.pararse(donde)
+			# Se saca y se vuelve a meter al espacio: así es un salto limpio. Si solo se mueve, el
+			# motor lo trata como un movimiento rapidísimo y avienta lo que esté tocando.
+			var padre := entidad.get_parent()
+			padre.remove_child(entidad)
 			entidad.transform = donde
+			padre.add_child(entidad)
 			for cuerpo in _cuerpos(entidad):
 				_poner_velocidad(cuerpo, Vector3.ZERO, Vector3.ZERO)
 				cuerpo.reset_physics_interpolation()

@@ -5,7 +5,7 @@ extends Node3D
 ## Lo que maneja de verdad es el PilotoAutomatico, con los mismos comandos que un jugador.
 
 ## Asiento del chofer en coordenadas de la carrocería (encima del cojín).
-const ASIENTO := Vector3(-0.6, 0.45, -2.68)
+const ASIENTO := Vector3(-0.85, 0.45, -2.68)
 
 @export var camion: Camion
 @export var modelo: String = "chofer"

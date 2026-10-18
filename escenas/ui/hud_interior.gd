@@ -4,7 +4,7 @@ extends CanvasLayer
 ## automático, estado del jugador, avisos de sustos y ayuda de controles.
 ## No lee el estado del juego: la escena le pasa los datos. Los textos son claves de traducción.
 
-const AYUDA := ["AYUDA_TITULO", "AYUDA_CAMINAR", "AYUDA_MIRAR", "AYUDA_SUJETARSE", "AYUDA_AGARRAR", "AYUDA_COBRAR", "AYUDA_PILOTO", "AYUDA_REINICIAR_INTERIOR", "AYUDA_CONFIG", "AYUDA_SALIR"]
+const AYUDA := ["AYUDA_TITULO", "AYUDA_CAMINAR", "AYUDA_MIRAR", "AYUDA_SUJETARSE", "AYUDA_SENTARSE", "AYUDA_AGARRAR", "AYUDA_COBRAR", "AYUDA_PILOTO", "AYUDA_REINICIAR_INTERIOR", "AYUDA_CONFIG", "AYUDA_SALIR"]
 const DURACION_AVISO := 1.2
 const DURACION_ANUNCIO := 3.5
 

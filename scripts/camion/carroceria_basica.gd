@@ -22,43 +22,43 @@ const PISO := Color(0.36, 0.31, 0.29)
 ## Cada pieza: [nombre, forma, medidas, posición, rotación en grados, color].
 ## Medidas: caja = tamaño; cilindro = (radio, alto, -); esfera = (radio, -, -); toro = (radio interior, exterior, -).
 const PIEZAS := [
-	["Piso", "caja", Vector3(2.42, 0.1, 7.9), Vector3(0, -0.05, 0), Vector3.ZERO, PISO],
-	["FaldaIzquierda", "caja", Vector3(0.08, 1.35, 8.0), Vector3(-1.21, 0.325, 0), Vector3.ZERO, VERDE],
-	["FaldaDerechaFrente", "caja", Vector3(0.08, 1.35, 0.3), Vector3(1.21, 0.325, -3.85), Vector3.ZERO, VERDE],
-	["FaldaDerechaAtras", "caja", Vector3(0.08, 1.35, 6.6), Vector3(1.21, 0.325, 0.7), Vector3.ZERO, VERDE],
-	["FranjaIzquierda", "caja", Vector3(0.03, 0.14, 8.0), Vector3(-1.26, 0.82, 0), Vector3.ZERO, AMARILLO],
-	["FranjaDerecha", "caja", Vector3(0.03, 0.14, 6.6), Vector3(1.26, 0.82, 0.7), Vector3.ZERO, AMARILLO],
-	["BandaSuperiorIzquierda", "caja", Vector3(0.08, 0.35, 8.0), Vector3(-1.21, 2.175, 0), Vector3.ZERO, CREMA],
-	["BandaSuperiorDerecha", "caja", Vector3(0.08, 0.35, 8.0), Vector3(1.21, 2.175, 0), Vector3.ZERO, CREMA],
-	["Techo", "caja", Vector3(2.52, 0.12, 8.08), Vector3(0, 2.41, 0), Vector3.ZERO, BLANCO],
-	["FrenteInferior", "caja", Vector3(2.5, 1.35, 0.08), Vector3(0, 0.325, -3.98), Vector3.ZERO, VERDE],
-	["PilarFrenteIzquierdo", "caja", Vector3(0.14, 1.0, 0.08), Vector3(-1.18, 1.5, -3.98), Vector3.ZERO, CREMA],
-	["PilarFrenteDerecho", "caja", Vector3(0.14, 1.0, 0.08), Vector3(1.18, 1.5, -3.98), Vector3.ZERO, CREMA],
-	["BandaFrente", "caja", Vector3(2.5, 0.35, 0.08), Vector3(0, 2.175, -3.98), Vector3.ZERO, CREMA],
-	["TraseraInferior", "caja", Vector3(2.5, 1.35, 0.08), Vector3(0, 0.325, 3.98), Vector3.ZERO, VERDE],
-	["PilarAtrasIzquierdo", "caja", Vector3(0.3, 1.0, 0.08), Vector3(-1.1, 1.5, 3.98), Vector3.ZERO, CREMA],
-	["PilarAtrasDerecho", "caja", Vector3(0.3, 1.0, 0.08), Vector3(1.1, 1.5, 3.98), Vector3.ZERO, CREMA],
-	["BandaAtras", "caja", Vector3(2.5, 0.35, 0.08), Vector3(0, 2.175, 3.98), Vector3.ZERO, CREMA],
-	["ParachoquesDelantero", "caja", Vector3(2.62, 0.26, 0.22), Vector3(0, -0.24, -4.08), Vector3.ZERO, GRIS],
-	["ParachoquesTrasero", "caja", Vector3(2.62, 0.26, 0.22), Vector3(0, -0.24, 4.08), Vector3.ZERO, GRIS],
-	["FaroIzquierdo", "esfera", Vector3(0.15, 0, 0), Vector3(-0.85, 0.5, -4.03), Vector3.ZERO, AMARILLO],
-	["FaroDerecho", "esfera", Vector3(0.15, 0, 0), Vector3(0.85, 0.5, -4.03), Vector3.ZERO, AMARILLO],
-	["CalaveraIzquierda", "esfera", Vector3(0.11, 0, 0), Vector3(-0.95, 0.55, 4.03), Vector3.ZERO, ROJO],
-	["CalaveraDerecha", "esfera", Vector3(0.11, 0, 0), Vector3(0.95, 0.55, 4.03), Vector3.ZERO, ROJO],
-	["Tablero", "caja", Vector3(2.36, 0.45, 0.45), Vector3(0, 0.78, -3.7), Vector3.ZERO, GRIS_OSCURO],
-	["AsientoChofer", "caja", Vector3(0.6, 0.45, 0.6), Vector3(-0.6, 0.225, -2.75), Vector3.ZERO, VINO],
-	["RespaldoChofer", "caja", Vector3(0.6, 0.8, 0.12), Vector3(-0.6, 0.85, -2.4), Vector3.ZERO, VINO],
-	["Volante", "toro", Vector3(0.15, 0.2, 0), Vector3(-0.6, 1.1, -3.3), Vector3(60, 0, 0), NEGRO],
-	["ColumnaVolante", "cilindro", Vector3(0.03, 0.45, 0), Vector3(-0.6, 0.95, -3.45), Vector3(60, 0, 0), NEGRO],
-	["ArcoDelanteroIzquierdo", "caja", Vector3(0.5, 0.35, 1.1), Vector3(-0.95, 0.175, -2.1), Vector3.ZERO, GRIS_OSCURO],
-	["ArcoDelanteroDerecho", "caja", Vector3(0.5, 0.35, 1.1), Vector3(0.95, 0.175, -2.05), Vector3.ZERO, GRIS_OSCURO],
-	["ArcoTraseroIzquierdo", "caja", Vector3(0.5, 0.35, 1.1), Vector3(-0.95, 0.175, 2.6), Vector3.ZERO, GRIS_OSCURO],
-	["ArcoTraseroDerecho", "caja", Vector3(0.5, 0.35, 1.1), Vector3(0.95, 0.175, 2.6), Vector3.ZERO, GRIS_OSCURO],
-	["PasamanosIzquierdo", "cilindro", Vector3(0.025, 7.4, 0), Vector3(-0.45, 2.05, 0.2), Vector3(90, 0, 0), GRIS],
-	["PasamanosDerecho", "cilindro", Vector3(0.025, 7.4, 0), Vector3(0.45, 2.05, 0.2), Vector3(90, 0, 0), GRIS],
-	["PostePuerta", "cilindro", Vector3(0.03, 2.35, 0), Vector3(0.95, 1.175, -2.5), Vector3.ZERO, GRIS],
-	["EscalonAlto", "caja", Vector3(0.32, 0.08, 1.0), Vector3(1.4, -0.2, -3.15), Vector3.ZERO, GRIS],
-	["EscalonBajo", "caja", Vector3(0.32, 0.08, 1.0), Vector3(1.7, -0.43, -3.15), Vector3.ZERO, GRIS],
+	["Piso", "caja", Vector3(2.92, 0.1, 7.9), Vector3(0, -0.05, 0), Vector3.ZERO, PISO],
+	["FaldaIzquierda", "caja", Vector3(0.08, 1.35, 8.0), Vector3(-1.46, 0.325, 0), Vector3.ZERO, VERDE],
+	["FaldaDerechaFrente", "caja", Vector3(0.08, 1.35, 0.3), Vector3(1.46, 0.325, -3.85), Vector3.ZERO, VERDE],
+	["FaldaDerechaAtras", "caja", Vector3(0.08, 1.35, 6.6), Vector3(1.46, 0.325, 0.7), Vector3.ZERO, VERDE],
+	["FranjaIzquierda", "caja", Vector3(0.03, 0.14, 8.0), Vector3(-1.51, 0.82, 0), Vector3.ZERO, AMARILLO],
+	["FranjaDerecha", "caja", Vector3(0.03, 0.14, 6.6), Vector3(1.51, 0.82, 0.7), Vector3.ZERO, AMARILLO],
+	["BandaSuperiorIzquierda", "caja", Vector3(0.08, 0.35, 8.0), Vector3(-1.46, 2.175, 0), Vector3.ZERO, CREMA],
+	["BandaSuperiorDerecha", "caja", Vector3(0.08, 0.35, 8.0), Vector3(1.46, 2.175, 0), Vector3.ZERO, CREMA],
+	["Techo", "caja", Vector3(3.02, 0.12, 8.08), Vector3(0, 2.41, 0), Vector3.ZERO, BLANCO],
+	["FrenteInferior", "caja", Vector3(3.0, 1.35, 0.08), Vector3(0, 0.325, -3.98), Vector3.ZERO, VERDE],
+	["PilarFrenteIzquierdo", "caja", Vector3(0.14, 1.0, 0.08), Vector3(-1.43, 1.5, -3.98), Vector3.ZERO, CREMA],
+	["PilarFrenteDerecho", "caja", Vector3(0.14, 1.0, 0.08), Vector3(1.43, 1.5, -3.98), Vector3.ZERO, CREMA],
+	["BandaFrente", "caja", Vector3(3.0, 0.35, 0.08), Vector3(0, 2.175, -3.98), Vector3.ZERO, CREMA],
+	["TraseraInferior", "caja", Vector3(3.0, 1.35, 0.08), Vector3(0, 0.325, 3.98), Vector3.ZERO, VERDE],
+	["PilarAtrasIzquierdo", "caja", Vector3(0.3, 1.0, 0.08), Vector3(-1.35, 1.5, 3.98), Vector3.ZERO, CREMA],
+	["PilarAtrasDerecho", "caja", Vector3(0.3, 1.0, 0.08), Vector3(1.35, 1.5, 3.98), Vector3.ZERO, CREMA],
+	["BandaAtras", "caja", Vector3(3.0, 0.35, 0.08), Vector3(0, 2.175, 3.98), Vector3.ZERO, CREMA],
+	["ParachoquesDelantero", "caja", Vector3(3.12, 0.26, 0.22), Vector3(0, -0.24, -4.08), Vector3.ZERO, GRIS],
+	["ParachoquesTrasero", "caja", Vector3(3.12, 0.26, 0.22), Vector3(0, -0.24, 4.08), Vector3.ZERO, GRIS],
+	["FaroIzquierdo", "esfera", Vector3(0.15, 0, 0), Vector3(-1.05, 0.5, -4.03), Vector3.ZERO, AMARILLO],
+	["FaroDerecho", "esfera", Vector3(0.15, 0, 0), Vector3(1.05, 0.5, -4.03), Vector3.ZERO, AMARILLO],
+	["CalaveraIzquierda", "esfera", Vector3(0.11, 0, 0), Vector3(-1.2, 0.55, 4.03), Vector3.ZERO, ROJO],
+	["CalaveraDerecha", "esfera", Vector3(0.11, 0, 0), Vector3(1.2, 0.55, 4.03), Vector3.ZERO, ROJO],
+	["Tablero", "caja", Vector3(2.86, 0.45, 0.45), Vector3(0, 0.78, -3.7), Vector3.ZERO, GRIS_OSCURO],
+	["AsientoChofer", "caja", Vector3(0.6, 0.45, 0.6), Vector3(-0.85, 0.225, -2.75), Vector3.ZERO, VINO],
+	["RespaldoChofer", "caja", Vector3(0.6, 0.8, 0.12), Vector3(-0.85, 0.85, -2.4), Vector3.ZERO, VINO],
+	["Volante", "toro", Vector3(0.15, 0.2, 0), Vector3(-0.85, 1.1, -3.3), Vector3(60, 0, 0), NEGRO],
+	["ColumnaVolante", "cilindro", Vector3(0.03, 0.45, 0), Vector3(-0.85, 0.95, -3.45), Vector3(60, 0, 0), NEGRO],
+	["ArcoDelanteroIzquierdo", "caja", Vector3(0.5, 0.35, 1.1), Vector3(-1.2, 0.175, -2.1), Vector3.ZERO, GRIS_OSCURO],
+	["ArcoDelanteroDerecho", "caja", Vector3(0.5, 0.35, 1.1), Vector3(1.2, 0.175, -2.05), Vector3.ZERO, GRIS_OSCURO],
+	["ArcoTraseroIzquierdo", "caja", Vector3(0.5, 0.35, 1.1), Vector3(-1.2, 0.175, 2.6), Vector3.ZERO, GRIS_OSCURO],
+	["ArcoTraseroDerecho", "caja", Vector3(0.5, 0.35, 1.1), Vector3(1.2, 0.175, 2.6), Vector3.ZERO, GRIS_OSCURO],
+	["PasamanosIzquierdo", "cilindro", Vector3(0.025, 7.4, 0), Vector3(-0.5, 2.05, 0.2), Vector3(90, 0, 0), GRIS],
+	["PasamanosDerecho", "cilindro", Vector3(0.025, 7.4, 0), Vector3(0.5, 2.05, 0.2), Vector3(90, 0, 0), GRIS],
+	["PostePuerta", "cilindro", Vector3(0.03, 2.35, 0), Vector3(1.2, 1.175, -2.5), Vector3.ZERO, GRIS],
+	["EscalonAlto", "caja", Vector3(0.32, 0.08, 1.0), Vector3(1.65, -0.2, -3.15), Vector3.ZERO, GRIS],
+	["EscalonBajo", "caja", Vector3(0.32, 0.08, 1.0), Vector3(1.95, -0.43, -3.15), Vector3.ZERO, GRIS],
 ]
 
 ## Pilares de las ventanas laterales (posición z); del lado derecho dejan libre la puerta.
@@ -66,6 +66,9 @@ const PILARES_IZQUIERDA := [-3.94, -2.6, -1.3, 0.0, 1.3, 2.6, 3.94]
 const PILARES_DERECHA := [-3.94, -3.7, -2.6, -1.3, 0.0, 1.3, 2.6, 3.94]
 ## Filas de asientos de pasajeros (posición z), a ambos lados del pasillo.
 const FILAS_ASIENTOS := [-1.6, -0.6, 0.4, 1.4, 2.4, 3.3]
+## Centro de los asientos (posición x): pegados a las paredes, dejan un pasillo de 1.2 m
+## donde caben dos personas lado a lado.
+const X_ASIENTOS := [-1.03, 1.03]
 
 
 func _ready() -> void:
@@ -76,11 +79,11 @@ func _ready() -> void:
 		var color: Color = color_principal if pieza[5] == VERDE else pieza[5]
 		piezas.add_child(_crear_pieza(pieza[0], pieza[1], pieza[2], pieza[3], pieza[4], color))
 	for z in PILARES_IZQUIERDA:
-		piezas.add_child(_crear_pieza("PilarIzquierdo", "caja", Vector3(0.08, 1.0, 0.12), Vector3(-1.21, 1.5, z), Vector3.ZERO, CREMA))
+		piezas.add_child(_crear_pieza("PilarIzquierdo", "caja", Vector3(0.08, 1.0, 0.12), Vector3(-1.46, 1.5, z), Vector3.ZERO, CREMA))
 	for z in PILARES_DERECHA:
-		piezas.add_child(_crear_pieza("PilarDerecho", "caja", Vector3(0.08, 1.0, 0.12), Vector3(1.21, 1.5, z), Vector3.ZERO, CREMA))
+		piezas.add_child(_crear_pieza("PilarDerecho", "caja", Vector3(0.08, 1.0, 0.12), Vector3(1.46, 1.5, z), Vector3.ZERO, CREMA))
 	for z in FILAS_ASIENTOS:
-		for x in [-0.72, 0.72]:
+		for x in X_ASIENTOS:
 			piezas.add_child(_crear_pieza("Asiento", "caja", Vector3(0.85, 0.45, 0.5), Vector3(x, 0.225, z), Vector3.ZERO, VINO))
 			piezas.add_child(_crear_pieza("Respaldo", "caja", Vector3(0.85, 0.6, 0.1), Vector3(x, 0.75, z + 0.25), Vector3.ZERO, VINO))
 	EstiloToon.aplicar(piezas)

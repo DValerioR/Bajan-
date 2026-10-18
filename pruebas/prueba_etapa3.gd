@@ -1,6 +1,7 @@
 extends Node
 ## Prueba automática de la etapa 3: pasajeros que suben y bajan en las paradas, ragdolls con
-## tope de activos, y el camión lleno (15 pasajeros) en modo loco sin que la física se dispare.
+## tope de activos, el camión lleno (15 pasajeros) en modo loco sin que la física se dispare, y
+## el jugador sentado en un asiento libre (D44).
 ## Uso: Godot --headless --fixed-fps 60 res://pruebas/prueba_etapa3.tscn
 ## Sale con código 0 si todo pasa.
 
@@ -9,7 +10,7 @@ const FPS := 60
 
 var _fallos: int = 0
 ## Si se corren menos verificaciones que esto, algo se rompió antes de tiempo (un script que no compila).
-const VERIFICACIONES_MINIMAS := 11
+const VERIFICACIONES_MINIMAS := 16
 var _verificaciones: int = 0
 
 var escena: Node
@@ -23,6 +24,7 @@ var ragdolls: GestorRagdolls
 func _ready() -> void:
 	await _ruta_con_paradas()
 	await _camion_lleno()
+	await _jugador_sentado()
 	if _verificaciones < VERIFICACIONES_MINIMAS:
 		printerr("  FALLO solo se corrieron %d verificaciones (se esperaban al menos %d)" % [_verificaciones, VERIFICACIONES_MINIMAS])
 		_fallos += 1
@@ -156,6 +158,42 @@ func _camion_lleno() -> void:
 		print("        el ragdoll quedó en %s (coordenadas del camión), adentro: %s" % [interior.posicion_local(ragdolls.activos[0].ragdoll).snapped(Vector3.ONE * 0.1) if not ragdolls.activos.is_empty() else "-", interior.esta_dentro(ragdolls.activos[0].ragdoll) if not ragdolls.activos.is_empty() else "-"])
 		await _esperar(6.5)
 		_verificar(pasajeros.total_perdidos > perdidos_antes, "sale volando por la puerta y se pierde (perdidos %d)" % pasajeros.total_perdidos)
+	await _cerrar()
+
+
+func _jugador_sentado() -> void:
+	print("El jugador se sienta en un asiento libre (D44):")
+	await _abrir()
+	pasajeros.llegadas_activas = false
+	pasajeros.vaciar()
+	piloto.detenerse_en_paradas = false
+	var jugador: CuerpoPersonaje = escena.jugador
+	# En el pasillo, junto a la tercera fila del lado derecho (asiento en x = 1.03, z = 0.38).
+	interior.recolocar(jugador, Transform3D(Basis(), Vector3(0.3, -0.28, 0.4)))
+	await _esperar(1.0)
+	jugador.comandos.sentarse = true
+	await _esperar(0.5)
+	var donde := interior.posicion_local(jugador)
+	_verificar(jugador.sentado and donde.x > 0.8 and absf(donde.z - 0.38) < 0.1, "se sienta en el asiento de junto (%s)" % donde.snapped(Vector3.ONE * 0.01))
+	pasajeros.llenar(12)
+	var en_asiento := pasajeros.pasajeros.filter(func(p): return p.lugar.get("asiento", false)).size()
+	_verificar(en_asiento == 11, "los pasajeros no le ganan su asiento (%d de 12 asientos para ellos)" % en_asiento)
+	piloto.cambiar_modo(PilotoAutomatico.Modo.LOCO)
+	await _esperar(8.0)
+	var velocidad := camion.velocidad_adelante * 3.6
+	piloto.cambiar_modo(PilotoAutomatico.Modo.PARADO)
+	await _esperar(3.0)
+	_verificar(jugador.sentado and not jugador.desplomado, "sentado aguanta el modo loco y un frenazo a %.0f km/h" % velocidad)
+	jugador.comandos.sentarse = true
+	await _esperar(1.0)
+	donde = interior.posicion_local(jugador)
+	_verificar(not jugador.sentado and jugador.is_on_floor() and interior.esta_dentro(jugador) and absf(donde.x) < 0.6, "se para en el pasillo (%s)" % donde.snapped(Vector3.ONE * 0.01))
+	# Junto a la puerta no hay ningún asiento al alcance: no pasa nada.
+	interior.recolocar(jugador, Transform3D(Basis(), Vector3(0.0, -0.28, -2.6)))
+	await _esperar(1.0)
+	jugador.comandos.sentarse = true
+	await _esperar(0.5)
+	_verificar(not jugador.sentado, "lejos de los asientos no se sienta")
 	await _cerrar()
 
 

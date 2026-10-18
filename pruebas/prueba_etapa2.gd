@@ -216,13 +216,19 @@ func _medir() -> void:
 	if jugador.desplomado:
 		_posicion_anterior = Vector3.INF
 		return
+	# En la calle, su posición respecto al camión cambia con lo que avanza el camión: no es un brinco.
+	if not interior.esta_dentro(jugador):
+		if not _salio:
+			print("        salió del camión en %s (coordenadas del camión)" % local.snapped(Vector3.ONE * 0.01))
+		_salio = true
+		_posicion_anterior = Vector3.INF
+		return
 	if _posicion_anterior != Vector3.INF:
 		_salto_maximo = maxf(_salto_maximo, local.distance_to(_posicion_anterior))
 	_posicion_anterior = local
-	if not interior.esta_dentro(jugador):
-		_salio = true
-	# El piso del camión está en y = -0.3 (coordenadas del camión).
-	if interior.esta_dentro(jugador):
+	# El piso del camión está en y = -0.3 (coordenadas del camión). Solo se mide sobre el piso: en
+	# los escalones de la puerta o cayendo junto al camión todavía cuenta como adentro (hay margen).
+	if absf(local.x) < 1.4 and absf(local.z) < 3.9:
 		_hundimiento = maxf(_hundimiento, -0.3 - local.y)
 	var tropezando := jugador.tropezando > 0.0
 	if tropezando and not _estaba_tropezando:

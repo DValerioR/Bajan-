@@ -32,6 +32,7 @@ HUD_TROPEZANDO,¡Tropezando!,Stumbling!
 HUD_FUERA,Te caíste del camión · R para volver,You fell off the bus · R to get back on
 AYUDA_CAMINAR,WASD: caminar · Espacio: saltar,WASD: walk · Space: jump
 AYUDA_SUJETARSE,Shift o clic derecho (mantener): sujetarse,Shift or right click (hold): hold on
+AYUDA_SENTARSE,C: sentarte en un asiento libre o pararte,C: sit on a free seat or stand up
 AYUDA_AGARRAR,E: agarrar o soltar · Clic: lanzar o empujar,E: grab or drop · Click: throw or shove
 AYUDA_PILOTO,"1 a 4: chofer parado, tranquilo, normal o loco","1 to 4: driver stopped, calm, normal or crazy"
 AYUDA_REINICIAR_INTERIOR,R: volver a la puerta del camión,R: back to the bus door

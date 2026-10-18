@@ -46,6 +46,10 @@ var _mascara := MASCARA
 
 var _giro: float = 0.0
 var _vertical: float = 0.0
+## Sentado, el cuerpo no gira: se voltea solo la cabeza (radianes, respecto al asiento).
+var _giro_cabeza: float = 0.0
+## Hasta dónde voltea la cabeza sentado (radianes).
+const GIRO_CABEZA_SENTADO := deg_to_rad(110.0)
 
 
 func _ready() -> void:
@@ -128,19 +132,32 @@ func sentarse(lugar: Transform3D) -> void:
 	_soltar(Vector3.ZERO)
 	collision_layer = 0
 	collision_mask = 0
-	global_transform = lugar
-	velocity = Vector3.ZERO
-	orientar(giro_actual())
-
-
-func pararse(lugar: Transform3D) -> void:
-	sentado = false
-	collision_layer = CAPA_PERSONAJES
-	collision_mask = _mascara
+	# La cabeza sigue viendo hacia donde veía antes de sentarse.
+	var frente_asiento := -lugar.basis.z
+	_giro_cabeza = clampf(angle_difference(atan2(-frente_asiento.x, -frente_asiento.z), giro_actual()), -GIRO_CABEZA_SENTADO, GIRO_CABEZA_SENTADO)
 	global_transform = lugar
 	velocity = Vector3.ZERO
 	orientar(giro_actual())
 	reset_physics_interpolation()
+
+
+## Se para en `lugar`, viendo hacia donde volteaba la cabeza (si iba sentado).
+func pararse(lugar: Transform3D) -> void:
+	var giro := giro_actual() + _giro_cabeza if sentado else giro_actual()
+	sentado = false
+	_enderezar_cabeza()
+	collision_layer = CAPA_PERSONAJES
+	collision_mask = _mascara
+	global_transform = Transform3D(_base_con_arriba(up_direction, giro), lugar.origin)
+	velocity = Vector3.ZERO
+	orientar(giro)
+	reset_physics_interpolation()
+
+
+func _enderezar_cabeza() -> void:
+	_giro_cabeza = 0.0
+	if cabeza:
+		cabeza.rotation.y = 0.0
 
 
 ## Se apaga mientras anda hecho ragdoll (lo llama GestorRagdolls).
@@ -158,6 +175,7 @@ func desplomar() -> void:
 func levantar(lugar: Transform3D) -> void:
 	desplomado = false
 	sentado = false
+	_enderezar_cabeza()
 	collision_layer = CAPA_PERSONAJES
 	collision_mask = _mascara
 	global_transform = lugar
@@ -176,6 +194,10 @@ func _physics_process(delta: float) -> void:
 	if sentado:
 		global_transform = _lugar_sentado
 		velocity = Vector3.ZERO
+		# Sentado puede voltear a ver (el jugador); el cuerpo se queda viendo al frente.
+		_giro_cabeza = clampf(_giro_cabeza + deg_to_rad(comandos.mirar.x), -GIRO_CABEZA_SENTADO, GIRO_CABEZA_SENTADO)
+		_vertical = clampf(_vertical + deg_to_rad(comandos.mirar.y), deg_to_rad(-80.0), deg_to_rad(80.0))
+		cabeza.rotation = Vector3(_vertical, _giro_cabeza, 0.0)
 		comandos.mirar = Vector2.ZERO
 		if visual:
 			visual.animar(delta, Vector3.ZERO, Vector3.ZERO, false, false, false, false, true)
