@@ -9,6 +9,10 @@ const RUTA_PREFERENCIAS := "user://preferencias.cfg"
 var idioma: String = ""
 ## Último rol que eligió en el menú ("azar" = al azar).
 var rol: String = "cobrador"
+## Último modo que eligió ("normal" o "paro") y el rol con el que empezó su última partida en
+## "Tírame paro" (5.3: la siguiente empieza con otro).
+var modo: String = "normal"
+var rol_inicio_paro: String = ""
 
 
 func _ready() -> void:
@@ -16,6 +20,8 @@ func _ready() -> void:
 	if archivo.load(RUTA_PREFERENCIAS) == OK:
 		idioma = archivo.get_value("idioma", "locale", "")
 		rol = archivo.get_value("partida", "rol", rol)
+		modo = archivo.get_value("partida", "modo", modo)
+		rol_inicio_paro = archivo.get_value("partida", "rol_inicio_paro", rol_inicio_paro)
 	if not idioma in Config.idiomas_disponibles:
 		idioma = Config.idioma_predeterminado
 	TranslationServer.set_locale(idioma)
@@ -43,11 +49,23 @@ func elegir_rol(nuevo: String) -> void:
 	_guardar()
 
 
+func elegir_modo(nuevo: String) -> void:
+	modo = nuevo
+	_guardar()
+
+
+func empezo_paro_con(rol_inicial: String) -> void:
+	rol_inicio_paro = rol_inicial
+	_guardar()
+
+
 func _guardar() -> void:
 	var archivo := ConfigFile.new()
 	archivo.load(RUTA_PREFERENCIAS)
 	archivo.set_value("idioma", "locale", idioma)
 	archivo.set_value("partida", "rol", rol)
+	archivo.set_value("partida", "modo", modo)
+	archivo.set_value("partida", "rol_inicio_paro", rol_inicio_paro)
 	var error := archivo.save(RUTA_PREFERENCIAS)
 	if error != OK:
 		push_error("No se pudieron guardar las preferencias (error %d)." % error)

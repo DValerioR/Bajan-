@@ -19,7 +19,7 @@ var suavizado := 0.06
 var umbral_tropiezo := 8.0
 var duracion_tropiezo := 1.1
 var factor_sujetado := 0.15
-var alcance_pasamanos := 1.0
+var alcance_pasamanos := 1.15
 var alcance_asiento := 1.2
 
 var max_ragdolls := 6

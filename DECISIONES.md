@@ -423,3 +423,18 @@ Aquí se agregan las decisiones que se tomen durante el desarrollo: la elección
 - *Para las pruebas:* `Ruta.bots_activos` fija qué bots hay; las pruebas de las etapas 4 y 5 corren sin bots del interior para seguir midiendo lo mismo.
 - *Secciones:* 5.1, 5.2, 6.0, 10.1, etapa 6A.
 
+**D48. La 6B en tres partes y "Tírame paro"** (18/10/2026, etapa 6B1)
+- *Contexto:* DISEÑO.md pide proponer cómo dividir la 6B antes de empezarla. El dueño eligió tres partes: 6B1 (modos y rotación), 6B2 (el chofer sale volando y la sustitución) y 6B3 (penalizaciones que faltan y espectadores). También decidió que, jugando solo, quedarse sin dinero para reaparecer termina la partida, como dice D19.
+- *Decisión (6B1):*
+  - **Modo en el menú:** "Modo normal" o "Tírame paro". En Modo normal se elige el rol; en "Tírame paro" el rol al empezar es al azar, distinto del rol con el que empezó la partida anterior en ese modo (se guarda en las preferencias).
+  - **El chofer tiene cuerpo:** quien maneja (jugador o bot) va sentado al volante como cualquier personaje, con las manos en el volante. Sentado no lo mueve nada (D23). Si es un bot, maneja el piloto automático; si es el jugador, maneja él, viendo desde su cabeza. Solo puede ir al volante quien tiene el rol de chofer, y el camión no arranca si nadie va al volante.
+  - **Rotación:** al llegar a cada parada (salvo la primera y la terminal) el jugador recibe otro rol al azar y el bot que lo tenía se queda con el del jugador. Nadie se teletransporta: cada quien camina a su puesto, y al chofer le toca ir al volante y sentarse con C. La ventana de esa parada se alarga 6 s. Si el rol nuevo no tenía a nadie a bordo (el bot vendedor no venía), sube un bot nuevo por la puerta a cubrir el puesto que dejó el jugador. Hay un anuncio en pantalla con el rol nuevo.
+  - **Si nadie toma el volante:** si al jugador le toca manejar y no se sienta, pasada la ventana (y 8 s más, en los que la gente ya se desespera) el bot que tomó su rol regresa al volante y el jugador recupera el rol que tenía.
+  - **Configuración:** `config/roles.cfg`, sección `[paro]`.
+  - **Arreglos que salieron al probarlo:**
+    - Un bot que queda afuera con el camión detenido en una parada y la puerta abierta vuelve a subir caminando, en lugar de esperar la siguiente parada (si era el chofer, el camión se quedaba parado para siempre). Si se atora 5 s rumbo a un punto, se lo salta.
+    - El piloto no mete sustos a menos de 35 m de una parada: un acelerón ahí lo hacía pasarse de largo.
+    - El alcance para sujetarse sube de 1.0 a 1.15 m: desde que el camión es más ancho (D44), a la mitad del pasillo no se alcanzaba el pasamanos.
+    - Red de seguridad: si el bot chofer no llega al volante en mucho tiempo, se le pone junto a él (la prueba verifica que no pase).
+- *Secciones:* 5.3, 6.0, etapa 6B.
+

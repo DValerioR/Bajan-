@@ -122,7 +122,7 @@ func _probar_ruta(grupo: Array) -> void:
 	var gestor: GestorEventos = escena.eventos
 	var camion: Camion = escena.camion
 	var calle: Calle = escena.calle
-	var chofer: ChoferSentado = escena.chofer
+	var chofer: CuerpoPersonaje = escena.pasajeros.al_volante
 	var detalle := OS.get_cmdline_user_args().has("detalle")
 	if detalle:
 		gestor.empezo.connect(func(e): print("        empieza %s en %.0f m" % [e.tipo, e.inicio]))
@@ -136,7 +136,6 @@ func _probar_ruta(grupo: Array) -> void:
 	var modo_con_prisa := ""
 	var hubo_rival := false
 	var chofer_en_su_lugar := true
-	var lugar_chofer := chofer.position
 	while not escena.terminada and tiempo < 900.0:
 		await get_tree().physics_frame
 		tiempo += 1.0 / FPS
@@ -163,7 +162,7 @@ func _probar_ruta(grupo: Array) -> void:
 					modo_con_prisa = PilotoAutomatico.NOMBRES[escena.piloto.modo]
 				"carrerita":
 					hubo_rival = hubo_rival or is_instance_valid(gestor.rival)
-		if not is_instance_valid(chofer) or chofer.get_parent() != camion.get_node("Carroceria") or chofer.position.distance_to(lugar_chofer) > 0.01:
+		if chofer == null or not is_instance_valid(chofer) or escena.pasajeros.al_volante != chofer or not chofer.sentado or not escena.interior.esta_dentro(chofer):
 			chofer_en_su_lugar = false
 		if detalle and Engine.get_physics_frames() % (20 * FPS) == 0:
 			print("        [%.0f s] %.0f de %.0f m, %.0f km/h, modo %s, parada %d" % [tiempo, i * Calle.PASO, calle.longitud, camion.velocidad_adelante * 3.6, PilotoAutomatico.NOMBRES[escena.piloto.modo], escena.pasajeros.parada_actual])

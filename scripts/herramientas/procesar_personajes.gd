@@ -438,6 +438,8 @@ func _aplicar_medidas(e: Dictionary, nombre: String) -> void:
 		e.cara_x = float(_cfg.get_value(nombre, "cara_x")) * h
 	if _cfg.has_section_key(nombre, "nuca_z"):
 		e.nuca_z = float(_cfg.get_value(nombre, "nuca_z")) * h
+	if _cfg.get_value(nombre, "manga_con_brazo", false):
+		e.manga_con_brazo = true
 	# Modelos en pose T: los brazos se cortan extendidos y se bajan (grados desde la vertical).
 	if _cfg.has_section_key(nombre, "brazos_caidos"):
 		e.brazos_caidos = float(_cfg.get_value(nombre, "brazos_caidos"))
@@ -545,6 +547,11 @@ func _etiquetar(puntos: PackedVector3Array, triangulos: PackedInt32Array, e: Dic
 				if z_brazo.has(pieza) and not e.has("brazos_caidos"):
 					d = Vector2(d, c.z - float(z_brazo[pieza])).length()
 				d /= float(h[3])
+				# Manga corta y ancha: desde un poco abajo de la axila (donde termina la manga) y por
+				# fuera del costado, todo es del brazo, así la manga se levanta con él y no se queda
+				# vacía colgando del torso.
+				if e.has("manga_con_brazo") and z_brazo.has(pieza) and c.y > float(e.axila) - altura * 0.08 and absf(c.x) > absf(float(piv[BRAZO_IZQ].x)) * 0.85 and signf(c.x) == signf((h[1] as Vector2).x):
+					d = 0.0
 				if d < mejor:
 					mejor = d
 					etiqueta = pieza

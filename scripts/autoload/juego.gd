@@ -13,8 +13,10 @@ var parametros: ParametrosPartida
 ## Semilla de la partida: cada ruta usa una derivada, así dos partidas salen distintas.
 var semilla_partida: int = 0
 var en_partida: bool = false
-## Rol del jugador en esta partida. En Modo normal se elige al empezar y no cambia (5.3).
+## Rol del jugador al empezar. En Modo normal se elige y no cambia; en "Tírame paro" rota (5.3).
 var rol_jugador: String = "cobrador"
+## Modo de juego (5.3): "normal" o "paro" ("Tírame paro").
+var modo: String = "normal"
 
 
 func _ready() -> void:
@@ -23,8 +25,11 @@ func _ready() -> void:
 
 
 ## `rol`: el que eligió el jugador ("azar" = uno al azar; vacío = se queda el que tenía).
-func nueva_partida(semilla: int = -1, rol: String = "") -> void:
+## `nuevo_modo`: "normal" o "paro" (vacío = se queda el que tenía).
+func nueva_partida(semilla: int = -1, rol: String = "", nuevo_modo: String = "") -> void:
 	parametros = ParametrosPartida.cargar()
+	if nuevo_modo in ["normal", "paro"]:
+		modo = nuevo_modo
 	if rol == "azar":
 		rol = ROLES[randi() % ROLES.size()]
 	if rol in ROLES:
@@ -42,6 +47,13 @@ func siguiente_ruta() -> int:
 	dinero.empezar_ruta(parametros.cuota_de_ruta(dinero.numero_ruta + 1))
 	dinero_cambio.emit()
 	return hash([semilla_partida, dinero.numero_ruta])
+
+
+## "Tírame paro": el rol al empezar es al azar, pero distinto del que tuvo al empezar la partida
+## anterior en este modo (así nadie empieza siempre de chofer).
+func rol_para_empezar_paro(anterior: String) -> String:
+	var opciones := ROLES.filter(func(r): return r != anterior)
+	return opciones[randi() % opciones.size()]
 
 
 func ingresar(monto: int) -> void:

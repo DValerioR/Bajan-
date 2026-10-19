@@ -55,17 +55,16 @@ func _probar_rol(rol: String) -> void:
 	var escena: Node = load(ESCENA).instantiate()
 	add_child(escena)
 	await get_tree().physics_frame
-	var entrada: Node = escena.get_node_or_null("EntradaJugador")
-	if entrada == null:
-		entrada = escena.get_node_or_null("EntradaChofer")
-	entrada.queue_free()
+	for nombre in ["EntradaJugador", "EntradaChofer"]:
+		if escena.has_node(nombre):
+			escena.get_node(nombre).queue_free()
 	escena.piloto.fijar_semilla(SEMILLA)
 	escena.pasajeros.fijar_semilla(SEMILLA)
 	for bot in escena.bots.values():
 		bot.azar.seed = SEMILLA
 	var pasajeros: GestorPasajeros = escena.pasajeros
 	var interior: InteriorCamion = escena.interior
-	var bots_esperados := Ruta.ROLES_INTERIOR.filter(func(r): return r != rol)
+	var bots_esperados := Juego.ROLES.filter(func(r): return r != rol)
 	_verificar(escena.bots.size() == bots_esperados.size() and bots_esperados.all(func(r): return escena.bots.has(r)), "los bots cubren los demás puestos: %s" % ", ".join(escena.bots.keys()))
 	_verificar(not interior.puerta_abierta, "la ruta empieza con la puerta cerrada")
 
@@ -130,7 +129,7 @@ func _probar_rol(rol: String) -> void:
 			_verificar(reabastecio and regreso and dulces_antes == ParametrosRoles.cargar().mercancia, "se baja al puesto de dulces y llena la caja")
 			_verificar(bot_cobrador.total_cobrado > 0, "el bot cobrador cobra ($%d)" % bot_cobrador.total_cobrado)
 		"chofer":
-			_verificar(escena.chofer_es_jugador and escena.jugador == null and escena.get_viewport().get_camera_3d() == escena.camion.get_node("Carroceria/CamaraChofer"), "el jugador va al volante, con la cámara del chofer")
+			_verificar(escena.chofer_es_jugador and pasajeros.al_volante == escena.jugador and escena.get_viewport().get_camera_3d().name == "CamaraJugador", "el jugador va sentado al volante, viendo desde su cabeza")
 			_verificar(subieron_con_puerta_cerrada == 0, "con la puerta cerrada nadie sube (%d)" % subieron_con_puerta_cerrada)
 			_verificar(bot_cobrador.total_cobrado > 0, "el bot cobrador cobra ($%d)" % bot_cobrador.total_cobrado)
 			_verificar(pasajeros.total_atraidos > 0, "el bot voceador junta gente (%d)" % pasajeros.total_atraidos)

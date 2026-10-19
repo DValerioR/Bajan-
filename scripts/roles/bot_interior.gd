@@ -12,6 +12,9 @@ extends Node
 @export var pasajeros: GestorPasajeros
 ## Dónde vuelve a aparecer si sale volando del camión (coordenadas del camión).
 var puesto := Vector3(0.0, -0.28, 0.0)
+## Puntos que recorre antes de su rol (coordenadas del camión): por ejemplo, para subir por la
+## puerta desde la banqueta. Mientras los recorre no cuenta como "fuera del camión".
+var por_recorrer: Array[Vector3] = []
 
 var roles: ParametrosRoles
 var azar := RandomNumberGenerator.new()
@@ -22,6 +25,8 @@ var _alerta: float = -1.0
 var _falla: bool = false
 var _agarrado: float = 0.0
 var _fuera: float = 0.0
+## Segundos caminando hacia el mismo punto de `por_recorrer` (si se atora, se lo salta).
+var _en_el_punto: float = 0.0
 var _parada_al_salir: int = -1
 
 
@@ -42,6 +47,22 @@ func _physics_process(delta: float) -> void:
 	c.gritar = false
 	if cuerpo.desplomado:
 		return
+	# Solo el chofer va al volante: si le tocó otro rol, se para.
+	if pasajeros.al_volante == cuerpo and not maneja():
+		pasajeros.dejar_volante(cuerpo)
+	if not por_recorrer.is_empty():
+		# Si el camión arranca y lo deja abajo, deja de perseguirlo: espera la siguiente parada.
+		if not pasajeros.interior.esta_dentro(cuerpo) and pasajeros.parada_actual < 0 and absf(pasajeros.interior.camion.velocidad_adelante) > 2.0:
+			por_recorrer.clear()
+		else:
+			while not por_recorrer.is_empty() and caminar_hacia(por_recorrer[0], 1.0, 0.4):
+				por_recorrer.remove_at(0)
+				_en_el_punto = 0.0
+			_en_el_punto += delta
+			if _en_el_punto > 5.0 and not por_recorrer.is_empty():
+				por_recorrer.remove_at(0)
+				_en_el_punto = 0.0
+			return
 	if _atender_salida(delta):
 		return
 	pensar(delta)
@@ -53,6 +74,11 @@ func _physics_process(delta: float) -> void:
 ## Lo que hace el rol en este cuadro. Se sobreescribe.
 func pensar(_delta: float) -> void:
 	pass
+
+
+## Si este rol va al volante (el bot chofer).
+func maneja() -> bool:
+	return false
 
 
 ## Si el rol quiere ir sujeto aunque no haya empujones (el voceador en la puerta).
@@ -77,8 +103,9 @@ func _cuidarse(delta: float) -> void:
 		cuerpo.comandos.sujetarse = true
 
 
-## Si salió del camión, espera a la siguiente parada y vuelve a su puesto (en la 6B esto cuesta
-## la penalización de "bot fuera del camión"). Devuelve true mientras está afuera.
+## Si salió del camión con el camión detenido en una parada y la puerta abierta, se vuelve a subir
+## caminando. Si el camión ya se fue, espera a la siguiente parada y vuelve a su puesto (en la 6B
+## esto cuesta la penalización de "bot fuera del camión"). Devuelve true mientras está afuera.
 func _atender_salida(delta: float) -> bool:
 	if pasajeros.interior.esta_dentro(cuerpo):
 		_fuera = 0.0
@@ -87,6 +114,9 @@ func _atender_salida(delta: float) -> bool:
 		veces_fuera += 1
 		_parada_al_salir = pasajeros.parada_actual
 	_fuera += delta
+	if pasajeros.parada_actual >= 0 and pasajeros.interior.puerta_abierta:
+		subir_por_la_puerta()
+		return true
 	var parada := pasajeros.parada_actual
 	if _fuera > 1.5 and parada >= 0 and parada != _parada_al_salir:
 		pasajeros.interior.recolocar(cuerpo, Transform3D(Basis(), puesto))
@@ -117,6 +147,15 @@ func voltear_hacia(punto: Vector3) -> bool:
 	var t := 1.0 - exp(-10.0 * get_physics_process_delta_time())
 	cuerpo.orientar(lerp_angle(cuerpo.giro_actual(), giro, t))
 	return absf(angle_difference(cuerpo.giro_actual(), giro)) < 0.35
+
+
+## Recorrido para subir por la puerta desde la banqueta hasta su puesto.
+func subir_por_la_puerta() -> void:
+	por_recorrer = [GestorPasajeros.PUERTA_AFUERA, GestorPasajeros.PUERTA_UMBRAL, GestorPasajeros.PUERTA_ADENTRO, puesto]
+	# Si ya está en los escalones (entre la banqueta y la puerta), no baja: sube directo.
+	if cuerpo != null and pasajeros.interior.posicion_local(cuerpo).x < GestorPasajeros.PUERTA_AFUERA.x - 0.3:
+		por_recorrer.remove_at(0)
+	_en_el_punto = 0.0
 
 
 ## Cuerpo nuevo de bot (o de jugador) con su figura, listo para agregarse al interior.

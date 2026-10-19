@@ -28,6 +28,9 @@ var probabilidad_fallar := 0.25
 var vendedor_sube := 0.5
 var vendedor_paradas := [2, 3]
 
+var segundos_extra_rotacion := 6.0
+var espera_sin_chofer := 8.0
+
 
 static func cargar() -> ParametrosRoles:
 	var p := ParametrosRoles.new()
@@ -53,6 +56,8 @@ static func cargar() -> ParametrosRoles:
 	p.probabilidad_fallar = c.get_value("bots", "probabilidad_fallar", p.probabilidad_fallar)
 	p.vendedor_sube = c.get_value("bots", "vendedor_sube", p.vendedor_sube)
 	p.vendedor_paradas = c.get_value("bots", "vendedor_paradas", p.vendedor_paradas)
+	p.segundos_extra_rotacion = c.get_value("paro", "segundos_extra", p.segundos_extra_rotacion)
+	p.espera_sin_chofer = c.get_value("paro", "espera_sin_chofer", p.espera_sin_chofer)
 	return p
 
 

@@ -34,6 +34,11 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	# Sin cuerpo: el rol va de una persona a otra (rotación de "Tírame paro").
+	if cuerpo == null or not is_instance_valid(cuerpo):
+		gritando = false
+		_sonido.stop()
+		return
 	var c := cuerpo.comandos
 	var quiere := c.gritar and not cuerpo.desplomado
 	# Sin aliento no sale: hay que juntar un poco antes de volver a empezar.

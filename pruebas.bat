@@ -9,7 +9,7 @@ if not exist "%GODOT_CONSOLA%" (
 )
 set FALLOS=0
 "%GODOT_CONSOLA%" --headless --path "%~dp0." --import
-for %%P in (prueba_etapa0 prueba_etapa1 prueba_etapa2 prueba_etapa3 prueba_etapa4 prueba_etapa5 prueba_etapa6a) do (
+for %%P in (prueba_etapa0 prueba_etapa1 prueba_etapa2 prueba_etapa3 prueba_etapa4 prueba_etapa5 prueba_etapa6a prueba_etapa6b) do (
   "%GODOT_CONSOLA%" --headless --path "%~dp0." --fixed-fps 60 res://pruebas/%%P.tscn
   if errorlevel 1 set FALLOS=1
 )

@@ -40,6 +40,9 @@ var escalones_subidos: int = 0
 ## Mientras anda hecho ragdoll, el cuerpo se apaga y espera a levantarse.
 var desplomado: bool = false
 var sentado: bool = false
+## Al volante: sentado con las manos en el volante, que se mueve con `volante` (de -1 a 1).
+var manejando: bool = false
+var volante: float = 0.0
 
 var _lugar_sentado := Transform3D()
 var _mascara := MASCARA
@@ -200,7 +203,7 @@ func _physics_process(delta: float) -> void:
 		cabeza.rotation = Vector3(_vertical, _giro_cabeza, 0.0)
 		comandos.mirar = Vector2.ZERO
 		if visual:
-			visual.animar(delta, Vector3.ZERO, Vector3.ZERO, false, false, false, false, true)
+			visual.animar(delta, Vector3.ZERO, Vector3(volante, 0.0, 0.0), false, false, false, false, true, manejando)
 		return
 
 	# Vista: el giro horizontal mueve todo el cuerpo; el vertical, solo la cabeza.

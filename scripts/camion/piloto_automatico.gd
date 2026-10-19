@@ -8,6 +8,8 @@ extends Node
 ## Solo escribe en camion.comandos, como cualquier chofer.
 
 enum Modo { PARADO, TRANQUILO, NORMAL, LOCO }
+## A menos de esto (m) de la próxima parada no mete sustos.
+const DISTANCIA_SIN_SUSTOS := 35.0
 const NOMBRES := {Modo.PARADO: "parado", Modo.TRANQUILO: "tranquilo", Modo.NORMAL: "normal", Modo.LOCO: "loco"}
 
 signal susto(tipo: String)
@@ -78,6 +80,17 @@ func cambiar_modo(nuevo: Modo) -> void:
 	modo = nuevo
 	_susto = ""
 	_tiempo_para_susto = _intervalo_sustos() * _azar.randf_range(0.5, 1.0)
+
+
+## Toma el volante a media ruta (lo manejaba otro). `parada`: la parada donde está detenido (o -1),
+## donde espera `espera` segundos más; `ultima`: la última parada que ya se atendió.
+func tomar_volante(parada: int, ultima: int, espera: float) -> void:
+	_indice = -1
+	en_terminal = false
+	_susto = ""
+	parada_actual = parada
+	_ultima_parada = ultima if parada < 0 else parada
+	_espera = espera
 
 
 ## Después de mover el camión a mano, buscar de nuevo dónde está.
@@ -277,9 +290,15 @@ func _sustos(delta: float, c: ComandosConduccion) -> void:
 	var intervalo := _intervalo_sustos()
 	if intervalo <= 0.0:
 		return
+	# Cerca de una parada no mete sustos (y suelta el acelerón): con uno ahí se pasaba de largo.
+	var hasta_parada := _distancia_a_proxima_parada()
+	var cerca_de_parada := hasta_parada >= 0.0 and hasta_parada < DISTANCIA_SIN_SUSTOS
+	if _susto == "aceleron" and cerca_de_parada:
+		_susto = ""
+		_tiempo_para_susto = intervalo * _azar.randf_range(0.6, 1.4)
 	if _susto == "":
 		_tiempo_para_susto -= delta
-		if _tiempo_para_susto <= 0.0 and camion.velocidad_adelante > 5.0:
+		if _tiempo_para_susto <= 0.0 and camion.velocidad_adelante > 5.0 and not cerca_de_parada:
 			_susto = ["frenazo", "frenazo", "aceleron", "volantazo"][_azar.randi() % 4]
 			_tiempo_susto = {"frenazo": _azar.randf_range(0.6, 1.3), "aceleron": 1.5, "volantazo": 0.35}[_susto]
 			_volantazo = [-1.0, 1.0][_azar.randi() % 2] * 0.6

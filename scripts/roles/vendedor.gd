@@ -38,6 +38,9 @@ func _ready() -> void:
 
 
 func _physics_process(_delta: float) -> void:
+	# Sin cuerpo: nadie trae la caja ahora (el bot no viene a bordo o el rol cambia de manos).
+	if cuerpo == null or not is_instance_valid(cuerpo):
+		return
 	var c := cuerpo.comandos
 	if c.accion_rol:
 		c.accion_rol = false
@@ -70,6 +73,11 @@ func _intentar_vender() -> void:
 	total_propinas += propina
 	Juego.ingresar(propina)
 	vendio.emit(propina)
+
+
+## Caja llena (el bot vendedor sube con ella).
+func llenar_caja() -> void:
+	mercancia = _roles.mercancia
 
 
 func _tirar(cuantos: int) -> void:

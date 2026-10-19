@@ -31,12 +31,18 @@ const FILAS_DE_PIE := [-0.3, 0.3]
 ## Por qué lado del pasillo caminan hacia su asiento (no por el centro, para dejar pasar).
 const CARRIL_PASILLO := 0.35
 const LLEGADA := 0.35
+## Asiento del chofer (los pasajeros no lo usan): dónde va sentado quien maneja, y el punto del
+## pasillo junto al volante donde se para al dejarlo (coordenadas del camión).
+const ASIENTO_CHOFER := Vector3(-0.85, PISO, -2.68)
+const JUNTO_AL_VOLANTE := Vector3(-0.3, PISO, -2.7)
 
 signal subio(cuerpo: CuerpoPersonaje)
 signal bajo(cuerpo: CuerpoPersonaje)
 signal se_perdio(cuerpo: CuerpoPersonaje)
 signal cobrado(cuerpo: CuerpoPersonaje, monto: int)
 signal bajo_sin_pagar(cuerpo: CuerpoPersonaje, monto: int)
+## Cambió quién va al volante (null = nadie).
+signal volante_cambio(cuerpo: CuerpoPersonaje)
 
 @export var interior: InteriorCamion
 @export var ragdolls: GestorRagdolls
@@ -49,6 +55,12 @@ var llegadas_activas: bool = true
 var pasajeros: Array[Pasajero] = []
 ## Jugadores que pueden sentarse en los asientos libres (D44). Cada uno: cuerpo -> su lugar.
 var jugadores: Dictionary = {}
+## Quién va sentado al volante (jugador o bot), o null.
+var al_volante: CuerpoPersonaje
+## Lo decide la escena según los roles: si este cuerpo puede tomar el volante, y si lo puede dejar,
+## con su acción de sentarse. Sin decir nada, nadie puede.
+var puede_manejar: Callable
+var puede_dejar_volante: Callable
 ## Totales para las pruebas y la interfaz.
 var total_subieron: int = 0
 var total_bajaron: int = 0
@@ -58,6 +70,8 @@ var total_atraidos: int = 0
 var total_ayudados: int = 0
 ## Si alguien gritó la ruta en este cuadro (lo pone el voceador; se consume cada cuadro).
 var gritando: bool = false
+## Segundos de más en la ventana de parada (rotación de "Tírame paro").
+var ventana_extra: float = 0.0
 ## Segundos que lleva el camión en la parada actual y qué tan desesperada está la gente (0 a 1).
 var tiempo_en_parada: float = 0.0
 var desesperacion: float = 0.0
@@ -403,7 +417,49 @@ func asiento_libre_cerca(pies: Vector3, alcance: float) -> Dictionary:
 	return mejor
 
 
+## Sienta a este cuerpo al volante (si está libre). Devuelve true si se sentó.
+func sentar_al_volante(cuerpo: CuerpoPersonaje) -> bool:
+	if al_volante != null or cuerpo.desplomado or not interior.esta_dentro(cuerpo):
+		return false
+	# Al volante solo va quien tiene el rol de chofer (si la escena lo dice).
+	if puede_manejar.is_valid() and not puede_manejar.call(cuerpo):
+		return false
+	if jugadores.has(cuerpo) and not jugadores[cuerpo].is_empty():
+		jugadores[cuerpo].ocupado = null
+		jugadores[cuerpo] = {}
+	var punto := ASIENTO_CHOFER
+	punto.y = PISO + 0.45 - cuerpo.visual.altura_cadera
+	cuerpo.sentarse(Transform3D(Basis(), punto))
+	al_volante = cuerpo
+	volante_cambio.emit(cuerpo)
+	return true
+
+
+## Lo para del volante, en el pasillo junto al asiento del chofer.
+func dejar_volante(cuerpo: CuerpoPersonaje) -> void:
+	if al_volante != cuerpo:
+		return
+	al_volante = null
+	if cuerpo.sentado:
+		cuerpo.pararse(Transform3D(cuerpo.global_basis, JUNTO_AL_VOLANTE + Vector3.UP * 0.02))
+	volante_cambio.emit(null)
+
+
+## Si está parado junto al volante, donde alcanza a sentarse.
+func cerca_del_volante(cuerpo: CuerpoPersonaje) -> bool:
+	var aqui := interior.posicion_local(cuerpo)
+	return Vector2(aqui.x - ASIENTO_CHOFER.x, aqui.z - ASIENTO_CHOFER.z).length() < interior.parametros.alcance_asiento
+
+
+func _atender_volante() -> void:
+	# Si el que manejaba ya no va sentado (lo recolocaron, lo quitaron), el volante queda libre.
+	if al_volante != null and (not is_instance_valid(al_volante) or not al_volante.sentado):
+		al_volante = null
+		volante_cambio.emit(null)
+
+
 func _atender_jugadores() -> void:
+	_atender_volante()
 	for cuerpo: CuerpoPersonaje in jugadores.keys():
 		if not is_instance_valid(cuerpo):
 			jugadores.erase(cuerpo)
@@ -417,6 +473,13 @@ func _atender_jugadores() -> void:
 		if not cuerpo.comandos.sentarse:
 			continue
 		cuerpo.comandos.sentarse = false
+		if al_volante == cuerpo:
+			if puede_dejar_volante.is_valid() and puede_dejar_volante.call(cuerpo):
+				dejar_volante(cuerpo)
+			continue
+		if lugar.is_empty() and puede_manejar.is_valid() and puede_manejar.call(cuerpo) and cerca_del_volante(cuerpo):
+			sentar_al_volante(cuerpo)
+			continue
 		if not lugar.is_empty():
 			# Se para en el pasillo, frente a su asiento.
 			lugar.ocupado = null
@@ -534,6 +597,12 @@ func _physics_process(delta: float) -> void:
 				_alejarse(p)
 
 
+## Cuánto dura la ventana de parada: la de config/partida.cfg más lo que se alargue (la rotación
+## de "Tírame paro" le da unos segundos más).
+func duracion_ventana() -> float:
+	return Juego.parametros.ventana + ventana_extra
+
+
 ## Ventana de parada (D20): pasado el tiempo, la gente se desespera y alguno se baja enojado.
 ## En la terminal se bajan todos.
 func _ventana_de_parada(delta: float, parada_anterior: int) -> void:
@@ -549,7 +618,7 @@ func _ventana_de_parada(delta: float, parada_anterior: int) -> void:
 					p.destino = parada_actual
 	tiempo_en_parada += delta
 	var parametros := Juego.parametros
-	if tiempo_en_parada <= parametros.ventana:
+	if tiempo_en_parada <= duracion_ventana():
 		return
 	desesperacion = minf(1.0, desesperacion + parametros.desesperacion_por_segundo * delta)
 	if _azar.randf() < parametros.probabilidad_bajarse * delta:

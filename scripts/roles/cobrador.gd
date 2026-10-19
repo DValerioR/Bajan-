@@ -35,6 +35,9 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	# Sin cuerpo: el rol va de una persona a otra (rotación de "Tírame paro").
+	if cuerpo == null or not is_instance_valid(cuerpo):
+		return
 	var p := Juego.parametros
 	var c := cuerpo.comandos
 	if c.accion_rol:
