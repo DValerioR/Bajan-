@@ -8,6 +8,9 @@ extends BotInterior
 func pensar(_delta: float) -> void:
 	if pasajeros.al_volante == cuerpo:
 		return
+	# Si ya alcanza el asiento (por ejemplo, cayó junto a los pedales), se sienta de una vez.
+	if pasajeros.al_volante == null and pasajeros.cerca_del_volante(cuerpo) and pasajeros.sentar_al_volante(cuerpo):
+		return
 	# Si alguien más va al volante, espera junto a él.
 	if caminar_hacia(GestorPasajeros.JUNTO_AL_VOLANTE, 1.0, 0.45) and pasajeros.al_volante == null:
 		pasajeros.sentar_al_volante(cuerpo)

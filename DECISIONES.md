@@ -438,3 +438,15 @@ Aquí se agregan las decisiones que se tomen durante el desarrollo: la elección
     - Red de seguridad: si el bot chofer no llega al volante en mucho tiempo, se le pone junto a él (la prueba verifica que no pase).
 - *Secciones:* 5.3, 6.0, etapa 6B.
 
+**D49. El chofer sale volando y la sustitución** (19/10/2026, etapa 6B2)
+- *Contexto:* la sección 5.3 pide que, si el chofer sale volando, el camión desacelere poco a poco, otro tome el volante (o el bot tras unos segundos), se cobre "el chofer no entregó el camión" una vez en la siguiente parada y se resuelva según el modo (D21).
+- *Decisión:*
+  - **Quién puede salir volando:** solo el jugador chofer. Sentado al volante no lo mueven los frenazos; lo arranca del asiento una sacudida real del camión de 14 m/s² o más (sin exagerar ni tope: un choque o un golpe fuerte; un frenazo normal llega a unos 7). El bot chofer nunca (D23). Si cae junto a los pedales, alcanza el asiento y puede volver a sentarse con C.
+  - **Sin nadie al volante:** el camión sigue de inercia por su carril y se va frenando poco a poco (freno muy suave, unos 1.5 m/s²). No acelera, no mete sustos y no se detiene en las paradas. La gente se desespera (paga menos) y aparece el aviso "¡Nadie maneja!".
+  - **Sustituto:** a los 6 s sin nadie al volante, el bot cobrador (o si no, el voceador) deja su puesto, camina al volante y maneja. Su puesto queda vacío mientras tanto. Si el chofer regresa al volante antes, no hay incidente.
+  - **En la siguiente parada:** se cobra "el chofer no entregó el camión" ($15, `penalizacion_chofer` en `config/partida.cfg`), una sola vez, sin dejar el fondo en negativo. El chofer reaparece ahí (pagando la de reaparecer, como cualquiera) y el bot vuelve a su puesto. En Modo normal el chofer retoma el volante; en "Tírame paro" entra a la rotación de esa parada y el reparto decide quién maneja (D21).
+  - **Modo normal, si el chofer no se sienta en una parada:** pasada la ventana (y 8 s más), un bot maneja hasta la siguiente parada, sin penalización (el chofer va a bordo), y ahí le devuelve el volante.
+  - **Pendiente para el multijugador (etapa 8):** que otro jugador se siente al volante sin dejar su rol, y que el chofer espectador no reaparezca. Jugando solo no hay otro jugador que pueda tomar el volante.
+  - **Configuración:** `config/roles.cfg`, sección `[chofer]`.
+- *Secciones:* 5.3, 6.2, etapa 6B.
+

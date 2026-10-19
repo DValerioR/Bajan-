@@ -8,6 +8,8 @@ extends Node
 ## Solo escribe en camion.comandos, como cualquier chofer.
 
 enum Modo { PARADO, TRANQUILO, NORMAL, LOCO }
+## Sin nadie al volante, el camión se va frenando con esto (fracción del freno).
+const FRENO_SIN_CHOFER := 0.06
 ## A menos de esto (m) de la próxima parada no mete sustos.
 const DISTANCIA_SIN_SUSTOS := 35.0
 const NOMBRES := {Modo.PARADO: "parado", Modo.TRANQUILO: "tranquilo", Modo.NORMAL: "normal", Modo.LOCO: "loco"}
@@ -25,6 +27,10 @@ signal se_atoro(intento: int)
 @export var detenerse_en_paradas: bool = true
 ## Apagado no toca el camión (cuando maneja el jugador).
 @export var activo: bool = true
+## Nadie va al volante (el chofer salió volando): el camión sigue de inercia y se va frenando
+## poco a poco, sin detenerse en seco (DISEÑO.md, 5.3). Solo se mantiene en su carril, como si el
+## volante se quedara derecho; no acelera, no mete sustos ni se detiene en las paradas.
+var sin_chofer: bool = false
 
 ## Parada donde está detenido ahora, o -1.
 var parada_actual: int = -1
@@ -125,7 +131,7 @@ func _physics_process(delta: float) -> void:
 	if en_terminal:
 		c.frenar = 1.0 if camion.velocidad_adelante > 0.3 else 0.0
 		return
-	if _atender_paradas(delta, c):
+	if not sin_chofer and _atender_paradas(delta, c):
 		return
 	velocidad_objetivo *= factor_velocidad
 	if velocidad_tope > 0.0:
@@ -169,6 +175,10 @@ func _physics_process(delta: float) -> void:
 	else:
 		c.acelerar = 0.35
 
+	if sin_chofer:
+		c.acelerar = 0.0
+		c.frenar = FRENO_SIN_CHOFER if camion.velocidad_adelante > 0.5 else 0.0
+		return
 	_sustos(delta, c)
 	_salir_de_atoron(delta, c, hasta_parada)
 

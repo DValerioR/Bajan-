@@ -22,6 +22,12 @@ func empuje(_posicion: Vector3) -> Vector3:
 	return Vector3.ZERO
 
 
+## Sacudida real del camión (m/s²), sin exagerar y sin tope: para distinguir un choque de un
+## frenazo normal.
+func sacudida(_posicion: Vector3) -> Vector3:
+	return Vector3.ZERO
+
+
 ## Si el empujón se sigue sintiendo cuando el cuerpo va en el aire.
 func empuje_en_aire() -> bool:
 	return false

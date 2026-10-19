@@ -6,6 +6,7 @@ const RUTA := "res://config/partida.cfg"
 
 var pasaje := 12
 var penalizacion_reaparecer := 20
+var penalizacion_chofer := 15
 var caja_chica := 80
 var bonificacion := 0.5
 var cuota_inicial := 60
@@ -29,6 +30,7 @@ static func cargar() -> ParametrosPartida:
 	var c := Config.archivo_config(RUTA)
 	p.pasaje = c.get_value("dinero", "pasaje", p.pasaje)
 	p.penalizacion_reaparecer = c.get_value("dinero", "penalizacion_reaparecer", p.penalizacion_reaparecer)
+	p.penalizacion_chofer = c.get_value("dinero", "penalizacion_chofer", p.penalizacion_chofer)
 	p.caja_chica = c.get_value("dinero", "caja_chica", p.caja_chica)
 	p.bonificacion = c.get_value("dinero", "bonificacion", p.bonificacion)
 	p.cuota_inicial = c.get_value("dinero", "cuota_inicial", p.cuota_inicial)

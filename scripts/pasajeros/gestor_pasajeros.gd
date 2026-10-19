@@ -72,6 +72,8 @@ var total_ayudados: int = 0
 var gritando: bool = false
 ## Segundos de más en la ventana de parada (rotación de "Tírame paro").
 var ventana_extra: float = 0.0
+## Nadie va al volante con el camión andando: la gente se desespera (paga menos).
+var sin_chofer: bool = false
 ## Segundos que lleva el camión en la parada actual y qué tan desesperada está la gente (0 a 1).
 var tiempo_en_parada: float = 0.0
 var desesperacion: float = 0.0
@@ -608,7 +610,10 @@ func duracion_ventana() -> float:
 func _ventana_de_parada(delta: float, parada_anterior: int) -> void:
 	if parada_actual < 0:
 		tiempo_en_parada = 0.0
-		desesperacion = 0.0
+		if sin_chofer:
+			desesperacion = minf(1.0, desesperacion + Juego.parametros.desesperacion_por_segundo * delta)
+		else:
+			desesperacion = 0.0
 		return
 	if parada_actual != parada_anterior:
 		tiempo_en_parada = 0.0

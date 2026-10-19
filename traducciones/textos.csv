@@ -6,7 +6,7 @@ IDIOMA_ACTUAL,Idioma: Español,Language: English
 BOTON_CAMBIAR_IDIOMA,Cambiar idioma (L),Change language (L)
 BOTON_CALLE_PRUEBA,Manejar en la calle de prueba,Drive on the test street
 BOTON_INTERIOR,Caminar dentro del camión,Walk inside the bus
-PRUEBA_ETAPA,Menú de pruebas · Etapa 6B,Test menu · Stage 6B
+PRUEBA_ETAPA,Menú de pruebas · Etapa 6B2,Test menu · Stage 6B2
 LETRERO_RUTA,CENTRO · TIANGUIS,DOWNTOWN · MARKET
 HUD_VELOCIDAD,%d km/h,%d km/h
 AYUDA_TITULO,Controles,Controls
@@ -114,3 +114,6 @@ MODO_PARO,Tírame paro,Help me with this
 ANUNCIO_ROTACION,¡Cambio de puestos! Ahora eres: %s,Switch jobs! Now you are: %s
 ANUNCIO_BOT_AL_VOLANTE,Nadie tomó el volante: maneja el bot y tú vuelves a ser %s,Nobody took the wheel: the bot drives and you are back to %s
 HUD_IR_AL_VOLANTE,Ve al volante y siéntate (C),Go to the wheel and sit down (C)
+ANUNCIO_SIN_CHOFER,¡Nadie maneja! El camión va solo,Nobody is driving! The bus is on its own
+ANUNCIO_SUSTITUTO,El %s tomó el volante,The %s took the wheel
+MSJ_CHOFER_NO_ENTREGO,El chofer no entregó el camión: -$%d,The driver did not bring the bus: -$%d

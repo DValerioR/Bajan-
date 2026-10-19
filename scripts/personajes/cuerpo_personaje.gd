@@ -43,6 +43,10 @@ var sentado: bool = false
 ## Al volante: sentado con las manos en el volante, que se mueve con `volante` (de -1 a 1).
 var manejando: bool = false
 var volante: float = 0.0
+## Sentado, una sacudida real del camión de al menos esto (m/s²: un choque, no un frenazo) lo
+## arranca del asiento y sale volando. 0 = nunca (los pasajeros y el bot chofer, D23). El jugador
+## chofer sí puede salir volando (5.3).
+var umbral_salir_del_asiento: float = 0.0
 
 var _lugar_sentado := Transform3D()
 var _mascara := MASCARA
@@ -166,6 +170,9 @@ func _enderezar_cabeza() -> void:
 ## Se apaga mientras anda hecho ragdoll (lo llama GestorRagdolls).
 func desplomar() -> void:
 	desplomado = true
+	# Si iba sentado, sale del asiento (al levantarse queda de pie donde caiga).
+	sentado = false
+	manejando = false
 	_soltar(Vector3.ZERO)
 	collision_layer = 0
 	collision_mask = 0
@@ -194,6 +201,12 @@ func _physics_process(delta: float) -> void:
 	var p := parametros
 	if desplomado:
 		return
+	if sentado and umbral_salir_del_asiento > 0.0:
+		var tiron := marco.sacudida(global_position + up_direction * altura * 0.5)
+		if tiron.length() >= umbral_salir_del_asiento:
+			pide_desplomarse.emit(tiron.limit_length(12.0) * 0.6 + up_direction * 3.0)
+			if desplomado:
+				return
 	if sentado:
 		global_transform = _lugar_sentado
 		velocity = Vector3.ZERO

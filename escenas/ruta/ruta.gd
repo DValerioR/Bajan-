@@ -8,6 +8,9 @@ extends Node3D
 ## puestos rotan; nadie se teletransporta, cada quien camina a su nuevo puesto, y la ventana de esa
 ## parada se alarga un poco. Si al jugador le toca manejar y no se sienta a tiempo, el bot vuelve al
 ## volante.
+## Si el jugador chofer sale volando (o deja el volante) con el camión andando, el camión sigue de
+## inercia, la gente se desespera y un bot de a bordo se sienta a manejar; en la siguiente parada se
+## cobra "el chofer no entregó el camión" y se resuelve según el modo (5.3, D21).
 ## La puerta es física: el chofer la abre en las paradas para que suban y bajen; el bot chofer la
 ## deja abierta al arrancar, como los micros de verdad.
 ## Al llegar a la terminal se cierra la ruta contra la cuota y se muestra el resultado.
@@ -75,6 +78,10 @@ var rotaciones: int = 0
 var volantes_recuperados: int = 0
 ## Veces que hubo que poner al bot chofer junto al volante porque no llegaba (no debería pasar).
 var volantes_rescatados: int = 0
+## Veces que un bot de a bordo tuvo que manejar en lugar del chofer jugador, y veces que se cobró
+## "el chofer no entregó el camión".
+var sustituciones: int = 0
+var penalizaciones_chofer: int = 0
 var terminada: bool = false
 var resultado: Dictionary = {}
 
@@ -100,6 +107,12 @@ var _volante_recuperado_en: int = -1
 ## ejemplo, si el camión se mece un poco mientras nadie va al volante).
 var _rotada_en: int = -1
 var _contador_bots: int = 0
+## Bot de a bordo que maneja en lugar del chofer jugador, y el rol que dejó (vacío mientras maneja).
+var _sustituto: CuerpoPersonaje
+var _rol_del_sustituto: String = ""
+## Incidente: el camión anduvo sin su chofer. Se cobra una vez, en la primera parada a la que llega.
+var _incidente: bool = false
+var _sin_chofer: float = 0.0
 
 
 func _ready() -> void:
@@ -189,6 +202,8 @@ func _ready() -> void:
 
 ## Quién tiene este rol ahora (un cuerpo), o null.
 func ocupante(r: String) -> CuerpoPersonaje:
+	if r == "chofer" and _sustituto != null and is_instance_valid(_sustituto):
+		return _sustituto
 	if r == rol:
 		return jugador
 	if r == "vendedor":
@@ -369,6 +384,10 @@ func _al_cambiar_volante(cuerpo: CuerpoPersonaje) -> void:
 			otro.manejando = false
 	if cuerpo != null:
 		cuerpo.manejando = true
+	# Solo el jugador al volante puede salir volando del asiento (el bot chofer no, D23).
+	jugador.umbral_salir_del_asiento = _roles.umbral_salir_del_asiento if cuerpo == jugador else 0.0
+	if cuerpo != null:
+		piloto.sin_chofer = false
 	if cuerpo == jugador:
 		piloto.activo = false
 		if _entrada_chofer == null or not is_instance_valid(_entrada_chofer):
@@ -421,6 +440,7 @@ func _physics_process(delta: float) -> void:
 	_revisar_volante_vacio()
 	_rescatar_volante()
 	_reaparecer(delta, llego_a_parada)
+	_atender_chofer(delta, llego_a_parada)
 	_revisar_fin(delta)
 	_actualizar_hud()
 
@@ -448,13 +468,18 @@ func _rotar() -> void:
 
 ## Si al jugador le tocó manejar y no se sienta antes de que se acabe la ventana (más un rato), el
 ## bot que tomó su rol regresa al volante y el jugador recupera el rol que tenía.
+## En Modo normal el jugador se queda con su rol: un bot de a bordo maneja hasta la siguiente
+## parada (sin penalización: el chofer va a bordo) y ahí le devuelve el volante.
 func _revisar_volante_vacio() -> void:
 	var parada := pasajeros.parada_actual
-	if modo != "paro" or rol != "chofer" or pasajeros.al_volante == jugador or parada < 0 or parada == _volante_recuperado_en:
+	if rol != "chofer" or pasajeros.al_volante != null or _sustituto != null or parada < 0 or parada == _volante_recuperado_en:
 		return
 	if pasajeros.tiempo_en_parada < pasajeros.duracion_ventana() + _roles.espera_sin_chofer:
 		return
 	_volante_recuperado_en = parada
+	if modo != "paro":
+		_poner_sustituto()
+		return
 	var de_vuelta := _rol_antes_de_rotar if _rol_antes_de_rotar != "" and _rol_antes_de_rotar != "chofer" else "cobrador"
 	var bot := ocupante(de_vuelta)
 	_asignar(jugador, de_vuelta)
@@ -464,6 +489,93 @@ func _revisar_volante_vacio() -> void:
 		_bot_que_sube("chofer")
 	volantes_recuperados += 1
 	hud.anunciar(tr("ANUNCIO_BOT_AL_VOLANTE") % tr("ROL_" + de_vuelta.to_upper()), Color(1.0, 0.75, 0.4))
+
+
+## El chofer jugador fuera del volante con el camión andando (DISEÑO.md, 5.3): el camión sigue de
+## inercia por su carril y se va frenando, la gente se desespera y, a los pocos segundos, un bot de
+## a bordo deja su puesto y se sienta a manejar. En la primera parada a la que llega sin su chofer
+## se cobra "el chofer no entregó el camión" (una vez). Ahí el bot vuelve a su puesto: en Modo
+## normal el chofer retoma el volante; en "Tírame paro" entra a la rotación de esa parada (D21).
+func _atender_chofer(delta: float, llego_a_parada: bool) -> void:
+	var parada := pasajeros.parada_actual
+	var sin_nadie := pasajeros.al_volante == null
+	var andando := parada < 0 and absf(camion.velocidad_adelante) > 1.0
+	pasajeros.sin_chofer = sin_nadie and andando
+	if sin_nadie and parada < 0 and _arranque <= 0.0:
+		# Sigue de inercia: el piloto solo lo mantiene en su carril.
+		if not piloto.sin_chofer or not piloto.activo:
+			piloto.tomar_volante(-1, _ultima_parada, 0.0)
+			piloto.sin_chofer = true
+			piloto.activo = true
+			if piloto.modo == PilotoAutomatico.Modo.PARADO:
+				piloto.cambiar_modo(PilotoAutomatico.Modo.NORMAL)
+	elif sin_nadie and piloto.sin_chofer:
+		piloto.activo = false
+		camion.comandos.limpiar()
+	if rol == "chofer" and sin_nadie and andando and _sustituto == null and not _incidente:
+		_incidente = true
+		_sin_chofer = 0.0
+		hud.anunciar(tr("ANUNCIO_SIN_CHOFER"), Color(1.0, 0.45, 0.35))
+	if _incidente and pasajeros.al_volante == jugador:
+		# Regresó al volante antes que el sustituto: entregó el camión.
+		_incidente = false
+	if _incidente and sin_nadie and _sustituto == null:
+		_sin_chofer += delta
+		if _sin_chofer >= _roles.segundos_hasta_sustituto:
+			_poner_sustituto()
+	if not llego_a_parada:
+		return
+	if _incidente:
+		_incidente = false
+		var cobrado := Juego.penalizar(Juego.parametros.penalizacion_chofer)
+		penalizaciones_chofer += 1
+		hud.mensaje(tr("MSJ_CHOFER_NO_ENTREGO") % cobrado, Color(1.0, 0.5, 0.4))
+	if _sustituto != null:
+		_devolver_volante()
+
+
+## Un bot de a bordo (el cobrador o el voceador) deja su puesto y va a sentarse al volante.
+func _poner_sustituto() -> void:
+	var elegido: CuerpoPersonaje = null
+	for r in ["cobrador", "voceador"]:
+		var c := ocupante(r)
+		if c != null and c != jugador and not c.desplomado and interior.esta_dentro(c):
+			elegido = c
+			_rol_del_sustituto = r
+			break
+	if elegido == null:
+		# No hay nadie a bordo que pueda: aparece un chofer junto al volante (no debería pasar).
+		push_warning("No había bot a bordo para tomar el volante: aparece uno junto a él.")
+		elegido = _cuerpo_de_bot(MODELOS["chofer"])
+		interior.agregar(elegido, null, Transform3D(Basis(), GestorPasajeros.JUNTO_AL_VOLANTE))
+		_preparar_cuerpo_de_bot(elegido)
+		_rol_del_sustituto = ""
+	_sustituto = elegido
+	_asignar(elegido, "chofer")
+	sustituciones += 1
+	hud.anunciar(tr("ANUNCIO_SUSTITUTO") % tr("ROL_" + (_rol_del_sustituto if _rol_del_sustituto != "" else "chofer").to_upper()), Color(1.0, 0.75, 0.4))
+
+
+## El sustituto deja el volante y vuelve a su puesto; el rol de chofer regresa al jugador.
+func _devolver_volante() -> void:
+	var bot := _sustituto
+	_sustituto = null
+	_ocupantes.erase("chofer")
+	if bot == null or not is_instance_valid(bot):
+		return
+	if _rol_del_sustituto != "":
+		_asignar(bot, _rol_del_sustituto)
+	else:
+		# El que apareció de emergencia se baja.
+		if _cerebros.has(bot):
+			_cerebros[bot].queue_free()
+			_cerebros.erase(bot)
+		if pasajeros.al_volante == bot:
+			pasajeros.dejar_volante(bot)
+		interior.quitar(bot)
+		bot.queue_free()
+	_rol_del_sustituto = ""
+	_actualizar_bots()
 
 
 ## Red de seguridad: si el camión lleva mucho en una parada sin nadie al volante y el chofer es un
@@ -478,7 +590,7 @@ func _rescatar_volante() -> void:
 	interior.recolocar(chofer, Transform3D(Basis(), GestorPasajeros.JUNTO_AL_VOLANTE))
 	if _cerebros.has(chofer):
 		_cerebros[chofer].por_recorrer.clear()
-	push_warning("El bot chofer no llegaba al volante: se le puso junto a él.")
+	push_warning("El bot chofer no llegaba al volante (estaba en %s, parada %d, %.0f s): se le puso junto a él." % [interior.posicion_local(chofer).snapped(Vector3.ONE * 0.1), pasajeros.parada_actual, pasajeros.tiempo_en_parada])
 	volantes_rescatados += 1
 
 

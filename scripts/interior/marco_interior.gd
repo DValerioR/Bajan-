@@ -31,6 +31,12 @@ func empuje(posicion: Vector3) -> Vector3:
 	return horizontal.limit_length(parametros.empujon_maximo)
 
 
+func sacudida(posicion: Vector3) -> Vector3:
+	var transformacion := inercia.camion.global_transform
+	var ficticia := transformacion.basis.inverse() * inercia.ficticia(transformacion * posicion)
+	return Vector3(ficticia.x, 0.0, ficticia.z)
+
+
 func empuje_en_aire() -> bool:
 	return true
 
