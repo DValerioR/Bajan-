@@ -37,8 +37,8 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	var p := Juego.parametros
 	var c := cuerpo.comandos
-	if c.cobrar:
-		c.cobrar = false
+	if c.accion_rol:
+		c.accion_rol = false
 		_intentar_cobrar(p)
 
 	# Tropezar riega parte del morral.

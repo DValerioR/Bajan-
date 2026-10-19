@@ -44,6 +44,24 @@ static func aviso() -> AudioStreamWAV:
 	return _crear(muestras, false)
 
 
+## Grito del voceador ("¡aaah!"): voz ronca con vibrato, en bucle mientras grita.
+## Frecuencias enteras en 1 s para que el bucle no truene.
+static func grito() -> AudioStreamWAV:
+	var muestras := PackedFloat32Array()
+	muestras.resize(FRECUENCIA_MUESTREO)
+	# Armónicos de una "a" abierta: fuertes cerca de 700 y 1200 Hz.
+	var pesos := [0.5, 0.6, 0.9, 1.0, 0.7, 0.45, 0.3, 0.2]
+	for i in FRECUENCIA_MUESTREO:
+		var t := float(i) / FRECUENCIA_MUESTREO
+		var fase := TAU * (196.0 * t - 3.0 / (TAU * 6.0) * cos(TAU * 6.0 * t))
+		var voz := 0.0
+		for h in pesos.size():
+			voz += pesos[h] * sin(fase * (h + 1))
+		var ronquera := randf_range(-0.15, 0.15)
+		muestras[i] = (voz * 0.11 + ronquera * 0.2) * (0.85 + 0.15 * sin(TAU * 3.0 * t))
+	return _crear(muestras, true)
+
+
 static func _crear(muestras: PackedFloat32Array, en_bucle: bool) -> AudioStreamWAV:
 	var datos := PackedByteArray()
 	datos.resize(muestras.size() * 2)

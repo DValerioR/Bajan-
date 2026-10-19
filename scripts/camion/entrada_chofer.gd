@@ -21,3 +21,5 @@ func _physics_process(_delta: float) -> void:
 	c.claxon = Input.is_action_pressed("claxon")
 	if Input.is_action_just_pressed("reiniciar_camion"):
 		c.reiniciar = true
+	if Input.is_action_just_pressed("puerta"):
+		c.puerta = true

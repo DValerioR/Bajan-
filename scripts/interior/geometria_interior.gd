@@ -13,6 +13,10 @@ const SIN_COLISION := ["FranjaIzquierda", "FranjaDerecha", "ParachoquesDelantero
 ## va del borde de la puerta (piso del camión) hasta la calle, 0.66 m más abajo.
 const RAMPA_PUERTA := [Vector3(1.2, 0.1, 1.0), Vector3(2.0, -0.38, -3.15), Vector3(0.0, 0.0, -33.4)]
 
+## Hoja de la puerta cerrada: [medidas, centro] en coordenadas de la carrocería. Tapa el hueco
+## entre los pilares de la puerta (z de -3.7 a -2.6), del piso a la banda de arriba.
+const PUERTA := [Vector3(0.06, 2.0, 1.0), Vector3(1.46, 1.0, -3.15)]
+
 ## Volumen del interior, en coordenadas del camión (para saber si algo está adentro).
 const LIMITES := AABB(Vector3(-1.5, -0.4, -4.02), Vector3(3.0, 2.75, 8.04))
 
@@ -34,6 +38,11 @@ static func formas() -> Array:
 			lista.append(_caja(Vector3(0.85, 0.45, 0.5), Vector3(x, 0.225, z), Vector3.ZERO))
 			lista.append(_caja(Vector3(0.85, 0.6, 0.1), Vector3(x, 0.75, z + 0.25), Vector3.ZERO))
 	return lista
+
+
+## La hoja de la puerta cerrada como forma sólida: [Shape3D, Transform3D] en coordenadas del camión.
+static func forma_puerta() -> Array:
+	return _caja(PUERTA[0], PUERTA[1], Vector3.ZERO)
 
 
 ## Agarraderas: segmentos [desde, hasta] en coordenadas del camión.

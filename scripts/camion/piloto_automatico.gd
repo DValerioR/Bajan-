@@ -21,6 +21,8 @@ signal se_atoro(intento: int)
 @export var modo: Modo = Modo.NORMAL
 ## Si se detiene en las paradas de la pista (como un chofer de verdad).
 @export var detenerse_en_paradas: bool = true
+## Apagado no toca el camión (cuando maneja el jugador).
+@export var activo: bool = true
 
 ## Parada donde está detenido ahora, o -1.
 var parada_actual: int = -1
@@ -91,6 +93,8 @@ func _intervalo_sustos() -> float:
 
 
 func _physics_process(delta: float) -> void:
+	if not activo:
+		return
 	var c := camion.comandos
 	c.limpiar()
 	if modo == Modo.PARADO:

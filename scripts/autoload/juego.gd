@@ -5,11 +5,16 @@ extends Node
 
 signal dinero_cambio
 
+## Los cuatro roles del camión (DISEÑO.md, sección 5.1).
+const ROLES := ["chofer", "cobrador", "voceador", "vendedor"]
+
 var dinero := EstadoDinero.new()
 var parametros: ParametrosPartida
 ## Semilla de la partida: cada ruta usa una derivada, así dos partidas salen distintas.
 var semilla_partida: int = 0
 var en_partida: bool = false
+## Rol del jugador en esta partida. En Modo normal se elige al empezar y no cambia (5.3).
+var rol_jugador: String = "cobrador"
 
 
 func _ready() -> void:
@@ -17,8 +22,13 @@ func _ready() -> void:
 	Config.recargado.connect(func(): parametros = ParametrosPartida.cargar())
 
 
-func nueva_partida(semilla: int = -1) -> void:
+## `rol`: el que eligió el jugador ("azar" = uno al azar; vacío = se queda el que tenía).
+func nueva_partida(semilla: int = -1, rol: String = "") -> void:
 	parametros = ParametrosPartida.cargar()
+	if rol == "azar":
+		rol = ROLES[randi() % ROLES.size()]
+	if rol in ROLES:
+		rol_jugador = rol
 	semilla_partida = semilla if semilla >= 0 else randi()
 	dinero.empezar_partida(parametros.caja_chica, parametros.bonificacion)
 	en_partida = true

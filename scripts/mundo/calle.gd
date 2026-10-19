@@ -452,6 +452,39 @@ func _construir_paradas(distancias: Array) -> void:
 		_solido(banca, BoxShape3D.new(), Vector3(1.6, 0.12, 0.45), Transform3D(Basis.looking_at(direcciones[i], Vector3.UP), donde))
 
 
+## Pone un puesto de dulces en la banqueta, unos metros antes del poste de la parada k (para el
+## vendedor, etapa 6A). Devuelve dónde se para el vendedor para reabastecer (del lado de la calle).
+func poner_puesto_de_dulces(k: int) -> Vector3:
+	var i: int = _ciclo(paradas[k].indice_poste - roundi(5.0 / PASO))
+	var base := Basis.looking_at(-derecha(i), Vector3.UP)
+	var piso := Vector3.UP * (alto_calle + alto_banqueta)
+	var centro := _desplazado(i, ancho_carril + 1.4) + piso
+	var mesa := Vector3(0.7, 0.9, 1.3)
+	_solido(_malla_caja(mesa, Color(0.85, 0.3, 0.45)), BoxShape3D.new(), mesa, Transform3D(base, centro + Vector3.UP * mesa.y * 0.5))
+	# Los dulces de colores encima de la mesa.
+	for n in 4:
+		var dulce := _malla_caja(Vector3(0.18, 0.12, 0.22), [Color(1.0, 0.8, 0.2), Color(0.3, 0.75, 0.95), Color(0.95, 0.4, 0.2), Color(0.5, 0.9, 0.4)][n])
+		dulce.transform = Transform3D(base, centro + Vector3.UP * (mesa.y + 0.06) + base.x * (-0.45 + 0.3 * n))
+		add_child(dulce)
+	var palo := _malla_cilindro(0.03, 2.2, COLOR_TRONCO)
+	palo.transform = Transform3D(base, centro + Vector3.UP * 1.1 + base.z * 0.25)
+	add_child(palo)
+	var sombrilla := _malla_cilindro(1.0, 0.12, Color(1.0, 0.85, 0.3))
+	sombrilla.transform = Transform3D(base, centro + Vector3.UP * 2.2)
+	add_child(sombrilla)
+	var letrero := Label3D.new()
+	letrero.text = "LETRERO_DULCES"
+	letrero.pixel_size = 0.005
+	letrero.font_size = 48
+	letrero.outline_size = 12
+	letrero.modulate = Color(1, 0.95, 0.5)
+	letrero.outline_modulate = Color(0.4, 0.1, 0.2)
+	letrero.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+	letrero.position = centro + Vector3.UP * 2.6
+	add_child(letrero)
+	return _desplazado(i, ancho_carril + 0.6) + piso
+
+
 func _cilindro_forma(radio: float, alto: float) -> CylinderShape3D:
 	var forma := CylinderShape3D.new()
 	forma.radius = radio

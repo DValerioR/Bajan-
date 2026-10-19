@@ -6,7 +6,7 @@ IDIOMA_ACTUAL,Idioma: Español,Language: English
 BOTON_CAMBIAR_IDIOMA,Cambiar idioma (L),Change language (L)
 BOTON_CALLE_PRUEBA,Manejar en la calle de prueba,Drive on the test street
 BOTON_INTERIOR,Caminar dentro del camión,Walk inside the bus
-PRUEBA_ETAPA,Menú de pruebas · Etapa 5,Test menu · Stage 5
+PRUEBA_ETAPA,Menú de pruebas · Etapa 6A,Test menu · Stage 6A
 LETRERO_RUTA,CENTRO · TIANGUIS,DOWNTOWN · MARKET
 HUD_VELOCIDAD,%d km/h,%d km/h
 AYUDA_TITULO,Controles,Controls
@@ -87,3 +87,25 @@ MSJ_RIVAL_GANAMOS,¡Le ganamos la parada a la Ruta 7!,We beat Route 7 to the sto
 LETRERO_RIVAL,RUTA 7 · NO SE DETIENE,ROUTE 7 · NONSTOP
 LETRERO_INSPECTOR,INSPECTOR,INSPECTOR
 LETRERO_OBRA,OBRA · DISCULPE LAS MOLESTIAS,ROADWORK · SORRY FOR THE TROUBLE
+ELEGIR_ROL,Tu rol en el camión,Your job on the bus
+ROL_CHOFER,Chofer,Driver
+ROL_COBRADOR,Cobrador,Fare collector
+ROL_VOCEADOR,Voceador,Barker
+ROL_VENDEDOR,Vendedor,Candy seller
+ROL_AZAR,Al azar,Random
+AYUDA_PUERTA,E: abrir o cerrar la puerta,E: open or close the door
+AYUDA_GRITAR,Q (mantener): gritar la ruta,Q (hold): shout the route
+AYUDA_JALAR,F: jalar al que va a subir,F: pull in whoever is boarding
+AYUDA_VENDER,F: ofrecerle dulce al que tienes enfrente,F: offer candy to whoever is in front of you
+AYUDA_PUESTO,Bájate en los puestos de dulces para llenar la caja,Get off at candy stands to refill your box
+HUD_PUERTA_ABIERTA,Puerta abierta,Door open
+HUD_PUERTA_CERRADA,Puerta cerrada · E para abrir,Door closed · E to open
+HUD_ALIENTO,Aliento: %d%%,Breath: %d%%
+HUD_GRITANDO,"¡Súbale, súbale, hay lugares!","Hop on, hop on, plenty of seats!"
+HUD_DULCES,Dulces: %d de %d,Candy: %d of %d
+MSJ_AYUDO,¡Súbale!,Hop on!
+MSJ_VENTA,+$%d de propina,+$%d tip
+MSJ_NO_QUISO,No quiso dulce,"No candy, thanks"
+MSJ_DULCES_CAIDOS,¡Se te cayeron %d dulces!,You dropped %d candies!
+MSJ_REABASTECIO,Caja llena de dulces,Candy box refilled
+LETRERO_DULCES,DULCES,CANDY

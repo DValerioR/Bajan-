@@ -110,6 +110,9 @@ func _probar_ruta(grupo: Array) -> void:
 	Juego.en_partida = false
 	Ruta.semilla_forzada = semilla
 	Ruta.eventos_activos = grupo
+	# Esta prueba es de los eventos: sin bots del interior.
+	Ruta.bots_activos = []
+	Juego.rol_jugador = "cobrador"
 	var escena: Node = load(ESCENA).instantiate()
 	add_child(escena)
 	await get_tree().physics_frame

@@ -179,6 +179,9 @@ func _abrir_ruta(semilla: int) -> Node:
 	Ruta.semilla_forzada = semilla
 	# La etapa 4 mide el cobro y la cuota sin eventos de caos (esos los prueba la etapa 5).
 	Ruta.eventos_activos = []
+	# Esta prueba mide el cobro del jugador: sin bots del interior (el vendedor deja propinas).
+	Ruta.bots_activos = []
+	Juego.rol_jugador = "cobrador"
 	var escena: Node = load(ESCENA).instantiate()
 	add_child(escena)
 	await get_tree().physics_frame
@@ -231,7 +234,7 @@ func _cobrar_a_alguien(escena: Node) -> void:
 		var desde := Vector3(0.0, -0.28, objetivo.z + 0.9)
 		escena.interior.recolocar(escena.jugador, Transform3D(Basis(), desde))
 		escena.jugador.orientar(atan2(-(objetivo.x - desde.x), -(objetivo.z - desde.z)))
-		escena.jugador.comandos.cobrar = true
+		escena.jugador.comandos.accion_rol = true
 		return
 
 

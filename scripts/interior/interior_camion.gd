@@ -29,8 +29,14 @@ var parametros: ParametrosInterior
 var espacio: SubViewport
 ## Cada registro: {entidad, camara, dentro, tiempo_fuera, reflejos: [[cuerpo, reflejo], ...]}.
 var registros: Array[Dictionary] = []
+## La puerta (física): cerrada, nadie sale ni entra por ahí, ni suben o bajan pasajeros. Empieza
+## abierta (las escenas de prueba no la usan); la ruta la cierra al empezar.
+var puerta_abierta: bool = true
 
 var _paredes_mundo: AnimatableBody3D
+var _puerta_mundo: CollisionShape3D
+var _puerta_interior: CollisionShape3D
+var _hoja_puerta: Node3D
 var _ancla: Node3D
 var _marco_personajes: MarcoInterior
 var _marco_objetos: MarcoInterior
@@ -51,6 +57,7 @@ func _ready() -> void:
 	_paredes_mundo.name = "ParedesCamion"
 	_paredes_mundo.sync_to_physics = true
 	_llenar_paredes(_paredes_mundo)
+	_puerta_mundo = _agregar_puerta(_paredes_mundo)
 	mundo.add_child.call_deferred(_paredes_mundo)
 
 	# Espacio de física del interior, con las paredes quietas en coordenadas del camión.
@@ -63,6 +70,7 @@ func _ready() -> void:
 	var paredes := StaticBody3D.new()
 	paredes.name = "ParedesInterior"
 	_llenar_paredes(paredes)
+	_puerta_interior = _agregar_puerta(paredes)
 	espacio.add_child(paredes)
 
 	# Los reflejos cuelgan de la carrocería para ladearse con ella (balanceo visual).
@@ -71,6 +79,9 @@ func _ready() -> void:
 	_ancla.name = "ReflejosInterior"
 	_ancla.position = -carroceria.position
 	carroceria.add_child(_ancla)
+	_hoja_puerta = _crear_hoja_puerta()
+	carroceria.add_child(_hoja_puerta)
+	fijar_puerta(puerta_abierta)
 	_al_recargar()
 
 
@@ -82,6 +93,52 @@ func _llenar_paredes(cuerpo: CollisionObject3D) -> void:
 		forma.shape = datos[0]
 		forma.transform = datos[1]
 		cuerpo.add_child(forma)
+
+
+func _agregar_puerta(cuerpo: CollisionObject3D) -> CollisionShape3D:
+	var datos := GeometriaInterior.forma_puerta()
+	var forma := CollisionShape3D.new()
+	forma.name = "Puerta"
+	forma.shape = datos[0]
+	forma.transform = datos[1]
+	cuerpo.add_child(forma)
+	return forma
+
+
+## La hoja de la puerta que se ve: un panel con ventana que se desliza por fuera, hacia atrás.
+func _crear_hoja_puerta() -> Node3D:
+	var hoja := Node3D.new()
+	hoja.name = "HojaPuerta"
+	var medidas: Vector3 = GeometriaInterior.PUERTA[0]
+	var marco := MeshInstance3D.new()
+	var caja := BoxMesh.new()
+	caja.size = medidas
+	marco.mesh = caja
+	marco.material_override = EstiloToon.material(Color(0.96, 0.9, 0.76), true, EstiloToon.ModoContorno.CAJA)
+	hoja.add_child(marco)
+	var ventana := MeshInstance3D.new()
+	var vidrio := BoxMesh.new()
+	vidrio.size = Vector3(medidas.x + 0.01, medidas.y * 0.45, medidas.z * 0.8)
+	ventana.mesh = vidrio
+	ventana.position = Vector3(0.0, medidas.y * 0.18, 0.0)
+	ventana.material_override = EstiloToon.material(Color(0.45, 0.62, 0.72), false)
+	hoja.add_child(ventana)
+	return hoja
+
+
+## Abre o cierra la puerta: la hoja choca en los dos espacios (adentro y la calle).
+func fijar_puerta(abierta: bool) -> void:
+	puerta_abierta = abierta
+	if _puerta_interior == null:
+		return
+	_puerta_interior.set_deferred("disabled", abierta)
+	_puerta_mundo.set_deferred("disabled", abierta)
+
+
+func _posicion_hoja(abierta: bool) -> Vector3:
+	var centro: Vector3 = GeometriaInterior.PUERTA[1]
+	# Abierta, va por fuera de la pared, recorrida hacia atrás.
+	return centro + (Vector3(0.08, 0.0, 1.05) if abierta else Vector3.ZERO)
 
 
 func _al_recargar() -> void:
@@ -212,7 +269,9 @@ func _physics_process(delta: float) -> void:
 				_cambiar_espacio(registro, true)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	if _hoja_puerta != null:
+		_hoja_puerta.position = _hoja_puerta.position.lerp(_posicion_hoja(puerta_abierta), 1.0 - exp(-10.0 * delta))
 	for registro in registros:
 		if not is_instance_valid(registro.entidad):
 			continue

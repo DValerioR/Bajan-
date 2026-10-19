@@ -7,12 +7,15 @@ signal idioma_cambiado(locale: String)
 const RUTA_PREFERENCIAS := "user://preferencias.cfg"
 
 var idioma: String = ""
+## Último rol que eligió en el menú ("azar" = al azar).
+var rol: String = "cobrador"
 
 
 func _ready() -> void:
 	var archivo := ConfigFile.new()
 	if archivo.load(RUTA_PREFERENCIAS) == OK:
 		idioma = archivo.get_value("idioma", "locale", "")
+		rol = archivo.get_value("partida", "rol", rol)
 	if not idioma in Config.idiomas_disponibles:
 		idioma = Config.idioma_predeterminado
 	TranslationServer.set_locale(idioma)
@@ -35,10 +38,16 @@ func siguiente_idioma() -> void:
 	cambiar_idioma(disponibles[(indice + 1) % disponibles.size()])
 
 
+func elegir_rol(nuevo: String) -> void:
+	rol = nuevo
+	_guardar()
+
+
 func _guardar() -> void:
 	var archivo := ConfigFile.new()
 	archivo.load(RUTA_PREFERENCIAS)
 	archivo.set_value("idioma", "locale", idioma)
+	archivo.set_value("partida", "rol", rol)
 	var error := archivo.save(RUTA_PREFERENCIAS)
 	if error != OK:
 		push_error("No se pudieron guardar las preferencias (error %d)." % error)

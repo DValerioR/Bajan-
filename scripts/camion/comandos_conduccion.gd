@@ -13,6 +13,8 @@ var girar: float = 0.0
 var claxon: bool = false
 ## Pide enderezar el camión sobre la calle (se consume al usarse).
 var reiniciar: bool = false
+## Abrir o cerrar la puerta (se consume al usarse; lo atiende la escena).
+var puerta: bool = false
 
 
 ## Suelta pedales, volante y claxon. No toca `reiniciar`, que lo consume el camión.

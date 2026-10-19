@@ -407,3 +407,19 @@ Aquí se agregan las decisiones que se tomen durante el desarrollo: la elección
   - **Memoria:** las texturas de los personajes se importan con compresión de video de alta calidad (BPTC) en lugar de sin pérdida: unos 90 MB en lugar de 340 MB para los 16, sin diferencia visible. Un personaje nuevo hay que ponerlo igual (en el editor: Importar → Compress Mode: VRAM Compressed, High Quality).
   - Lo que queda en las caras (manchitas, trazos alrededor de los ojos) viene pintado así por Tripo.
 - *Secciones:* 3, 8.
+
+**D47. Roles y bots del interior** (18/10/2026, etapa 6A)
+- *Contexto:* la etapa 6A pide los cuatro roles con sus acciones (máximo dos por rol), los bots del interior, el bot chofer y el grito del voceador por teclado. Criterio: elijo cualquier rol, los bots cubren los demás y se completa una ruta.
+- *Decisión:*
+  - **Elegir rol (Modo normal):** en el menú, debajo de "Jugar una ruta", se elige chofer, cobrador, voceador, vendedor o al azar. Se recuerda en las preferencias. "Tírame paro" es de la 6B.
+  - **Controles:** F es la acción del rol (cobrar, vender, jalar al que sube; antes era solo "cobrar"), Q mantenida grita (mando: clic del stick derecho) y E abre o cierra la puerta cuando manejas (mando: X).
+  - **Puerta física (el dueño eligió "física, abierta al andar"):** cerrada, nadie sale ni entra por ahí, y no suben ni bajan pasajeros. Es un panel que choca en los dos espacios (el interior y la calle) y una hoja que se desliza por fuera. La ruta empieza con la puerta cerrada; el bot chofer la abre al llegar a la primera parada y la deja abierta al arrancar, como los micros de verdad.
+  - **Chofer:** maneja (y claxon) y abre la puerta. El jugador chofer va sentado al volante con la cámara del chofer, como el bot: en la 6A no sale volando (salir volando y la sustitución son de la 6B). Si maneja el jugador, no sale el evento "el chofer trae prisa".
+  - **Voceador:** va en la puerta, junto al poste. Gritar gasta aliento (22 por segundo de 100) y se recupera solo (14 por segundo); con menos de 15 no le sale. Si se grita en una parada o a menos de 40 m de la siguiente, cada 1.6 s de grito llega un pasajero más a esa parada (máximo 4 por parada) y los que esperan se acercan a la puerta. Su segunda acción, "jalar", deja subir de inmediato y más rápido al siguiente que espera. El grito tiene un sonido sintético.
+  - **Vendedor:** le ofrece dulce al pasajero que tiene enfrente, una vez a cada uno. El 60 % compra y deja de $3 a $6 de propina, que entra directo al fondo (cuenta en la ganancia de la ruta). Trae 10 dulces. Al tropezar se le cae 1 y al caer como ragdoll 3. Hay puestos de dulces en la banqueta de una de cada tres paradas (la 3, la 6, la 9..., como las numera la interfaz): bajándose hasta el puesto se llena la caja. Si el camión lo deja, por ahora aplica lo de reaparecer; el taxi es de la 6B.
+  - **Bots del interior (5.2):** mismo cuerpo y física que un jugador; llenan sus comandos como si fueran uno. Caminan a puntos fijos del pasillo, más lento que un jugador (75 %). Ante un empujón fuerte se sujetan, pero tardan 0.45 s en reaccionar y una de cada cuatro veces no alcanzan. El **cobrador** va con el pasajero sin pagar más cercano y le cobra (con el mismo morral que el jugador). El **voceador** va en la puerta sujeto del poste, grita a ratos cerca de cada parada dejando que se recupere el aliento, y jala a la gente. El **vendedor** no viaja siempre: en cada parada hay 50 % de que suba con la caja llena, vende 2 o 3 paradas y se baja. Si un bot sale volando, vuelve a su puesto en la siguiente parada (la penalización "bot fuera del camión" es de la 6B).
+  - **Bot chofer:** es el piloto automático de la etapa 5 (D42), sin cambios.
+  - **Configuración:** `config/roles.cfg`.
+- *Para las pruebas:* `Ruta.bots_activos` fija qué bots hay; las pruebas de las etapas 4 y 5 corren sin bots del interior para seguir midiendo lo mismo.
+- *Secciones:* 5.1, 5.2, 6.0, 10.1, etapa 6A.
+

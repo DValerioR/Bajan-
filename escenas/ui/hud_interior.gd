@@ -1,10 +1,18 @@
 class_name HudInterior
 extends CanvasLayer
-## Interfaz del interior (etapas 2 a 4): dinero, ventana de parada, velocidad, modo del chofer
-## automático, estado del jugador, avisos de sustos y ayuda de controles.
+## Interfaz del interior (etapas 2 a 6A): dinero, ventana de parada, velocidad, modo del chofer
+## automático, estado del jugador y de su rol, avisos de sustos y ayuda de controles según el rol.
 ## No lee el estado del juego: la escena le pasa los datos. Los textos son claves de traducción.
 
-const AYUDA := ["AYUDA_TITULO", "AYUDA_CAMINAR", "AYUDA_MIRAR", "AYUDA_SUJETARSE", "AYUDA_SENTARSE", "AYUDA_AGARRAR", "AYUDA_COBRAR", "AYUDA_PILOTO", "AYUDA_REINICIAR_INTERIOR", "AYUDA_CONFIG", "AYUDA_SALIR"]
+const AYUDA_CAMINANDO := ["AYUDA_TITULO", "AYUDA_CAMINAR", "AYUDA_MIRAR", "AYUDA_SUJETARSE", "AYUDA_SENTARSE", "AYUDA_AGARRAR"]
+const AYUDA_FINAL := ["AYUDA_PILOTO", "AYUDA_REINICIAR_INTERIOR", "AYUDA_CONFIG", "AYUDA_SALIR"]
+## Lo propio de cada rol, entre la ayuda de caminar y la final.
+const AYUDA_ROL := {
+	"cobrador": ["AYUDA_COBRAR"],
+	"voceador": ["AYUDA_GRITAR", "AYUDA_JALAR"],
+	"vendedor": ["AYUDA_VENDER", "AYUDA_PUESTO"],
+}
+const AYUDA_CHOFER := ["AYUDA_TITULO", "AYUDA_MANEJO", "AYUDA_VOLANTE", "AYUDA_CLAXON", "AYUDA_PUERTA", "AYUDA_MIRAR", "AYUDA_REINICIAR", "AYUDA_CONFIG", "AYUDA_SALIR"]
 const DURACION_AVISO := 1.2
 const DURACION_ANUNCIO := 3.5
 
@@ -22,14 +30,15 @@ var _tiempo_mensaje: float = 0.0
 var _anuncio: Label
 var _tiempo_anuncio: float = 0.0
 var _pitido: AudioStreamPlayer
+var _ayuda: VBoxContainer
+var _rol: Label
+var _mira: Label
 
 
 func _ready() -> void:
-	var ayuda := VBoxContainer.new()
-	ayuda.position = Vector2(16, 14)
-	add_child(ayuda)
-	for clave in AYUDA:
-		ayuda.add_child(_etiqueta(clave, 15 if clave != "AYUDA_TITULO" else 18, Color(1, 0.86, 0.3) if clave == "AYUDA_TITULO" else Color.WHITE))
+	_ayuda = VBoxContainer.new()
+	_ayuda.position = Vector2(16, 14)
+	add_child(_ayuda)
 
 	var abajo := VBoxContainer.new()
 	abajo.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
@@ -84,9 +93,17 @@ func _ready() -> void:
 	_parada.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	_parada.offset_left = -560
 	_parada.offset_right = -20
-	_parada.offset_top = 104
+	_parada.offset_top = 112
 	_parada.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	add_child(_parada)
+	_rol = _etiqueta("", 22, Color(1.0, 0.9, 0.6))
+	_rol.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_rol.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	_rol.offset_left = -560
+	_rol.offset_right = -20
+	_rol.offset_top = 142
+	_rol.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	add_child(_rol)
 	_ventana = _etiqueta("", 34, Color(1.0, 0.95, 0.5))
 	_ventana.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_ventana.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
@@ -123,17 +140,35 @@ func _ready() -> void:
 	add_child(_pitido)
 
 	# Mira en el centro de la pantalla, para apuntar al agarrar y empujar.
-	var mira := _etiqueta("·", 30, Color.WHITE)
-	mira.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	mira.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	mira.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	mira.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	add_child(mira)
+	_mira = _etiqueta("·", 30, Color.WHITE)
+	_mira.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_mira.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	_mira.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_mira.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	add_child(_mira)
+	configurar("cobrador")
+
+
+## La ayuda de controles y la mira según el rol del jugador.
+func configurar(rol: String) -> void:
+	for hijo in _ayuda.get_children():
+		hijo.queue_free()
+	var claves: Array = AYUDA_CHOFER if rol == "chofer" else AYUDA_CAMINANDO + AYUDA_ROL.get(rol, []) + AYUDA_FINAL
+	for clave in claves:
+		_ayuda.add_child(_etiqueta(clave, 15 if clave != "AYUDA_TITULO" else 18, Color(1, 0.86, 0.3) if clave == "AYUDA_TITULO" else Color.WHITE))
+	_mira.visible = rol != "chofer"
+
+
+## Renglón con el estado del rol (aliento, dulces, puerta), ya traducido. Vacío lo oculta.
+func mostrar_rol(texto: String, color: Color = Color(1.0, 0.9, 0.6)) -> void:
+	_rol.text = texto
+	_rol.add_theme_color_override("font_color", color)
 
 
 func mostrar_estado(velocidad_kmh: float, modo_piloto: String, dentro: bool, sujetado: bool, tropezando: bool) -> void:
 	_velocidad.text = tr("HUD_VELOCIDAD") % absi(roundi(velocidad_kmh))
-	_piloto.text = tr("HUD_PILOTO") % tr("PILOTO_" + modo_piloto.to_upper())
+	# Sin modo: maneja el jugador.
+	_piloto.text = tr("HUD_PILOTO") % tr("PILOTO_" + modo_piloto.to_upper()) if modo_piloto != "" else ""
 	if not dentro:
 		_estado.text = "HUD_FUERA"
 	elif tropezando:

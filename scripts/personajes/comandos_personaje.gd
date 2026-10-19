@@ -13,7 +13,9 @@ var sujetarse: bool = false
 var saltar: bool = false
 var agarrar: bool = false
 var accion: bool = false
-## Cobrar el pasaje (cobrador).
-var cobrar: bool = false
+## La acción de su rol: cobrar (cobrador), vender (vendedor) o ayudar a subir (voceador).
+var accion_rol: bool = false
+## Mantener para gritar la ruta (voceador).
+var gritar: bool = false
 ## Sentarse en el asiento libre más cercano, o pararse si ya va sentado.
 var sentarse: bool = false

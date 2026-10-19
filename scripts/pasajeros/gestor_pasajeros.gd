@@ -12,6 +12,10 @@ extends Node
 ## (D20): si el camión se queda más de la cuenta, los de a bordo se desesperan, pagan menos y
 ## alguno se baja enojado sin pagar. En una ruta abierta nadie va más allá de la terminal, y ahí
 ## se bajan todos.
+##
+## Roles (etapa 6A): solo suben y bajan con la puerta abierta. El grito del voceador junta gente
+## en la parada y la acerca a la puerta; "ayudar a subir" deja pasar al siguiente de inmediato.
+## El vendedor le ofrece dulce a cada pasajero una vez.
 
 enum Estado { ESPERANDO, SUBIENDO, CAMINANDO, SENTADO, DE_PIE, BAJANDO, ALEJANDOSE }
 
@@ -50,6 +54,10 @@ var total_subieron: int = 0
 var total_bajaron: int = 0
 var total_perdidos: int = 0
 var total_sin_pagar: int = 0
+var total_atraidos: int = 0
+var total_ayudados: int = 0
+## Si alguien gritó la ruta en este cuadro (lo pone el voceador; se consume cada cuadro).
+var gritando: bool = false
 ## Segundos que lleva el camión en la parada actual y qué tan desesperada está la gente (0 a 1).
 var tiempo_en_parada: float = 0.0
 var desesperacion: float = 0.0
@@ -60,6 +68,12 @@ var _lugares: Array[Dictionary] = []
 var _turno_puerta: float = 0.0
 var _tiempo_llegadas: float = 0.0
 var _contador: int = 0
+var _roles := ParametrosRoles.new()
+## Por parada: segundos de grito juntados y pasajeros que ya llegaron por el grito.
+var _grito_juntado: Dictionary = {}
+var _atraidos: Dictionary = {}
+## Segundos desde el último grito (la gente que espera se acerca a la puerta un rato).
+var _desde_grito: float = INF
 
 
 class Pasajero:
@@ -72,6 +86,10 @@ class Pasajero:
 	var espera_poste := Vector3.ZERO
 	var tiempo: float = 0.0
 	var pagado: bool = false
+	## Ya se le ofreció dulce (se le ofrece una vez).
+	var ofrecido: bool = false
+	## Lo jaló el voceador: sube más rápido.
+	var jalado: bool = false
 	var marca: Label3D
 	## Al alejarse: a dónde camina (INF = lejos de la puerta del camión).
 	var ir_a := Vector3.INF
@@ -80,7 +98,10 @@ class Pasajero:
 func _ready() -> void:
 	_azar.randomize()
 	_cfg = Config.archivo_config(RUTA)
-	Config.recargado.connect(func(): _cfg = Config.archivo_config(RUTA))
+	_roles = ParametrosRoles.cargar()
+	Config.recargado.connect(func():
+		_cfg = Config.archivo_config(RUTA)
+		_roles = ParametrosRoles.cargar())
 	_armar_lugares()
 	ragdolls.levantado.connect(_al_levantarse)
 	var inicial: Array = _cfg.get_value("pasajeros", "esperando_al_inicio", [1, 3])
@@ -111,10 +132,52 @@ func cobrar(cuerpo: CuerpoPersonaje) -> int:
 ## El pasajero sin pagar más cercano a `desde`, hacia donde se mira, dentro del alcance (en el
 ## espacio del interior). Lo usa el cobrador.
 func por_cobrar_cerca(desde: Vector3, mirada: Vector3, alcance: float) -> CuerpoPersonaje:
+	return _cerca_que(desde, mirada, alcance, func(p: Pasajero): return not p.pagado)
+
+
+## El pasajero a bordo más cercano al que todavía no se le ofrece dulce (lo usa el vendedor).
+func por_vender_cerca(desde: Vector3, mirada: Vector3, alcance: float) -> CuerpoPersonaje:
+	return _cerca_que(desde, mirada, alcance, func(p: Pasajero): return not p.ofrecido)
+
+
+## Le ofrece dulce a este pasajero (una sola vez). Devuelve la propina, o 0 si no quiso.
+func vender(cuerpo: CuerpoPersonaje) -> int:
+	for p in pasajeros:
+		if p.cuerpo != cuerpo or p.ofrecido or not _a_bordo(p):
+			continue
+		p.ofrecido = true
+		if _azar.randf() >= _roles.probabilidad_compra:
+			return 0
+		return _azar.randi_range(int(_roles.propina[0]), int(_roles.propina[1]))
+	return 0
+
+
+## Pasajeros a bordo (adentro, sin estar tirados) que cumplen `filtro`: "sin_pagar" o "sin_ofrecer".
+## Para los bots del interior.
+func a_bordo_que(filtro: String) -> Array[CuerpoPersonaje]:
+	var lista: Array[CuerpoPersonaje] = []
+	for p in pasajeros:
+		if not _a_bordo(p) or p.estado == Estado.BAJANDO or p.cuerpo.desplomado or not interior.esta_dentro(p.cuerpo):
+			continue
+		if (filtro == "sin_pagar" and not p.pagado) or (filtro == "sin_ofrecer" and not p.ofrecido):
+			lista.append(p.cuerpo)
+	return lista
+
+
+## Dónde pararse para atender a un pasajero, en coordenadas del camión: frente a su asiento si
+## va sentado; si va de pie, junto a él.
+func punto_para_atender(cuerpo: CuerpoPersonaje) -> Vector3:
+	for p in pasajeros:
+		if p.cuerpo == cuerpo and p.cuerpo.sentado and not p.lugar.is_empty():
+			return p.lugar.pasillo
+	return interior.posicion_local(cuerpo)
+
+
+func _cerca_que(desde: Vector3, mirada: Vector3, alcance: float, filtro: Callable) -> CuerpoPersonaje:
 	var mejor: CuerpoPersonaje = null
 	var mejor_puntaje := INF
 	for p in pasajeros:
-		if p.pagado or not _a_bordo(p) or p.cuerpo.desplomado or not interior.esta_dentro(p.cuerpo):
+		if not filtro.call(p) or not _a_bordo(p) or p.cuerpo.desplomado or not interior.esta_dentro(p.cuerpo):
 			continue
 		var hacia := p.cuerpo.global_position + Vector3.UP * p.cuerpo.altura * 0.6 - desde
 		var distancia := hacia.length()
@@ -132,6 +195,59 @@ func por_cobrar_cerca(desde: Vector3, mirada: Vector3, alcance: float) -> Cuerpo
 
 func _a_bordo(p: Pasajero) -> bool:
 	return p.estado in [Estado.CAMINANDO, Estado.SENTADO, Estado.DE_PIE, Estado.BAJANDO]
+
+
+## El voceador jala al siguiente que espera en esta parada: sube de inmediato y más rápido.
+## Devuelve true si había a quién ayudar.
+func ayudar_a_subir() -> bool:
+	if parada_actual < 0 or not interior.puerta_abierta or not _hay_lugar():
+		return false
+	for p in pasajeros:
+		if p.estado == Estado.ESPERANDO and p.origen == parada_actual and not p.jalado:
+			p.jalado = true
+			_turno_puerta = 0.0
+			total_ayudados += 1
+			return true
+	return false
+
+
+## La parada donde se oye el grito: en la que está el camión o la siguiente, si ya está cerca.
+func parada_que_oye() -> int:
+	if parada_actual >= 0:
+		return parada_actual if not _es_terminal(parada_actual) else -1
+	var puerta := interior.camion.global_transform * PUERTA_UMBRAL
+	var adelante := -interior.camion.global_basis.z
+	var mejor := -1
+	var mejor_distancia := _roles.alcance_grito
+	for k in pista.paradas.size():
+		if _es_terminal(k):
+			continue
+		var hacia: Vector3 = pista.paradas[k].poste - puerta
+		hacia.y = 0.0
+		# Solo las de adelante.
+		if hacia.dot(adelante) < 0.0:
+			continue
+		if hacia.length() < mejor_distancia:
+			mejor_distancia = hacia.length()
+			mejor = k
+	return mejor
+
+
+func _atender_grito(delta: float) -> void:
+	var grito := gritando
+	gritando = false
+	_desde_grito = 0.0 if grito else _desde_grito + delta
+	if not grito:
+		return
+	var k := parada_que_oye()
+	if k < 0:
+		return
+	_grito_juntado[k] = float(_grito_juntado.get(k, 0.0)) + delta
+	if _grito_juntado[k] >= _roles.segundos_por_pasajero and int(_atraidos.get(k, 0)) < _roles.max_atraidos_por_parada:
+		_grito_juntado[k] = 0.0
+		if _aparecer_en_parada(k, true):
+			_atraidos[k] = int(_atraidos.get(k, 0)) + 1
+			total_atraidos += 1
 
 
 ## Sustos y llegadas repetibles (para las pruebas automáticas).
@@ -197,12 +313,14 @@ func _contar(estado: Estado) -> int:
 
 # --- Aparecer y desaparecer ------------------------------------------------
 
-func _aparecer_en_parada(k: int) -> void:
+## Aparece un pasajero esperando en la parada k. `por_grito`: llegó porque oyó al voceador (no
+## cuenta para el máximo de los que esperan). Devuelve true si apareció.
+func _aparecer_en_parada(k: int, por_grito: bool = false) -> bool:
 	var esperando := pasajeros.filter(func(p): return p.estado == Estado.ESPERANDO and p.origen == k).size()
-	if esperando >= int(_cfg.get_value("pasajeros", "max_esperando_por_parada", 4)):
-		return
+	if esperando >= int(_cfg.get_value("pasajeros", "max_esperando_por_parada", 4)) and not por_grito:
+		return false
 	if pasajeros.size() >= int(_cfg.get_value("pasajeros", "max_total", 30)):
-		return
+		return false
 	var p := Pasajero.new()
 	p.origen = k
 	var viaje: Array = _cfg.get_value("pasajeros", "paradas_de_viaje", [1, 3])
@@ -230,6 +348,7 @@ func _aparecer_en_parada(k: int) -> void:
 	cuerpo.atravesar_personajes(true)
 	ragdolls.vigilar(cuerpo)
 	pasajeros.append(p)
+	return true
 
 
 ## Los que esperan en la parada k se van con otro camión (el rival de la carrerita): caminan
@@ -379,6 +498,7 @@ func _physics_process(delta: float) -> void:
 	parada_actual = _detectar_parada()
 	_ventana_de_parada(delta, antes)
 	_turno_puerta = maxf(0.0, _turno_puerta - delta)
+	_atender_grito(delta)
 	_atender_jugadores()
 	_tiempo_llegadas += delta
 	if llegadas_activas and _tiempo_llegadas > float(_cfg.get_value("pasajeros", "intervalo_llegadas", 12.0)):
@@ -453,7 +573,9 @@ func _detectar_parada() -> int:
 
 
 func _esperar(p: Pasajero) -> void:
-	if parada_actual == p.origen and _turno_puerta <= 0.0 and _contar(Estado.BAJANDO) == 0 and _hay_lugar():
+	var puede := parada_actual == p.origen and interior.puerta_abierta and _contar(Estado.BAJANDO) == 0 and _hay_lugar()
+	# El que jaló el voceador pasa primero.
+	if puede and (_turno_puerta <= 0.0 or p.jalado) and (p.jalado or not _hay_jalado(p.origen)):
 		_turno_puerta = float(_cfg.get_value("pasajeros", "separacion_puerta", 0.6))
 		_reservar_lugar(p)
 		if p.lugar.is_empty():
@@ -462,9 +584,18 @@ func _esperar(p: Pasajero) -> void:
 		p.ruta = [PUERTA_AFUERA, PUERTA_UMBRAL, PUERTA_ADENTRO]
 		p.tiempo = 0.0
 		return
+	# Si el voceador grita con el camión en su parada, se acerca a la puerta.
+	if parada_actual == p.origen and _desde_grito < 3.0:
+		var junto_a_la_puerta := interior.camion.global_transform * (PUERTA_AFUERA + Vector3(0.9, 0.0, 0.0))
+		_caminar_hacia(p, junto_a_la_puerta, 0.9, false)
+		return
 	# Esperando: se queda junto al poste viendo hacia la calle.
 	if _caminar_hacia(p, p.espera_poste, 0.5, false):
 		p.cuerpo.comandos.mover = Vector2.ZERO
+
+
+func _hay_jalado(k: int) -> bool:
+	return pasajeros.any(func(o): return o.estado == Estado.ESPERANDO and o.origen == k and o.jalado)
 
 
 func _subir(p: Pasajero) -> void:
@@ -479,7 +610,7 @@ func _subir(p: Pasajero) -> void:
 		_liberar_lugar(p)
 		p.estado = Estado.ESPERANDO
 		return
-	_seguir_ruta(p, true)
+	_seguir_ruta(p, true, 1.5 if p.jalado else 1.0)
 
 
 func _caminar_a_lugar(p: Pasajero) -> void:
@@ -501,7 +632,7 @@ func _viajar(p: Pasajero) -> void:
 	if not interior.esta_dentro(p.cuerpo) and not p.cuerpo.sentado:
 		_perderse(p)
 		return
-	if parada_actual == p.destino and _turno_puerta <= 0.0:
+	if parada_actual == p.destino and _turno_puerta <= 0.0 and interior.puerta_abierta:
 		_turno_puerta = float(_cfg.get_value("pasajeros", "separacion_puerta", 0.6))
 		if p.cuerpo.sentado:
 			var pasillo: Vector3 = p.lugar.pasillo
@@ -584,12 +715,12 @@ func _al_levantarse(cuerpo: CuerpoPersonaje) -> void:
 # --- Caminar ----------------------------------------------------------------
 
 ## Sigue sus puntos de ruta (en coordenadas del camión). Devuelve true al terminar.
-func _seguir_ruta(p: Pasajero, puntos_del_camion: bool) -> bool:
+func _seguir_ruta(p: Pasajero, puntos_del_camion: bool, rapidez: float = 1.0) -> bool:
 	while not p.ruta.is_empty():
 		var objetivo := p.ruta[0]
 		if puntos_del_camion:
 			objetivo = interior.desde_local(p.cuerpo, objetivo)
-		if not _caminar_hacia(p, objetivo, 1.0, true):
+		if not _caminar_hacia(p, objetivo, rapidez, true):
 			return false
 		p.ruta.remove_at(0)
 	return true

@@ -14,15 +14,15 @@ const TIPOS := ["topes", "bache_gigante", "animales", "bloqueo", "lluvia", "insp
 
 
 ## `activos`: null = lo que diga config/eventos.cfg; o un arreglo con los tipos permitidos
-## (para las pruebas).
-static func generar(descripcion: Dictionary, semilla: int, activos: Variant = null) -> Array[Dictionary]:
+## (para las pruebas). `sin`: tipos que no pueden salir en esta ruta (la prisa, si maneja el jugador).
+static func generar(descripcion: Dictionary, semilla: int, activos: Variant = null, sin: Array = []) -> Array[Dictionary]:
 	var cfg := Config.archivo_config(RUTA)
 	var azar := RandomNumberGenerator.new()
 	azar.seed = semilla * 7919 + 13
 	var permitidos: Array = []
 	for tipo in TIPOS:
 		var encendido: bool = cfg.get_value(tipo, "activo", true) if activos == null else tipo in activos
-		if encendido:
+		if encendido and not tipo in sin:
 			permitidos.append(tipo)
 	var eventos: Array[Dictionary] = []
 	if permitidos.is_empty():
