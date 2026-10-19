@@ -37,6 +37,13 @@ var _inclinacion := Vector3.ZERO
 var _paso: float = 0.0
 ## Reloj para la respiración y el peso en reposo (cada quien empieza en otro punto).
 var _reposo: float = randf() * TAU
+## Cara animada (CaraPersonaje), si el modelo la tiene: mandíbula y párpados.
+var _cara: Dictionary = {}
+var _hablando: float = 0.0
+var _gritando: bool = false
+var _boca: float = 0.0
+var _para_parpadear: float = randf_range(1.0, 4.0)
+var _parpadeo: float = -1.0
 
 
 func _ready() -> void:
@@ -71,6 +78,7 @@ func _cargar() -> void:
 		_piezas[nombre] = nodo
 	importado.free()
 	EstiloToon.aplicar(_figura)
+	_cara = CaraPersonaje.armar(modelo, _piezas.get("Cabeza"))
 	_medir()
 
 
@@ -124,6 +132,10 @@ static func _malla_con_contorno(malla: Mesh) -> Mesh:
 	if _mallas_contorno.has(clave):
 		return _mallas_contorno[clave]
 	var nueva := ArrayMesh.new()
+	# Las claves de forma (la boca animada, caras_blender.py) se conservan.
+	nueva.blend_shape_mode = malla.blend_shape_mode
+	for b in malla.get_blend_shape_count():
+		nueva.add_blend_shape(malla.get_blend_shape_name(b))
 	for s in malla.get_surface_count():
 		var arreglos := malla.surface_get_arrays(s)
 		var vertices: PackedVector3Array = arreglos[Mesh.ARRAY_VERTEX]
@@ -138,7 +150,7 @@ static func _malla_con_contorno(malla: Mesh) -> Mesh:
 			var n: Vector3 = (suma[Vector3i((vertices[k] * 2000.0).round())] as Vector3).normalized()
 			suaves[k] = Color(n.x * 0.5 + 0.5, n.y * 0.5 + 0.5, n.z * 0.5 + 0.5)
 		arreglos[Mesh.ARRAY_COLOR] = suaves
-		nueva.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arreglos)
+		nueva.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arreglos, malla.surface_get_blend_shape_arrays(s))
 		nueva.surface_set_material(s, malla.surface_get_material(s))
 	_mallas_contorno[clave] = nueva
 	return nueva
@@ -159,6 +171,16 @@ func piezas_con_transformacion() -> Array:
 func mostrar(visible_figura: bool) -> void:
 	if _figura != null:
 		_figura.visible = visible_figura
+
+
+## Mueve la boca como si hablara durante `segundos` (si el modelo tiene cara animada).
+func hablar(segundos: float) -> void:
+	_hablando = maxf(_hablando, segundos)
+
+
+## Boca abierta de par en par mientras grita (el voceador).
+func gritar(si: bool) -> void:
+	_gritando = si
 
 
 ## Oculta la cabeza (para la cámara en primera persona del propio jugador).
@@ -254,6 +276,45 @@ func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, 
 		adelante = 0.0
 	_figura.rotation = Vector3(_inclinacion.x + adelante, 0.0, _inclinacion.z + meneo)
 	_figura.position.y = lerpf(_figura.position.y, rebote, t)
+	_animar_cara(delta, tropezando or en_el_aire)
+
+
+## Parpadea cada pocos segundos y mueve la mandíbula: cerrada en reposo, abierta al gritar o del
+## susto, y abre y cierra al hablar.
+func _animar_cara(delta: float, susto: bool) -> void:
+	if _cara.is_empty():
+		return
+	var parpados: Array = _cara.parpados
+	if not parpados.is_empty():
+		_para_parpadear -= delta
+		if _para_parpadear <= 0.0:
+			_parpadeo = 0.0
+			_para_parpadear = randf_range(2.0, 5.5)
+		var cierre := 0.0
+		if _parpadeo >= 0.0:
+			_parpadeo += delta / 0.16
+			cierre = sin(clampf(_parpadeo, 0.0, 1.0) * PI)
+			if _parpadeo >= 1.0:
+				_parpadeo = -1.0
+		# Del susto, los ojos bien abiertos.
+		if susto:
+			cierre = 0.0
+		for material: ShaderMaterial in parpados:
+			material.set_shader_parameter("cierre", cierre)
+	if _cara.cabeza == null:
+		return
+	_hablando = maxf(0.0, _hablando - delta)
+	var objetivo := 0.0
+	if _gritando or susto:
+		objetivo = 1.0
+	elif _hablando > 0.0:
+		# Abre y cierra como al decir sílabas.
+		objetivo = clampf(0.55 + 0.45 * sin(_reposo * 9.0) * sin(_reposo * 3.7 + 1.0), 0.0, 1.0)
+	_boca = lerpf(_boca, objetivo, 1.0 - exp(-18.0 * delta))
+	# Claves de forma: en reposo "Cerrar" completa; al abrir se pasa a "Abrir".
+	var cabeza: MeshInstance3D = _cara.cabeza
+	cabeza.set_blend_shape_value(_cara.cerrar, 1.0 - _boca)
+	cabeza.set_blend_shape_value(_cara.abrir, _boca)
 
 
 func _girar(nombre: String, objetivo: Vector3, t: float) -> void:

@@ -50,6 +50,8 @@ func _physics_process(delta: float) -> void:
 		pasajeros.gritando = true
 	else:
 		aliento = minf(100.0, aliento + _roles.recupera_aliento * delta)
+	if cuerpo.visual != null:
+		cuerpo.visual.gritar(gritando)
 	if gritando != _sonido.playing:
 		if gritando:
 			_sonido.play()

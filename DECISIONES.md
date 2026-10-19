@@ -450,3 +450,13 @@ Aquí se agregan las decisiones que se tomen durante el desarrollo: la elección
   - **Configuración:** `config/roles.cfg`, sección `[chofer]`.
 - *Secciones:* 5.3, 6.2, etapa 6B.
 
+**D50. Caras animadas: parpadeo y boca** (19/10/2026, pedido del dueño; por ahora voceador y niño)
+- *Contexto:* el dueño pidió que los personajes muevan ojos y boca, y que los de boca abierta la tengan cerrada en reposo. Se probó primero cortando la mandíbula como pieza aparte (quedaban astillas y una raya en la barbilla) y el dueño eligió hacerlo con claves de forma en Blender. La fresa se queda sin cara animada porque el dueño va a cambiar su modelo.
+- *Decisión:*
+  - **Boca (Blender):** `scripts/herramientas/caras_blender.py` le agrega a la Cabeza dos claves de forma: "Cerrar" (la mandíbula sube `cierre` grados) y "Abrir" (baja `apertura` grados). No corta nada: cada vértice gira sobre la bisagra con un peso que se desvanece hacia los cachetes y el cuello, así no hay grietas. Para bocas de labios cerrados puede rasgar la línea entre los labios (`rasgar`). Los números van en `boca` de `modelos/personajes.cfg`. Lo corre `procesar_personajes.bat` después de `tapar_cortes.py`; la cabeza lleva la marca `cara_hecha` para no repetirlo.
+  - **En el juego:** el cargador de personajes conserva las claves de forma (antes las perdía al rehacer las mallas). En reposo la boca está cerrada; se abre al gritar (el voceador), al hablar (un pasajero al pagar o cuando le ofrecen dulce) y del susto (al tropezar o ir por el aire). La cabeza se dibuja también por dentro en oscuro, así al abrirse se ve el interior de la boca.
+  - **Ojos:** un párpado del color de la piel (una esfera sobre cada ojo, medida con `ojos` en el cfg) baja cada 2 a 5.5 s y deja una línea de pestañas. Del susto, los ojos se quedan abiertos. Se arma al cargar (`scripts/personajes/cara_personaje.gd`).
+  - **Para agregar otro personaje:** medir `ojos` y `boca` (con una vista de la cara con cuadrícula) y correr `procesar_personajes.bat --forzar <nombre>`.
+  - Lo que queda: en el voceador, con la boca cerrada los dientes de abajo quedan algo encimados.
+- *Secciones:* 3, 10.
+

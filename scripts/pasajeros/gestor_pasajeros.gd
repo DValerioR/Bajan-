@@ -140,6 +140,8 @@ func cobrar(cuerpo: CuerpoPersonaje) -> int:
 			continue
 		var monto := maxi(1, roundi(Juego.parametros.pasaje * (1.0 - 0.5 * desesperacion)))
 		p.pagado = true
+		if p.cuerpo.visual != null:
+			p.cuerpo.visual.hablar(0.8)
 		cobrado.emit(cuerpo, monto)
 		return monto
 	return 0
@@ -162,6 +164,8 @@ func vender(cuerpo: CuerpoPersonaje) -> int:
 		if p.cuerpo != cuerpo or p.ofrecido or not _a_bordo(p):
 			continue
 		p.ofrecido = true
+		if p.cuerpo.visual != null:
+			p.cuerpo.visual.hablar(0.6)
 		if _azar.randf() >= _roles.probabilidad_compra:
 			return 0
 		return _azar.randi_range(int(_roles.propina[0]), int(_roles.propina[1]))

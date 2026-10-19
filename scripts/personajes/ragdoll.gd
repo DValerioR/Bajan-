@@ -47,6 +47,12 @@ static func desde_figura(figura: Personaje, base: Transform3D, masa_total: float
 		copia.visible = malla.visible
 		for i in malla.mesh.get_surface_count():
 			copia.set_surface_override_material(i, malla.get_active_material(i))
+		# La boca como estaba (claves de forma) y los párpados, que cuelgan de la cabeza.
+		for b in malla.mesh.get_blend_shape_count():
+			copia.set_blend_shape_value(b, malla.get_blend_shape_value(b))
+		for hija in malla.get_children():
+			if hija is MeshInstance3D:
+				copia.add_child(hija.duplicate())
 		visual.add_child(copia)
 		pieza.add_child(visual)
 		ragdoll.add_child(pieza)

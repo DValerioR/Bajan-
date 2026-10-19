@@ -4,7 +4,8 @@ rem uno por archivo: modelos\personajes\<nombre>.glb (se pueden editar en Blende
 rem Los .glb que ya existen NO se tocan. Para regenerar: procesar_personajes.bat --forzar [nombre ...]
 rem Los nombres, la escala y las articulaciones se configuran en modelos\personajes.cfg.
 rem Si encuentra Blender (o la variable BLENDER_EXE), Blender tapa los cortes y reduce las piezas
-rem (scripts\herramientas\tapar_cortes.py). Sin Blender, Godot las reduce y los cortes quedan abiertos.
+rem (scripts\herramientas\tapar_cortes.py) y les pone la boca animada a los que tengan `boca` en el cfg
+rem (caras_blender.py). Sin Blender, Godot las reduce y los cortes quedan abiertos.
 setlocal
 set "GODOT_CONSOLA=%~dp0herramientas\godot\Godot_v4.7.2-stable_win64_console.exe"
 set "BLENDER="
@@ -14,6 +15,8 @@ if defined BLENDER (
   "%GODOT_CONSOLA%" --headless --path "%~dp0." --script res://scripts/herramientas/procesar_personajes.gd -- --sin-reducir %*
   if errorlevel 1 exit /b 1
   "%BLENDER%" --background --factory-startup --python "%~dp0scripts\herramientas\tapar_cortes.py" -- "%~dp0modelos\personajes"
+  if errorlevel 1 exit /b 1
+  "%BLENDER%" --background --factory-startup --python "%~dp0scripts\herramientas\caras_blender.py" -- "%~dp0modelos\personajes"
   if errorlevel 1 exit /b 1
 ) else (
   echo Aviso: no se encontro Blender; los cortes de los personajes quedan abiertos.
