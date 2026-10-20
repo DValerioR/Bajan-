@@ -20,7 +20,7 @@ Estado al 20/10/2026. Todo está en GitHub y todas las pruebas pasan
 | Gótica (pasajera) y ladrón, con el evento de robo | `d4e05ce` | D51 |
 | Monedas que se salían del camión; rodillas y codos | `97e95bf` | — |
 | **Personajes con esqueleto** (piel continua, ragdoll sobre huesos) | `db03ce4` | D52 |
-| Ragdoll ligero: manos a la agarradera, pies en el piso, cadera en el asiento, resorte | ver `git log` | D52 |
+| Ragdoll ligero: manos a la agarradera, pies en el piso, cadera en el asiento, resorte | `0bbaf29` | D52 |
 
 ## Qué sigue
 
