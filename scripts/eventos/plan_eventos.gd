@@ -10,7 +10,7 @@ extends RefCounted
 ## Los eventos de calle (topes, bache gigante) se agregan a la descripción antes de construirla.
 
 const RUTA := "res://config/eventos.cfg"
-const TIPOS := ["topes", "bache_gigante", "animales", "bloqueo", "lluvia", "inspector", "carrerita", "prisa"]
+const TIPOS := ["topes", "bache_gigante", "animales", "bloqueo", "lluvia", "inspector", "carrerita", "prisa", "robo"]
 
 
 ## `activos`: null = lo que diga config/eventos.cfg; o un arreglo con los tipos permitidos
@@ -91,6 +91,11 @@ static func generar(descripcion: Dictionary, semilla: int, activos: Variant = nu
 				"inspector":
 					evento.parada = j + 1
 					evento.inicio = hasta
+					evento.fin = hasta
+				"robo":
+					# El ratero sube en la parada donde empieza el tramo y se baja en la siguiente.
+					evento.parada = j
+					evento.inicio = desde
 					evento.fin = hasta
 				"carrerita":
 					# Empieza al salir de la parada y termina en la siguiente (la que se disputan).

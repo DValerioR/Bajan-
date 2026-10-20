@@ -24,3 +24,6 @@ if defined BLENDER (
   if errorlevel 1 exit /b 1
 )
 "%GODOT_CONSOLA%" --headless --path "%~dp0." --import
+rem Las texturas de los personajes van con compresion de video de alta calidad (D46).
+"%GODOT_CONSOLA%" --headless --path "%~dp0." --script res://scripts/herramientas/comprimir_texturas.gd
+"%GODOT_CONSOLA%" --headless --path "%~dp0." --import

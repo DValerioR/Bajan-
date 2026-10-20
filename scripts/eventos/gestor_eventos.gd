@@ -9,6 +9,8 @@ extends Node
 ## - carrerita: aparece un camión rival atrás, el chofer se pone loco y el rival, si rebasa, se
 ##   detiene en la siguiente parada y se lleva a la gente que esperaba.
 ## - inspector: en la siguiente parada revisa; multa por cada pasajero a bordo sin pagar.
+## - robo: en una parada sube un ratero que va tras el morral del cobrador (BotLadron). Si se lo
+##   roba y se baja, el dinero se pierde; si lo tumban antes, se le cae en monedas.
 ## El chofer automático no esquiva: solo frena ante lo que se le marca con `alto_en`.
 
 signal anunciado(evento: Dictionary)
@@ -35,6 +37,9 @@ var historial: Array[String] = []
 var rival: Camion
 var pasajeros_robados: int = 0
 var multas: int = 0
+## Para las pruebas: el ratero del robo en curso y lo que se llevó en total.
+var ladron: BotLadron
+var robado: int = 0
 
 var _cfg: ConfigFile
 var _indice: int = -1
@@ -99,18 +104,21 @@ func _toca_avisar(evento: Dictionary) -> bool:
 			return pasajeros.parada_actual < 0 and _falta(evento.inicio) < 160.0
 		"carrerita":
 			return _falta(evento.inicio) < 2.0
+		"robo":
+			# Cuando el camión está en la parada donde sube (con tiempo de que se suba).
+			return pasajeros.parada_actual == evento.parada
 	return _falta(evento.inicio) < aviso
 
 
 func _toca_empezar(evento: Dictionary) -> bool:
 	match evento.tipo:
-		"animales", "bloqueo", "carrerita", "inspector":
+		"animales", "bloqueo", "carrerita", "inspector", "robo":
 			return true
 	return _falta(evento.inicio) <= 0.0
 
 
 func _avisar(evento: Dictionary) -> void:
-	hud.anunciar("EVENTO_" + String(evento.tipo).to_upper(), Color(1.0, 0.45, 0.3) if evento.tipo in ["carrerita", "inspector"] else Color(1.0, 0.85, 0.3))
+	hud.anunciar("EVENTO_" + String(evento.tipo).to_upper(), Color(1.0, 0.45, 0.3) if evento.tipo in ["carrerita", "inspector", "robo"] else Color(1.0, 0.85, 0.3))
 	anunciado.emit(evento)
 
 
@@ -143,6 +151,8 @@ func _empezar(evento: Dictionary) -> void:
 		"carrerita":
 			_crear_rival(evento)
 			piloto.cambiar_modo(PilotoAutomatico.Modo.LOCO)
+		"robo":
+			_subir_ladron(evento)
 		"inspector":
 			var parada: Dictionary = calle.paradas[evento.parada]
 			var figura := UtileriaEventos.inspector()
@@ -208,6 +218,11 @@ func _atender(evento: Dictionary, delta: float) -> Dictionary:
 				_terminar(evento)
 		"carrerita":
 			r = _atender_carrerita(evento)
+		"robo":
+			# Termina cuando el ratero se fue (con o sin el botín).
+			if not is_instance_valid(evento.get("bot")):
+				ladron = null
+				_terminar(evento)
 		"inspector":
 			if pasajeros.parada_actual == evento.parada:
 				evento.en_parada = float(evento.get("en_parada", 0.0)) + delta
@@ -290,6 +305,37 @@ func _crear_rival(evento: Dictionary) -> void:
 	rival.add_child(p)
 	p.cambiar_modo(PilotoAutomatico.Modo.LOCO)
 	evento.i_rival = atras
+
+
+## El ratero aparece en la banqueta junto a la puerta y sube como cualquier pasajero.
+func _subir_ladron(evento: Dictionary) -> void:
+	var interior: InteriorCamion = escenario.get("interior")
+	var ragdolls: GestorRagdolls = escenario.get("ragdolls")
+	var bot := BotLadron.new()
+	bot.name = "Ladron"
+	bot.pasajeros = pasajeros
+	bot.ragdolls = ragdolls
+	bot.cobrador = escenario.get("cobrador")
+	bot.parada_subida = evento.parada
+	bot.alcance = float(_cfg.get_value("robo", "alcance", 0.9))
+	var cuerpo := BotInterior.nuevo_cuerpo("Ladron", "ladron")
+	var afuera := camion.global_transform * (GestorPasajeros.PUERTA_AFUERA + Vector3(1.2, 0.0, 1.0))
+	interior.agregar_en_calle(cuerpo, null, Transform3D(Basis(), afuera + Vector3.UP * 0.05))
+	cuerpo.configurar(cuerpo.visual.altura, cuerpo.visual.altura_ojos)
+	cuerpo.atravesar_personajes(true)
+	ragdolls.vigilar(cuerpo)
+	bot.cuerpo = cuerpo
+	bot.puesto = Vector3(0.0, -0.28, 0.5)
+	escenario.add_child(bot)
+	bot.subir_por_la_puerta()
+	bot.robo.connect(func(monto): hud.mensaje(tr("MSJ_ROBO") % monto, Color(1.0, 0.45, 0.35)))
+	bot.se_le_cayo.connect(func(monto): hud.mensaje(tr("MSJ_ROBO_CAYO") % monto, Color(0.6, 1.0, 0.5)))
+	bot.se_fue.connect(func(monto):
+		if monto > 0:
+			robado += monto
+			hud.mensaje(tr("MSJ_ROBO_SE_FUE") % monto, Color(1.0, 0.45, 0.35)))
+	evento.bot = bot
+	ladron = bot
 
 
 ## El inspector revisa: multa por cada pasajero a bordo sin pagar.

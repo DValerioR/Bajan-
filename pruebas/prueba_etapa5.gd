@@ -2,6 +2,7 @@ extends Node
 ## Prueba automática de la etapa 5: eventos de caos, rivales y el chofer de línea fija.
 ## - El plan de eventos pone al menos uno en cada tramo entre paradas (criterio de la etapa 5),
 ##   cada tipo se puede apagar, nada queda pegado a una parada, y lluvia y prisa no van juntas.
+## - Robo: el ratero sube, le roba el morral al cobrador; si lo tumban se le cae, si no se baja con él.
 ## - Dos rutas completas con eventos (cada una con la mitad de los tipos): el chofer automático
 ##   frena ante los animales y la valla, toma el bache despacio, la lluvia baja el agarre y se
 ##   quita, la prisa lo pone loco y lo regresa, el inspector multa a los que no pagaron, el
@@ -15,7 +16,7 @@ const GRUPO_A := ["animales", "bloqueo", "bache_gigante", "inspector"]
 const GRUPO_B := ["carrerita", "lluvia", "prisa", "topes"]
 
 ## Si se corren menos verificaciones que esto, algo se rompió antes de tiempo (un script que no compila).
-const VERIFICACIONES_MINIMAS := 20
+const VERIFICACIONES_MINIMAS := 25
 var _fallos: int = 0
 var _verificaciones: int = 0
 
@@ -24,6 +25,7 @@ func _ready() -> void:
 	_probar_plan()
 	await _probar_ruta(GRUPO_A)
 	await _probar_ruta(GRUPO_B)
+	await _probar_robo()
 	if _verificaciones < VERIFICACIONES_MINIMAS:
 		printerr("  FALLO solo se corrieron %d verificaciones (se esperaban al menos %d)" % [_verificaciones, VERIFICACIONES_MINIMAS])
 		_fallos += 1
@@ -191,3 +193,69 @@ func _probar_ruta(grupo: Array) -> void:
 	Ruta.eventos_activos = null
 	await get_tree().physics_frame
 	await get_tree().physics_frame
+
+
+## Robo: con solo ese evento, sube un ratero en cada parada. Al primero se le deja robar y luego
+## se le tumba (se le cae el botín en monedas); al segundo se le deja ir con el dinero.
+func _probar_robo() -> void:
+	print("Ruta con robos:")
+	Juego.en_partida = false
+	Ruta.semilla_forzada = 4
+	Ruta.eventos_activos = ["robo"]
+	Ruta.bots_activos = []
+	Juego.rol_jugador = "cobrador"
+	var escena: Node = load(ESCENA).instantiate()
+	add_child(escena)
+	await get_tree().physics_frame
+	escena.get_node("EntradaJugador").queue_free()
+	escena.piloto.fijar_semilla(4)
+	escena.pasajeros.fijar_semilla(4)
+	var gestor: GestorEventos = escena.eventos
+	var cobrador: Cobrador = escena.cobrador
+	var jugador: CuerpoPersonaje = escena.jugador
+	var ladrones := 0
+	var robos := 0
+	var tumbado := false
+	# En un diccionario: una función anónima no puede cambiar una variable local de afuera.
+	var cuenta := {"cayo": 0}
+	var monedas_tras_tumbarlo := 0
+	var cayo_al_tumbarlo := 0
+	var robado_antes := 0
+	var tiempo := 0.0
+	var visto: BotLadron = null
+	while not escena.terminada and tiempo < 900.0:
+		jugador.comandos.sujetarse = true
+		var ladron := gestor.ladron
+		if ladron != null and is_instance_valid(ladron) and ladron != visto:
+			visto = ladron
+			ladrones += 1
+			ladron.se_le_cayo.connect(func(monto): cuenta.cayo += monto)
+			print("        [%.0f s] sube un ratero en la parada %d" % [tiempo, ladron.parada_subida])
+		# Ya arriba y buscando: que el cobrador traiga algo en el morral.
+		if ladron != null and is_instance_valid(ladron) and ladron.estado == BotLadron.Estado.ACECHANDO and cobrador.morral == 0:
+			cobrador.morral = 30
+		if ladron != null and is_instance_valid(ladron) and ladron.botin > 0 and ladron.estado == BotLadron.Estado.HUYENDO:
+			if robos == 0:
+				robos = 1
+				# Al primero lo tumban (un empujón fuerte) antes de que se baje.
+				tumbado = escena.ragdolls.desplomar(Vector3(3.0, 2.0, 0.0), ladron.cuerpo)
+				await get_tree().physics_frame
+				monedas_tras_tumbarlo = cobrador.monedas_en_el_piso()
+				cayo_al_tumbarlo = cuenta.cayo
+			elif robos == 1:
+				robos = 2
+				robado_antes = gestor.robado
+		if robos == 2 and gestor.robado > robado_antes:
+			break
+		await get_tree().physics_frame
+		tiempo += 1.0 / FPS
+	_verificar(ladrones >= 2, "en las paradas sube un ratero (%d)" % ladrones)
+	_verificar(robos >= 1, "el ratero alcanza al cobrador y le roba el morral")
+	_verificar(tumbado and cayo_al_tumbarlo == 30 and monedas_tras_tumbarlo > 0, "si lo tumban, se le cae el botín en monedas ($%d, %d monedas)" % [cayo_al_tumbarlo, monedas_tras_tumbarlo])
+	_verificar(robos == 2 and gestor.robado == 30, "si nadie lo detiene, se baja con el dinero ($%d)" % gestor.robado)
+	_verificar(not gestor.historial.is_empty() and gestor.historial.all(func(t): return t == "robo"), "solo pasan robos cuando solo están encendidos los robos")
+	escena.queue_free()
+	Ruta.eventos_activos = null
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+

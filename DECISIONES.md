@@ -461,3 +461,11 @@ Aquí se agregan las decisiones que se tomen durante el desarrollo: la elección
   - **La fresa nueva (20/10/2026):** el dueño la cambió por un modelo suelto de Tripo en pose T (1.9 millones de caras, textura de 8K). Se aligeró con Blender a 200 000 caras y textura de 4K y se guardó en `modelos/fuentes/fresa.glb`, con su propia hoja en `personajes.cfg` (estatura 1.78 m) y sus articulaciones medidas a mano; el lugar de la fresa vieja en Modelos2 queda vacío. Su boca tiene los labios rasgados (abre poco: la cara tiene pocos triángulos y el corte queda dentado). Sus ojos son almendrados: `ojos` acepta un cuarto valor, `radio_y`, para que el párpado sea un óvalo.
 - *Secciones:* 3, 10.
 
+**D51. Personajes gótica y ladrón, y el evento de robo** (20/10/2026, pedido del dueño)
+- *Contexto:* el dueño agregó dos modelos de Tripo en pose T. La gótica es pasajera; el ladrón "solo aparecerá en eventos aleatorios de robo". DISEÑO.md no trae el robo, así que se diseñó con lo que ya había (morral, monedas, empujones, frenazos).
+- *Decisión:*
+  - **Modelos:** aligerados con Blender a 200 000 caras y textura de 4K en `modelos/fuentes/` (los originales de Tripo pesaban 62 MB cada uno), con hoja propia en `personajes.cfg` (gótica 1.60 m, ladrón 1.70 m) y articulaciones medidas a mano. La gótica va con 16 000 triángulos: con 6000 la reducción se comía sus piernas delgadas. La gótica entra a la lista de pasajeros; el ladrón no.
+  - **Evento de robo** (`robo` en `config/eventos.cfg`, peso 0.6): en la parada donde empieza un tramo se anuncia "¡Se subió un ratero!" y el ladrón sube por la puerta. Va tras quien trae el morral del cobrador (jugador o bot). Si lo alcanza con dinero, se lo roba todo y se va a la puerta, agarrado del poste, para bajarse en la siguiente parada: si se baja, ese dinero se pierde. Si lo tumban antes (un empujón con clic, un frenazo fuerte, salir volando), se le cae el botín en monedas que se recogen como las del morral. Mientras busca al cobrador no se sujeta, así que un frenazo lo tumba fácil.
+  - Es el evento número 9; los bots no lo detienen (eso le toca al jugador).
+- *Secciones:* 6.2, 7.1, etapa 5.
+

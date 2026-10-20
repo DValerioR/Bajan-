@@ -117,3 +117,7 @@ HUD_IR_AL_VOLANTE,Ve al volante y siéntate (C),Go to the wheel and sit down (C)
 ANUNCIO_SIN_CHOFER,¡Nadie maneja! El camión va solo,Nobody is driving! The bus is on its own
 ANUNCIO_SUSTITUTO,El %s tomó el volante,The %s took the wheel
 MSJ_CHOFER_NO_ENTREGO,El chofer no entregó el camión: -$%d,The driver did not bring the bus: -$%d
+EVENTO_ROBO,¡Se subió un ratero! Cuida el morral,A pickpocket got on! Watch the money bag
+MSJ_ROBO,¡El ratero se robó $%d! Túmbalo antes de la parada,The pickpocket stole $%d! Knock him down before the stop
+MSJ_ROBO_CAYO,¡Tumbaste al ratero! Se le cayeron $%d,You knocked down the pickpocket! He dropped $%d
+MSJ_ROBO_SE_FUE,El ratero se bajó con $%d,The pickpocket got off with $%d

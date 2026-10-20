@@ -76,26 +76,35 @@ func _intentar_cobrar(p: ParametrosPartida) -> void:
 		cobro.emit(monto)
 
 
-## Riega `monto` del morral como monedas físicas alrededor del cobrador.
-func _regar(monto: int) -> void:
+## El botín que se le cae al ratero (evento de robo): monedas alrededor de `desde` que cualquiera
+## que traiga el morral puede recoger.
+func regar_botin(monto: int, desde: CuerpoPersonaje) -> void:
+	morral += monto
+	_regar(monto, desde)
+
+
+## Riega `monto` del morral como monedas físicas alrededor del cobrador (o de `desde`).
+func _regar(monto: int, desde: CuerpoPersonaje = null) -> void:
 	var p := Juego.parametros
 	monto = mini(monto, morral)
-	if monto <= 0:
+	var origen := desde if desde != null else cuerpo
+	if monto <= 0 or origen == null or not is_instance_valid(origen):
 		return
 	morral -= monto
-	total_regado += monto
-	se_rego.emit(monto)
+	if desde == null:
+		total_regado += monto
+		se_rego.emit(monto)
 	var cuantas := clampi(ceili(float(monto) / p.valor_moneda), 1, p.max_monedas)
 	var interior := pasajeros.interior
-	var dentro := interior.esta_dentro(cuerpo)
+	var dentro := interior.esta_dentro(origen)
 	var restante := monto
 	for k in cuantas:
 		var valor := restante if k == cuantas - 1 else mini(restante, ceili(float(monto) / cuantas))
 		restante -= valor
 		var moneda := _crear_moneda()
-		var donde := cuerpo.global_transform * Vector3(randf_range(-0.3, 0.3), 1.0, randf_range(-0.3, 0.3))
+		var donde := origen.global_transform * Vector3(randf_range(-0.3, 0.3), 1.0, randf_range(-0.3, 0.3))
 		var lados := p.velocidad_regado
-		var velocidad := Vector3(randf_range(-lados, lados), randf_range(0.5, 1.5), randf_range(-lados, lados)) + cuerpo.velocity
+		var velocidad := Vector3(randf_range(-lados, lados), randf_range(0.5, 1.5), randf_range(-lados, lados)) + origen.velocity
 		if dentro:
 			interior.agregar(moneda, null, Transform3D(Basis(), donde))
 		else:
