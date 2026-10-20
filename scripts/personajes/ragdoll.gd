@@ -10,6 +10,13 @@ const PROPORCION_MASA := {
 	"BrazoIzquierdo": 0.075, "BrazoDerecho": 0.075,
 	"PiernaIzquierda": 0.175, "PiernaDerecha": 0.175,
 }
+## Con rodilla, la pierna se reparte: muslo y pantorrilla.
+const MASA_CON_RODILLA := {
+	"PiernaIzquierda": 0.11, "PiernaDerecha": 0.11, "PantorrillaIzquierda": 0.065, "PantorrillaDerecha": 0.065,
+	"BrazoIzquierdo": 0.045, "BrazoDerecho": 0.045, "AntebrazoIzquierdo": 0.03, "AntebrazoDerecho": 0.03,
+}
+## A qué pieza se une cada una (la que no está aquí, al torso).
+const UNIDA_A := {"PantorrillaIzquierda": "PiernaIzquierda", "PantorrillaDerecha": "PiernaDerecha", "AntebrazoIzquierdo": "BrazoIzquierdo", "AntebrazoDerecho": "BrazoDerecho"}
 
 var piezas: Dictionary = {}
 var torso: ObjetoSuelto
@@ -27,7 +34,8 @@ static func desde_figura(figura: Personaje, base: Transform3D, masa_total: float
 		var relativa: Transform3D = datos[2]
 		var pieza := ObjetoSuelto.new()
 		pieza.name = nombre
-		pieza.mass = maxf(1.0, masa_total * PROPORCION_MASA.get(nombre, 0.1))
+		var proporcion: float = MASA_CON_RODILLA.get(nombre, PROPORCION_MASA.get(nombre, 0.1)) if figura.tiene_rodillas() else PROPORCION_MASA.get(nombre, 0.1)
+		pieza.mass = maxf(1.0, masa_total * proporcion)
 		pieza.angular_damp = 1.5
 		pieza.linear_damp = 0.2
 		pieza.transform = base * relativa
@@ -47,11 +55,12 @@ static func desde_figura(figura: Personaje, base: Transform3D, masa_total: float
 		copia.visible = malla.visible
 		for i in malla.mesh.get_surface_count():
 			copia.set_surface_override_material(i, malla.get_active_material(i))
-		# La boca como estaba (claves de forma) y los párpados, que cuelgan de la cabeza.
+		# La boca como estaba (claves de forma) y los párpados, que cuelgan de la cabeza. Las
+		# pantorrillas que cuelgan del muslo no: son piezas aparte del ragdoll.
 		for b in malla.mesh.get_blend_shape_count():
 			copia.set_blend_shape_value(b, malla.get_blend_shape_value(b))
 		for hija in malla.get_children():
-			if hija is MeshInstance3D:
+			if hija is MeshInstance3D and not String(hija.name) in UNIDA_A:
 				copia.add_child(hija.duplicate())
 		visual.add_child(copia)
 		pieza.add_child(visual)
@@ -74,7 +83,7 @@ func _unir(pieza: ObjetoSuelto, columpio: float, giro: float) -> void:
 	articulacion.set_param(ConeTwistJoint3D.PARAM_SWING_SPAN, deg_to_rad(columpio))
 	articulacion.set_param(ConeTwistJoint3D.PARAM_TWIST_SPAN, deg_to_rad(giro))
 	# La articulación y las piezas son hermanas dentro del ragdoll.
-	articulacion.node_a = NodePath("../Torso")
+	articulacion.node_a = NodePath("../" + UNIDA_A.get(String(pieza.name), "Torso"))
 	articulacion.node_b = NodePath("../" + pieza.name)
 	add_child(articulacion)
 

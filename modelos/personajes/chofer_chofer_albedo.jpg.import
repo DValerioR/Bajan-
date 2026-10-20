@@ -3,18 +3,19 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b2ifgfgaqlnhe"
-path="res://.godot/imported/chofer_chofer_albedo.jpg-cf110e82890d0e71f3ce699d3571b645.ctex"
+path.bptc="res://.godot/imported/chofer_chofer_albedo.jpg-cf110e82890d0e71f3ce699d3571b645.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
-"md5": "05b8dc8dbf7f8b74a219b1483e0598c6"
+"md5": "2bf94e71178a89be092661e70aead953"
 }
 
 [deps]
 
 source_file="res://modelos/personajes/chofer_chofer_albedo.jpg"
-dest_files=["res://.godot/imported/chofer_chofer_albedo.jpg-cf110e82890d0e71f3ce699d3571b645.ctex"]
+dest_files=["res://.godot/imported/chofer_chofer_albedo.jpg-cf110e82890d0e71f3ce699d3571b645.bptc.ctex"]
 
 [params]
 

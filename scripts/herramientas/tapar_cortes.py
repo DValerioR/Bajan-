@@ -281,4 +281,6 @@ def main():
 		procesar(os.path.join(carpeta, archivo))
 
 
-main()
+# Solo al correrlo directo (esqueleto_blender.py importa sus funciones).
+if __name__ == "__main__":
+	main()

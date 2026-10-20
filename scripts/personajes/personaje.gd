@@ -10,7 +10,10 @@ extends Node3D
 ## el cuello, la cadera y las manos se sacan de las piezas al cargar.
 
 const CARPETA := "res://modelos/personajes"
-const PIEZAS := ["Cabeza", "Torso", "BrazoIzquierdo", "BrazoDerecho", "PiernaIzquierda", "PiernaDerecha"]
+const PIEZAS := ["Cabeza", "Torso", "BrazoIzquierdo", "BrazoDerecho", "PiernaIzquierda", "PiernaDerecha", "PantorrillaIzquierda", "PantorrillaDerecha", "AntebrazoIzquierdo", "AntebrazoDerecho"]
+## Cada pantorrilla cuelga de su muslo (la Pierna) y cada antebrazo de su brazo: siguen a la cadera o
+## al hombro y doblan en la rodilla o el codo.
+const PADRES := {"PantorrillaIzquierda": "PiernaIzquierda", "PantorrillaDerecha": "PiernaDerecha", "AntebrazoIzquierdo": "BrazoIzquierdo", "AntebrazoDerecho": "BrazoDerecho"}
 
 ## Mallas con la normal suavizada para el contorno, ya calculadas (una por malla del modelo).
 static var _mallas_contorno: Dictionary = {}
@@ -77,6 +80,14 @@ func _cargar() -> void:
 		_figura.add_child(nodo)
 		_piezas[nombre] = nodo
 	importado.free()
+	for nombre in PADRES:
+		if _piezas.has(nombre) and _piezas.has(PADRES[nombre]):
+			var hija: Node3D = _piezas[nombre]
+			var padre: Node3D = _piezas[PADRES[nombre]]
+			var relativa := padre.transform.affine_inverse() * hija.transform
+			_figura.remove_child(hija)
+			padre.add_child(hija)
+			hija.transform = relativa
 	EstiloToon.aplicar(_figura)
 	_cara = CaraPersonaje.armar(modelo, _piezas.get("Cabeza"))
 	_medir()
@@ -87,7 +98,7 @@ func _medir() -> void:
 	var caja := AABB()
 	var primera := true
 	for pieza: MeshInstance3D in _piezas.values():
-		var suya := pieza.transform * pieza.get_aabb()
+		var suya := _en_figura(pieza) * pieza.get_aabb()
 		caja = suya if primera else caja.merge(suya)
 		primera = false
 	altura = caja.end.y
@@ -98,11 +109,12 @@ func _medir() -> void:
 	altura_ojos = cuello + (altura - cuello) * 0.45
 	if _piezas.has("PiernaIzquierda"):
 		altura_cadera = (_piezas["PiernaIzquierda"] as Node3D).position.y
-	if _piezas.has("BrazoDerecho"):
-		# La mano es la punta de abajo del brazo, que cuelga en la pose original.
-		var brazo: MeshInstance3D = _piezas["BrazoDerecho"]
+	var con_mano: String = "AntebrazoDerecho" if _piezas.has("AntebrazoDerecho") else "BrazoDerecho"
+	if _piezas.has(con_mano):
+		# La mano es la punta de abajo del brazo (o del antebrazo), que cuelga en la pose original.
+		var brazo: MeshInstance3D = _piezas[con_mano]
 		var su_caja := brazo.get_aabb()
-		mano_derecha = brazo.transform * Vector3(su_caja.get_center().x, su_caja.position.y, su_caja.get_center().z)
+		mano_derecha = _en_figura(brazo) * Vector3(su_caja.get_center().x, su_caja.position.y, su_caja.get_center().z)
 
 
 static func _nombre_de_pieza(nombre_nodo: String) -> String:
@@ -163,14 +175,29 @@ func piezas_con_transformacion() -> Array:
 	for nombre in _piezas:
 		var pieza: MeshInstance3D = _piezas[nombre]
 		if pieza.mesh != null:
-			lista.append([nombre, pieza, _figura.transform * pieza.transform])
+			lista.append([nombre, pieza, _figura.transform * _en_figura(pieza)])
 	return lista
+
+
+## Transformación de una pieza respecto a la figura (la pantorrilla cuelga del muslo).
+func _en_figura(pieza: Node3D) -> Transform3D:
+	var t := pieza.transform
+	var padre := pieza.get_parent()
+	while padre != null and padre != _figura and padre is Node3D:
+		t = (padre as Node3D).transform * t
+		padre = padre.get_parent()
+	return t
 
 
 ## Muestra u oculta toda la figura (mientras el personaje anda hecho ragdoll).
 func mostrar(visible_figura: bool) -> void:
 	if _figura != null:
 		_figura.visible = visible_figura
+
+
+## Si el modelo ya viene cortado con rodillas (muslo y pantorrilla).
+func tiene_rodillas() -> bool:
+	return _piezas.has("PantorrillaIzquierda")
 
 
 ## Mueve la boca como si hablara durante `segundos` (si el modelo tiene cara animada).
@@ -207,11 +234,18 @@ func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, 
 
 	var pierna_izq := balanceo
 	var pierna_der := -balanceo
+	# Rodillas (negativo: el pie va hacia atrás). Al caminar se dobla la que va en el aire, que es la
+	# que pasa de atrás hacia adelante.
+	var rodilla_izq := -maxf(0.0, cos(_fase)) * amplitud * 1.3
+	var rodilla_der := -maxf(0.0, -cos(_fase)) * amplitud * 1.3
 	# Brazos al revés de las piernas, un poco abiertos; en reposo cuelgan respirando.
 	var respiro := sin(_reposo) * (1.0 - _paso)
 	var abrir := deg_to_rad(4.0 + 2.0 * respiro)
 	var brazo_izq := Vector3(-balanceo * 0.9, 0.0, -abrir)
 	var brazo_der := Vector3(balanceo * 0.9, 0.0, abrir)
+	# Codos (positivo: la mano va hacia el frente). Un poco doblados siempre, más al caminar.
+	var codo_izq := deg_to_rad(8.0 + 14.0 * _paso) + maxf(0.0, -balanceo) * 0.6
+	var codo_der := deg_to_rad(8.0 + 14.0 * _paso) + maxf(0.0, balanceo) * 0.6
 	var cabeza := Vector3(deg_to_rad(1.5) * respiro, -balanceo * 0.15, 0.0)
 	# Los hombros giran contra la cadera y la cabeza sigue viendo al frente.
 	var torso := Vector3(0.0, balanceo * 0.15, 0.0)
@@ -227,42 +261,64 @@ func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, 
 		andando = false
 		pierna_izq = deg_to_rad(-25.0)
 		pierna_der = deg_to_rad(15.0)
+		rodilla_izq = deg_to_rad(-35.0)
+		rodilla_der = deg_to_rad(-15.0)
 		brazo_izq = Vector3(0.0, 0.0, deg_to_rad(-60.0))
 		brazo_der = Vector3(0.0, 0.0, deg_to_rad(60.0))
+		codo_izq = deg_to_rad(30.0)
+		codo_der = deg_to_rad(30.0)
 	if tropezando:
 		# Aspavientos: brazos girando y piernas trastabillando.
 		andando = false
 		var agitar := sin(_reposo * 6.0)
 		brazo_izq = Vector3(deg_to_rad(100.0 + 60.0 * agitar), 0.0, deg_to_rad(-40.0))
 		brazo_der = Vector3(deg_to_rad(100.0 - 60.0 * agitar), 0.0, deg_to_rad(40.0))
+		codo_izq = deg_to_rad(40.0 + 30.0 * agitar)
+		codo_der = deg_to_rad(40.0 - 30.0 * agitar)
 		pierna_izq = deg_to_rad(25.0) * agitar
 		pierna_der = -pierna_izq
+		rodilla_izq = deg_to_rad(-30.0) * maxf(0.0, agitar)
+		rodilla_der = deg_to_rad(-30.0) * maxf(0.0, -agitar)
 		cabeza = Vector3(deg_to_rad(15.0) * agitar, 0.0, 0.0)
 	if cargando:
-		brazo_izq = Vector3(deg_to_rad(75.0), 0.0, deg_to_rad(10.0))
-		brazo_der = Vector3(deg_to_rad(75.0), 0.0, deg_to_rad(-10.0))
+		brazo_izq = Vector3(deg_to_rad(55.0), 0.0, deg_to_rad(10.0))
+		brazo_der = Vector3(deg_to_rad(55.0), 0.0, deg_to_rad(-10.0))
+		codo_izq = deg_to_rad(45.0)
+		codo_der = deg_to_rad(45.0)
 	if sentado:
 		# Piernas al frente y manos sobre las rodillas.
 		andando = false
+		# Muslos al frente y pantorrillas hacia abajo, como en una silla.
 		pierna_izq = deg_to_rad(85.0)
 		pierna_der = deg_to_rad(85.0)
-		brazo_izq = Vector3(deg_to_rad(35.0), 0.0, 0.0)
-		brazo_der = Vector3(deg_to_rad(35.0), 0.0, 0.0)
+		rodilla_izq = deg_to_rad(-85.0)
+		rodilla_der = deg_to_rad(-85.0)
+		brazo_izq = Vector3(deg_to_rad(20.0), 0.0, 0.0)
+		brazo_der = Vector3(deg_to_rad(20.0), 0.0, 0.0)
+		codo_izq = deg_to_rad(55.0)
+		codo_der = deg_to_rad(55.0)
 	if manejando:
 		# Las dos manos al volante, que se mueve con la vuelta (empujon.x trae el volante).
 		andando = false
-		brazo_izq = Vector3(deg_to_rad(70.0 + 12.0 * empujon.x), 0.0, deg_to_rad(12.0))
-		brazo_der = Vector3(deg_to_rad(70.0 - 12.0 * empujon.x), 0.0, deg_to_rad(-12.0))
+		brazo_izq = Vector3(deg_to_rad(45.0 + 12.0 * empujon.x), 0.0, deg_to_rad(12.0))
+		brazo_der = Vector3(deg_to_rad(45.0 - 12.0 * empujon.x), 0.0, deg_to_rad(-12.0))
+		codo_izq = deg_to_rad(45.0)
+		codo_der = deg_to_rad(45.0)
 	if sujetado:
 		# Brazo derecho arriba, agarrado del pasamanos o del respaldo. Se abre hacia afuera (+Z gira
 		# la mano hacia la derecha) para que no pase por enfrente de la cara.
 		brazo_der = Vector3(deg_to_rad(165.0), 0.0, deg_to_rad(25.0))
+		codo_der = deg_to_rad(10.0)
 
 	var t := 1.0 - exp(-14.0 * delta)
 	_girar("PiernaIzquierda", Vector3(pierna_izq, 0.0, 0.0), t)
 	_girar("PiernaDerecha", Vector3(pierna_der, 0.0, 0.0), t)
+	_girar("PantorrillaIzquierda", Vector3(rodilla_izq, 0.0, 0.0), t)
+	_girar("PantorrillaDerecha", Vector3(rodilla_der, 0.0, 0.0), t)
 	_girar("BrazoIzquierdo", brazo_izq, t)
 	_girar("BrazoDerecho", brazo_der, t)
+	_girar("AntebrazoIzquierdo", Vector3(codo_izq, 0.0, 0.0), t)
+	_girar("AntebrazoDerecho", Vector3(codo_der, 0.0, 0.0), t)
 	_girar("Cabeza", cabeza, t)
 	_girar("Torso", torso if andando else Vector3.ZERO, t)
 

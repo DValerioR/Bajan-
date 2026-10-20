@@ -10,7 +10,9 @@ extends SceneTree
 ##   1. Lo separa de la hoja (cada personaje es una malla cerrada al soldar las costuras).
 ##   2. Lo centra entre los pies, lo pasa a metros y lo voltea para que mire hacia -Z.
 ##   3. Estima su esqueleto desde la forma: cuello, axilas, hombros, manos, entrepierna, caderas y pies.
-##   4. Lo corta en Cabeza, Torso, Brazos y Piernas, asignando cada triángulo al hueso más cercano.
+##   4. Lo corta en Cabeza, Torso, Brazos y Piernas, asignando cada triángulo al hueso más cercano;
+##      luego corta cada pierna en la rodilla, muslo (Pierna) y Pantorrilla, y cada brazo en el
+##      codo, Brazo y Antebrazo.
 ##   5. Reduce cada pieza y la guarda con el origen en su articulación.
 ##   6. Recorta su parte de la textura de la hoja y la guarda dentro de su .glb.
 
@@ -19,13 +21,22 @@ const SALIDA := "res://modelos/personajes"
 const REBANADAS := 80
 const COLUMNAS := 120
 
-const PIEZAS := ["Cabeza", "Torso", "BrazoIzquierdo", "BrazoDerecho", "PiernaIzquierda", "PiernaDerecha"]
+const PIEZAS := ["Cabeza", "Torso", "BrazoIzquierdo", "BrazoDerecho", "PiernaIzquierda", "PiernaDerecha", "PantorrillaIzquierda", "PantorrillaDerecha", "AntebrazoIzquierdo", "AntebrazoDerecho"]
 const CABEZA := 0
 const TORSO := 1
 const BRAZO_IZQ := 2
 const BRAZO_DER := 3
 const PIERNA_IZQ := 4
 const PIERNA_DER := 5
+const PANTORRILLA_IZQ := 6
+const PANTORRILLA_DER := 7
+const ANTEBRAZO_IZQ := 8
+const ANTEBRAZO_DER := 9
+## Dónde va el codo, como fracción del camino del hombro a la mano (se cambia con `codo`).
+const CODO := 0.48
+## Altura de la rodilla, como fracción de la entrepierna (se cambia por personaje con `rodilla`,
+## fracción de la estatura).
+const RODILLA := 0.5
 
 var _escala := 3.8
 var _triangulos_objetivo := 6000
@@ -37,6 +48,11 @@ var _forzar: Array = []
 ## Con --sin-reducir las piezas salen completas y con la textura sin pérdida: las reduce después
 ## Blender (scripts/herramientas/tapar_cortes.py), que no abre grietas en las costuras de la textura.
 var _sin_reducir := false
+## Con --para-esqueleto las piezas salen completas y con los brazos como vienen (sin bajar los de la
+## pose T): Blender las une en una sola malla con esqueleto (scripts/herramientas/esqueleto_blender.py).
+var _para_esqueleto := false
+## Carpeta de salida (--salida <carpeta>, para pruebas); por defecto modelos/personajes.
+var _salida := SALIDA
 ## Estatura en metros de los personajes de la hoja actual (0 = usar la escala).
 var _altura_objetivo := 0.0
 
@@ -50,11 +66,18 @@ func _init() -> void:
 	_escala = cfg.get_value("general", "escala", _escala)
 	_triangulos_objetivo = cfg.get_value("general", "triangulos_por_personaje", _triangulos_objetivo)
 	_tamano_textura = cfg.get_value("general", "tamano_textura", _tamano_textura)
-	DirAccess.make_dir_recursive_absolute(SALIDA)
 	_cfg = cfg
 	var argumentos := OS.get_cmdline_user_args()
-	_sin_reducir = argumentos.has("--sin-reducir")
+	_para_esqueleto = argumentos.has("--para-esqueleto")
+	argumentos.erase("--para-esqueleto")
+	_sin_reducir = argumentos.has("--sin-reducir") or _para_esqueleto
 	argumentos.erase("--sin-reducir")
+	if argumentos.has("--salida"):
+		var k := argumentos.find("--salida")
+		_salida = argumentos[k + 1]
+		argumentos.remove_at(k + 1)
+		argumentos.remove_at(k)
+	DirAccess.make_dir_recursive_absolute(_salida)
 	if argumentos.has("--forzar"):
 		_forzar = argumentos.slice(argumentos.find("--forzar") + 1)
 		if _forzar.is_empty():
@@ -196,7 +219,7 @@ func _raiz(padre: PackedInt32Array, i: int) -> int:
 
 
 func _procesar_personaje(nombre: String, componente: Dictionary, vertices: PackedVector3Array, normales: PackedVector3Array, uvs: PackedVector2Array, indices: PackedInt32Array, hoja: Image) -> void:
-	var ruta := SALIDA.path_join(nombre + ".glb")
+	var ruta := _salida.path_join(nombre + ".glb")
 	if FileAccess.file_exists(ruta) and not ("*" in _forzar or nombre in _forzar):
 		_resumen.append("  %-16s ya existe: se respeta (usa --forzar %s para regenerarlo)" % [nombre, nombre])
 		return
@@ -231,6 +254,8 @@ func _procesar_personaje(nombre: String, componente: Dictionary, vertices: Packe
 	print("    %s: altura %.2f | entrepierna %.2f (%.0f%%) | axila %.2f (%.0f%%) brazos sueltos %s | cuello %.2f (%.0f%%) | torso medio %.2f | manos %s %s" % [nombre, esqueleto.altura, esqueleto.entrepierna, esqueleto.entrepierna / esqueleto.altura * 100.0, esqueleto.axila, esqueleto.axila / esqueleto.altura * 100.0, esqueleto.brazos_sueltos, esqueleto.cuello, esqueleto.cuello / esqueleto.altura * 100.0, esqueleto.torso_medio, esqueleto.mano_izq, esqueleto.mano_der])
 	var etiquetas := _etiquetar(locales, triangulos, esqueleto)
 	_limpiar_islas(locales, triangulos, etiquetas)
+	_cortar_rodillas(locales, triangulos, etiquetas, esqueleto, nombre)
+	_cortar_codos(locales, triangulos, etiquetas, esqueleto, nombre)
 
 	var raiz := Node3D.new()
 	raiz.name = nombre
@@ -245,12 +270,17 @@ func _procesar_personaje(nombre: String, componente: Dictionary, vertices: Packe
 	for p in PIEZAS.size():
 		var pivote: Vector3 = esqueleto.pivotes[p]
 		var giro := Basis()
-		if esqueleto.has("brazos_caidos") and (p == BRAZO_IZQ or p == BRAZO_DER):
-			giro = _bajar_brazo(pivote, esqueleto.mano_izq if p == BRAZO_IZQ else esqueleto.mano_der, esqueleto.brazos_caidos)
+		var posicion := pivote
+		if esqueleto.has("brazos_caidos") and not _para_esqueleto and p in [BRAZO_IZQ, BRAZO_DER, ANTEBRAZO_IZQ, ANTEBRAZO_DER]:
+			# Pose T: todo el brazo (con su antebrazo) baja girando sobre el hombro.
+			var izquierdo := p in [BRAZO_IZQ, ANTEBRAZO_IZQ]
+			var hombro: Vector3 = esqueleto.pivotes[BRAZO_IZQ if izquierdo else BRAZO_DER]
+			giro = _bajar_brazo(hombro, esqueleto.mano_izq if izquierdo else esqueleto.mano_der, esqueleto.brazos_caidos)
+			posicion = hombro + giro * (pivote - hombro)
 		var malla := _construir_pieza(p, etiquetas, triangulos, locales, normales_locales, uvs_locales, pivote, total_triangulos, giro)
 		var nodo := MeshInstance3D.new()
 		nodo.name = PIEZAS[p]
-		nodo.position = pivote
+		nodo.position = posicion
 		if malla != null:
 			malla.surface_set_material(0, material)
 			nodo.mesh = malla
@@ -557,6 +587,76 @@ func _etiquetar(puntos: PackedVector3Array, triangulos: PackedInt32Array, e: Dic
 					etiqueta = pieza
 		etiquetas[t / 3] = etiqueta
 	return etiquetas
+
+
+## Corta cada pierna en la rodilla: lo de abajo pasa a la pantorrilla, con su pivote en la rodilla
+## (a la profundidad de la pierna ahí, para que doble sobre su eje). La altura sale de `rodilla` en
+## personajes.cfg (fracción de la estatura) o es la mitad de la entrepierna.
+func _cortar_rodillas(puntos: PackedVector3Array, triangulos: PackedInt32Array, etiquetas: PackedByteArray, e: Dictionary, nombre: String) -> void:
+	var altura: float = e.altura
+	var rodilla: float = float(_cfg.get_value(nombre, "rodilla", 0.0)) * altura
+	if rodilla <= 0.0:
+		rodilla = float(e.entrepierna) * RODILLA
+	e.rodilla = rodilla
+	for par in [[PIERNA_IZQ, PANTORRILLA_IZQ], [PIERNA_DER, PANTORRILLA_DER]]:
+		var pierna: int = par[0]
+		var pantorrilla: int = par[1]
+		# Centro de la pierna a la altura de la rodilla (x y z promedio de sus vértices ahí).
+		var suma := Vector3.ZERO
+		var cuantos := 0
+		for t in range(0, triangulos.size(), 3):
+			if etiquetas[t / 3] != pierna:
+				continue
+			for j in 3:
+				var v := puntos[triangulos[t + j]]
+				if absf(v.y - rodilla) < altura * 0.025:
+					suma += v
+					cuantos += 1
+		var cadera: Vector3 = e.pivotes[pierna]
+		var centro := suma / cuantos if cuantos > 0 else Vector3(cadera.x, rodilla, 0.0)
+		e.pivotes[pantorrilla] = Vector3(centro.x, rodilla, centro.z)
+		for t in range(0, triangulos.size(), 3):
+			if etiquetas[t / 3] != pierna:
+				continue
+			var c := (puntos[triangulos[t]] + puntos[triangulos[t + 1]] + puntos[triangulos[t + 2]]) / 3.0
+			if c.y < rodilla:
+				etiquetas[t / 3] = pantorrilla
+
+
+## Corta cada brazo en el codo, a `codo` (fracción, por personaje) del camino del hombro a la mano:
+## lo que queda más allá pasa al antebrazo, con su pivote en el codo (a la profundidad del brazo).
+func _cortar_codos(puntos: PackedVector3Array, triangulos: PackedInt32Array, etiquetas: PackedByteArray, e: Dictionary, nombre: String) -> void:
+	var fraccion: float = float(_cfg.get_value(nombre, "codo", CODO))
+	var altura: float = e.altura
+	for datos in [[BRAZO_IZQ, ANTEBRAZO_IZQ, e.mano_izq], [BRAZO_DER, ANTEBRAZO_DER, e.mano_der]]:
+		var brazo: int = datos[0]
+		var antebrazo: int = datos[1]
+		var hombro: Vector3 = e.pivotes[brazo]
+		var mano: Vector3 = datos[2]
+		var a := Vector2(hombro.x, hombro.y)
+		var ab := Vector2(mano.x, mano.y) - a
+		if ab.length_squared() < 0.0001:
+			e.pivotes[antebrazo] = hombro
+			continue
+		var codo := a + ab * fraccion
+		# Profundidad del brazo en el codo.
+		var suma := 0.0
+		var cuantos := 0
+		for t in range(0, triangulos.size(), 3):
+			if etiquetas[t / 3] != brazo:
+				continue
+			for j in 3:
+				var v := puntos[triangulos[t + j]]
+				if Vector2(v.x, v.y).distance_to(codo) < altura * 0.03:
+					suma += v.z
+					cuantos += 1
+		e.pivotes[antebrazo] = Vector3(codo.x, codo.y, suma / cuantos if cuantos > 0 else hombro.z)
+		for t in range(0, triangulos.size(), 3):
+			if etiquetas[t / 3] != brazo:
+				continue
+			var c := (puntos[triangulos[t]] + puntos[triangulos[t + 1]] + puntos[triangulos[t + 2]]) / 3.0
+			if (Vector2(c.x, c.y) - a).dot(ab) / ab.length_squared() > fraccion:
+				etiquetas[t / 3] = antebrazo
 
 
 ## Las islas chicas de una pieza (por ejemplo, puntas de dedos que quedaron en la pierna) se pasan a la

@@ -10,3 +10,6 @@ exportar/
 
 # Modelos originales de Tripo (pesados; se respaldan aparte). Solo se versionan los procesados.
 modelos/fuentes/
+
+# Caché de Python de las herramientas de Blender
+__pycache__/

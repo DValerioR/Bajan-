@@ -28,6 +28,16 @@ func _ready() -> void:
 	body_entered.connect(_al_chocar)
 
 
+## Para el interior del camión: el centro de su forma, sin importar hacia dónde esté volteado.
+## (Con el "medio metro arriba del origen" de siempre, una moneda boca abajo parecía estar medio
+## metro bajo el piso, el camión la daba por fuera y desaparecía.)
+func centro() -> Vector3:
+	for hijo in get_children():
+		if hijo is CollisionShape3D:
+			return (hijo as CollisionShape3D).global_position
+	return global_position
+
+
 ## Algo que vuela (una bolsa, la pierna de otro pasajero) le pega a un personaje.
 func _al_chocar(otro: Node) -> void:
 	if not otro is CuerpoPersonaje:
