@@ -458,5 +458,6 @@ Aquí se agregan las decisiones que se tomen durante el desarrollo: la elección
   - **Ojos:** un párpado del color de la piel (una esfera sobre cada ojo, medida con `ojos` en el cfg) baja cada 2 a 5.5 s y deja una línea de pestañas. Del susto, los ojos se quedan abiertos. Se arma al cargar (`scripts/personajes/cara_personaje.gd`).
   - **Para agregar otro personaje:** medir `ojos` y `boca` (con una vista de la cara con cuadrícula) y correr `procesar_personajes.bat --forzar <nombre>`.
   - Lo que queda: en el voceador, con la boca cerrada los dientes de abajo quedan algo encimados.
+  - **La fresa nueva (20/10/2026):** el dueño la cambió por un modelo suelto de Tripo en pose T (1.9 millones de caras, textura de 8K). Se aligeró con Blender a 200 000 caras y textura de 4K y se guardó en `modelos/fuentes/fresa.glb`, con su propia hoja en `personajes.cfg` (estatura 1.78 m) y sus articulaciones medidas a mano; el lugar de la fresa vieja en Modelos2 queda vacío. Su boca tiene los labios rasgados (abre poco: la cara tiene pocos triángulos y el corte queda dentado). Sus ojos son almendrados: `ojos` acepta un cuarto valor, `radio_y`, para que el párpado sea un óvalo.
 - *Secciones:* 3, 10.
 

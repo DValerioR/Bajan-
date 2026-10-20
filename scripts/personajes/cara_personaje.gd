@@ -4,7 +4,8 @@ extends RefCounted
 ## gritar. La boca son dos claves de forma de la cabeza ("Cerrar" y "Abrir") que pone Blender
 ## (scripts/herramientas/caras_blender.py) a partir de `boca` en modelos/personajes.cfg. Los
 ## párpados se arman aquí al cargar, con `ojos`:
-##   ojos = [[x, y, radio], ...]  centro de cada ojo (m, coordenadas de la figura, pies en 0)
+##   ojos = [[x, y, radio, (radio_y)], ...]  centro de cada ojo (m, coordenadas de la figura, pies
+##          en 0); con radio_y el párpado es un óvalo (para ojos almendrados)
 ##   cara_giro = grados hacia donde ve la cara (0 = al frente), para los de cabeza volteada.
 ## La cabeza se dibuja también por dentro, en oscuro: al abrirse la boca se ve su interior.
 ## Los párpados son una esfera del color de la piel sobre cada globo ocular, un poco más grande que
@@ -112,18 +113,20 @@ static func _preparar(modelo: String, cabeza: MeshInstance3D, cfg: ConfigFile) -
 			if punta == Vector3.INF:
 				continue
 			var tamano := radio * TAMANO_PARPADO
+			var alto := tamano * (float(ojo[3]) / radio if ojo.size() > 3 else 1.0)
 			var centro_esfera := punta - frente * tamano * (1.0 - SOBRESALE_PARPADO) - origen
+			centro_esfera.y = centro.y - origen.y
 			parpados.append({
-				"malla": _malla_parpado(centro_esfera, tamano),
+				"malla": _malla_parpado(centro_esfera, tamano, alto),
 				"color": color_piel,
-				"tope": centro_esfera.y + tamano,
-				"fondo": centro_esfera.y - tamano,
+				"tope": centro_esfera.y + alto,
+				"fondo": centro_esfera.y - alto,
 			})
 		hecha.parpados = parpados
 	return hecha
 
 
-static func _malla_parpado(centro: Vector3, radio: float) -> ArrayMesh:
+static func _malla_parpado(centro: Vector3, radio: float, alto: float) -> ArrayMesh:
 	var esfera := SphereMesh.new()
 	esfera.radius = radio
 	esfera.height = radio * 2.0
@@ -132,6 +135,7 @@ static func _malla_parpado(centro: Vector3, radio: float) -> ArrayMesh:
 	var datos := esfera.get_mesh_arrays()
 	var vertices: PackedVector3Array = datos[Mesh.ARRAY_VERTEX]
 	for i in vertices.size():
+		vertices[i].y *= alto / radio
 		vertices[i] += centro
 	datos[Mesh.ARRAY_VERTEX] = vertices
 	var malla := ArrayMesh.new()

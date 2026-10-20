@@ -117,7 +117,7 @@ def procesar(ruta, cfg):
 			w *= 1.0 if lado_de_abajo[i] else 0.0
 		else:
 			w *= suave(labio_y, labio_y - 0.012, p.y)
-		w *= suave(cuello_y, cuello_y + 0.035, p.y)
+		w *= suave(cuello_y, cuello_y + 0.02, p.y)
 		return w
 
 	posiciones = [a_godot(mundo @ v.co) for v in malla.vertices]
