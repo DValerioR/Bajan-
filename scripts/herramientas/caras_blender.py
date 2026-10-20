@@ -1,5 +1,5 @@
-# Herramienta (Blender): boca animada para los personajes de muñeco por piezas.
-# A la pieza Cabeza le agrega dos claves de forma (shape keys) que el juego mezcla:
+# Herramienta (Blender): boca animada para los personajes con esqueleto.
+# A la malla del cuerpo le agrega dos claves de forma (shape keys) que el juego mezcla:
 #   Cerrar: la mandíbula sube `cierre` grados (en reposo: los que tienen la boca abierta de par en
 #           par la cierran).
 #   Abrir:  la mandíbula baja `apertura` grados (al hablar o gritar).
@@ -12,9 +12,11 @@
 #   boca = [labio_y, bisagra_adelante, bisagra_y, cierre, apertura, centro_x, medio_ancho, rasgar]
 #   cara_giro = grados hacia donde ve la cara (0 = al frente; positivo = hacia la izquierda).
 #
-# Uso (lo llama procesar_personajes.bat después de tapar_cortes.py):
+# Solo se mueve lo que es de la cabeza (el peso del hueso Cabeza), así los hombros no se tocan.
+#
+# Uso (lo llama procesar_personajes.bat después de esqueleto_blender.py):
 #   blender --background --factory-startup --python scripts/herramientas/caras_blender.py -- <carpeta> [nombre ...]
-# Solo toca los que tienen `boca` en el cfg y no tienen ya la marca "cara_hecha" en la cabeza.
+# Solo toca los que tienen `boca` en el cfg y no tienen ya la marca "cara_hecha" en el cuerpo.
 
 import json
 import math
@@ -77,9 +79,10 @@ def procesar(ruta, cfg):
 		return
 	bpy.ops.wm.read_factory_settings(use_empty=True)
 	bpy.ops.import_scene.gltf(filepath=ruta)
-	cabeza = next((o for o in bpy.data.objects if o.type == "MESH" and o.name.split(".")[0] == "Cabeza"), None)
-	if cabeza is None:
-		print("  %s: sin pieza Cabeza" % nombre)
+	cabeza = next((o for o in bpy.data.objects if o.type == "MESH" and o.name.split(".")[0] == "Cuerpo"), None)
+	esqueleto = next((o for o in bpy.data.objects if o.type == "ARMATURE"), None)
+	if cabeza is None or esqueleto is None or "Cabeza" not in cabeza.vertex_groups:
+		print("  %s: sin malla con esqueleto (falta esqueleto_blender.py)" % nombre)
 		return
 	if cabeza.get(MARCA):
 		print("  %s: la boca ya estaba hecha" % nombre)
@@ -97,7 +100,8 @@ def procesar(ruta, cfg):
 	centro_boca = Vector((centro_x, 0.0, 0.0))
 	mundo = cabeza.matrix_world
 	al_objeto = mundo.inverted()
-	cuello_y = a_godot(mundo.translation).y
+	cuello_y = a_godot(esqueleto.matrix_world @ esqueleto.data.bones["Cabeza"].head_local).y
+	grupo_cabeza = cabeza.vertex_groups["Cabeza"].index
 
 	malla = cabeza.data
 	bm = bmesh.new()
@@ -108,10 +112,16 @@ def procesar(ruta, cfg):
 	bm.to_mesh(malla)
 	bm.free()
 
+	def de_la_cabeza(i):
+		return next((g.weight for g in malla.vertices[i].groups if g.group == grupo_cabeza), 0.0)
+
 	def peso(i, p):
+		w = de_la_cabeza(i)
+		if w <= 0.0:
+			return 0.0
 		adelante = p.x * frente.x + p.z * frente.z
 		lateral = abs((p - centro_boca).dot(eje))
-		w = suave(bisagra_adelante - 0.04, bisagra_adelante + 0.01, adelante)
+		w *= suave(bisagra_adelante - 0.04, bisagra_adelante + 0.01, adelante)
 		w *= 1.0 - suave(medio_ancho, medio_ancho * 1.8, lateral)
 		if i in lado_de_abajo:
 			w *= 1.0 if lado_de_abajo[i] else 0.0
@@ -121,6 +131,7 @@ def procesar(ruta, cfg):
 		return w
 
 	posiciones = [a_godot(mundo @ v.co) for v in malla.vertices]
+	bpy.ops.object.select_all(action="SELECT")
 	pesos = [peso(i, p) for i, p in enumerate(posiciones)]
 	if not cabeza.data.shape_keys:
 		cabeza.shape_key_add(name="Base", from_mix=False)
@@ -140,6 +151,7 @@ def procesar(ruta, cfg):
 		export_extras=True,
 		export_yup=True,
 		export_apply=False,
+		export_skins=True,
 		export_morph=True,
 		export_morph_normal=True,
 		export_animations=False,

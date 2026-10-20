@@ -258,7 +258,7 @@ Aquí se agregan las decisiones que se tomen durante el desarrollo: la elección
   - **Personajes:** ver D34.
 - *Secciones:* 3.
 
-**D34. Personajes de muñeco por piezas** (15/10/2026, etapa 2, decidido con el dueño)
+**D34. Personajes de muñeco por piezas** (15/10/2026, etapa 2, decidido con el dueño) — *reemplazada en parte por D52: ahora son una malla con esqueleto*
 - *Contexto:* el dueño subió dos hojas de personajes hechas en Tripo (plan de pago), con 16 personajes en total. Cada hoja es una sola malla de ~1 millón de vértices, sin esqueleto, y pesa 65 MB.
 - *Decisión:*
   - **Estilo de muñeco:** cada personaje se corta en 6 piezas rígidas (cabeza, torso, dos brazos y dos piernas) con el giro en su articulación. Así encaja con "las extremidades se desprenden como piezas de muñeco" (sección 8) y es barato de simular y sincronizar. Se anima en código (`scripts/personajes/personaje.gd`), sin esqueleto.
@@ -469,3 +469,13 @@ Aquí se agregan las decisiones que se tomen durante el desarrollo: la elección
   - Es el evento número 9; los bots no lo detienen (eso le toca al jugador).
 - *Secciones:* 6.2, 7.1, etapa 5.
 
+
+**D52. Personajes con esqueleto y piel continua** (20/10/2026, pedido del dueño; cambia D34)
+- *Contexto:* con piezas rígidas, al sentarse o levantar los brazos el modelo "se parte de manera antinatural" (rodillas, codos y hombros se abren). El dueño pidió que los personajes interactúen con el entorno "como cuando hacen ragdoll pero sin perder el control de sí mismos" y eligió rehacerlos con esqueleto más un ragdoll ligero.
+- *Decisión:*
+  - **Modelos:** cada personaje es una sola malla con 11 huesos: Cadera (raíz) > Torso > Cabeza, Brazo > Antebrazo; Cadera > Pierna > Pantorrilla (izquierdo y derecho). `procesar_personajes.bat` ahora necesita Blender: Godot corta el modelo en 10 piezas (`--para-esqueleto`, sin reducir) y `scripts/herramientas/esqueleto_blender.py` las une, suelda los cortes, arma el esqueleto con las articulaciones (el origen de cada pieza), reparte los pesos con una rampa suave en cada articulación, baja los brazos de los que vienen en pose T (y deja esa pose como reposo), reduce, copia las normales del modelo completo y hornea su textura. Después `caras_blender.py` le pone la boca a la malla, solo en lo que mueve el hueso de la cabeza.
+  - **Animación:** la misma de antes (caminar, sentarse, sujetarse, cargar, tropezar, manejar), ahora girando huesos: la piel se dobla en rodillas, codos, hombros y cadera en lugar de abrirse. La cabeza del jugador en primera persona se oculta encogiendo su hueso. Los párpados van pegados al hueso de la cabeza.
+  - **Ragdoll:** una caja física por hueso (sin la Cadera), unida a la de arriba con una articulación de cono; lo que se ve es una copia del esqueleto con su malla cuyos huesos siguen a las cajas, así el cuerpo tirado también se ve continuo. Sigue funcionando con el interior del camión (cada caja tiene su marcador "Visual" que pasa a su reflejo).
+  - **Desprendimiento de extremidades (sección 8, etapa 7):** ya no hay piezas sueltas que se puedan soltar tal cual; cuando llegue la etapa 7 se decide con el dueño (por ejemplo, separar la parte de la malla de ese hueso en ese momento).
+  - **Siguiente paso (ragdoll ligero):** manos que alcanzan el pasamanos o el respaldo, pies en el piso, cadera en el asiento real y reacciones de resorte a los empujones que se recuperan solas.
+- *Secciones:* 3, 8, 10, etapa 2.

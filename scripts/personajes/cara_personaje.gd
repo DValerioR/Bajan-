@@ -1,13 +1,13 @@
 class_name CaraPersonaje
 extends RefCounted
-## Cara animada de un personaje de muñeco: párpados que parpadean y boca que se abre al hablar o
-## gritar. La boca son dos claves de forma de la cabeza ("Cerrar" y "Abrir") que pone Blender
+## Cara animada de un personaje: párpados que parpadean y boca que se abre al hablar o gritar. La
+## boca son dos claves de forma de la malla ("Cerrar" y "Abrir") que pone Blender
 ## (scripts/herramientas/caras_blender.py) a partir de `boca` en modelos/personajes.cfg. Los
-## párpados se arman aquí al cargar, con `ojos`:
+## párpados se arman aquí al cargar, con `ojos`, y van pegados al hueso de la cabeza:
 ##   ojos = [[x, y, radio, (radio_y)], ...]  centro de cada ojo (m, coordenadas de la figura, pies
 ##          en 0); con radio_y el párpado es un óvalo (para ojos almendrados)
 ##   cara_giro = grados hacia donde ve la cara (0 = al frente), para los de cabeza volteada.
-## La cabeza se dibuja también por dentro, en oscuro: al abrirse la boca se ve su interior.
+## La malla se dibuja también por dentro, en oscuro: al abrirse la boca se ve su interior.
 ## Los párpados son una esfera del color de la piel sobre cada globo ocular, un poco más grande que
 ## el ojo, que el material va mostrando de arriba hacia abajo (como en las caricaturas).
 
@@ -23,18 +23,17 @@ const SOBRESALE_PARPADO := 0.25
 static var _hechas: Dictionary = {}
 
 
-## Arma la cara sobre la pieza de la cabeza (ya con su material toon). Devuelve {} si el modelo no
-## tiene cara animada, o {cabeza: MeshInstance3D o null (si no hay boca), cerrar: índice de la
-## clave, abrir: índice, parpados: [ShaderMaterial]}.
-static func armar(modelo: String, cabeza: MeshInstance3D) -> Dictionary:
-	if cabeza == null or cabeza.mesh == null:
+## Arma la cara sobre la malla del personaje (ya con su material toon). `en_figura` lleva del
+## esqueleto a la figura. Devuelve {} si el modelo no tiene cara animada, o {malla: la malla si
+## tiene boca (si no, null), cerrar: índice de la clave, abrir: índice, parpados: [ShaderMaterial]}.
+static func armar(modelo: String, malla: MeshInstance3D, esqueleto: Skeleton3D, en_figura: Transform3D) -> Dictionary:
+	if malla == null or malla.mesh == null:
 		return {}
 	var cfg := Config.archivo_config(CONFIG)
-	var malla := cabeza.mesh
 	var cerrar := -1
 	var abrir := -1
-	for b in malla.get_blend_shape_count():
-		match String(malla.get_blend_shape_name(b)):
+	for b in malla.mesh.get_blend_shape_count():
+		match String(malla.mesh.get_blend_shape_name(b)):
 			"Cerrar":
 				cerrar = b
 			"Abrir":
@@ -42,14 +41,25 @@ static func armar(modelo: String, cabeza: MeshInstance3D) -> Dictionary:
 	var con_boca := cerrar >= 0 and abrir >= 0
 	if not con_boca and not cfg.has_section_key(modelo, "ojos"):
 		return {}
-	var resultado := {"cabeza": cabeza if con_boca else null, "cerrar": cerrar, "abrir": abrir, "parpados": []}
+	var resultado := {"malla": malla if con_boca else null, "cerrar": cerrar, "abrir": abrir, "parpados": []}
 	if not _hechas.has(modelo):
-		_hechas[modelo] = _preparar(modelo, cabeza, cfg)
+		_hechas[modelo] = _preparar(modelo, malla, en_figura * malla.transform, cfg)
 	var hecha: Dictionary = _hechas[modelo]
 	if con_boca:
-		cabeza.set_surface_override_material(0, _material_cabeza(cabeza.get_active_material(0) as ShaderMaterial))
-		cabeza.set_blend_shape_value(cerrar, 1.0)
-	for datos in hecha.get("parpados", []):
+		malla.set_surface_override_material(0, _material_cabeza(malla.get_active_material(0) as ShaderMaterial))
+		malla.set_blend_shape_value(cerrar, 1.0)
+	var cabeza := esqueleto.find_bone("Cabeza")
+	if cabeza < 0 or hecha.get("parpados", []).is_empty():
+		return resultado
+	# Los párpados siguen al hueso de la cabeza; dentro, van en coordenadas de la figura.
+	var pegado := BoneAttachment3D.new()
+	pegado.name = "Parpados"
+	pegado.bone_name = "Cabeza"
+	esqueleto.add_child(pegado)
+	var en_cabeza := Node3D.new()
+	en_cabeza.transform = esqueleto.get_bone_global_rest(cabeza).affine_inverse() * en_figura.affine_inverse()
+	pegado.add_child(en_cabeza)
+	for datos in hecha.parpados:
 		var parpado := MeshInstance3D.new()
 		parpado.name = "Parpado"
 		parpado.mesh = datos.malla
@@ -61,7 +71,7 @@ static func armar(modelo: String, cabeza: MeshInstance3D) -> Dictionary:
 		material.set_shader_parameter("linea", (datos.tope + datos.fondo) * 0.5 - (datos.tope - datos.fondo) * 0.05)
 		parpado.material_override = material
 		parpado.set_meta("sin_contorno", true)
-		cabeza.add_child(parpado)
+		en_cabeza.add_child(parpado)
 		resultado.parpados.append(material)
 	return resultado
 
@@ -77,25 +87,28 @@ static func _material_cabeza(toon: ShaderMaterial) -> ShaderMaterial:
 	return material
 
 
-static func _preparar(modelo: String, cabeza: MeshInstance3D, cfg: ConfigFile) -> Dictionary:
+## Las mallas de los párpados, en coordenadas de la figura (`a_figura` lleva de la malla a la figura).
+static func _preparar(modelo: String, cuerpo: MeshInstance3D, a_figura: Transform3D, cfg: ConfigFile) -> Dictionary:
 	var hecha := {}
-	var malla := cabeza.mesh
+	var malla := cuerpo.mesh
 	var arreglos: Array = malla.surface_get_arrays(0)
-	var vertices: PackedVector3Array = arreglos[Mesh.ARRAY_VERTEX]
+	var vertices: PackedVector3Array = (arreglos[Mesh.ARRAY_VERTEX] as PackedVector3Array).duplicate()
+	for i in vertices.size():
+		vertices[i] = a_figura * vertices[i]
 	var normales: PackedVector3Array = arreglos[Mesh.ARRAY_NORMAL]
 	var indices: PackedInt32Array = arreglos[Mesh.ARRAY_INDEX]
 	if indices.is_empty():
 		indices.resize(vertices.size())
 		for i in vertices.size():
 			indices[i] = i
-	var origen := cabeza.position
+	var origen := Vector3.ZERO
 	var giro := deg_to_rad(float(cfg.get_value(modelo, "cara_giro", 0.0)))
 	# Hacia dónde ve la cara (en el plano del piso; el frente de la figura es -Z).
 	var frente := Vector3(-sin(giro), 0.0, -cos(giro))
 	var adelante := func(p: Vector3) -> float: return p.x * frente.x + p.z * frente.z
 
 	if cfg.has_section_key(modelo, "ojos"):
-		var imagen := _imagen_de(cabeza)
+		var imagen := _imagen_de(cuerpo)
 		var uvs: PackedVector2Array = arreglos[Mesh.ARRAY_TEX_UV]
 		var parpados := []
 		var color_piel := _color_de_piel(imagen, vertices, uvs, indices, origen, cfg.get_value(modelo, "ojos"))

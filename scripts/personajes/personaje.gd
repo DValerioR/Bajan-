@@ -1,22 +1,22 @@
 class_name Personaje
 extends Node3D
-## Figura visual de un personaje: carga el muñeco por piezas de modelos/personajes/<modelo>.glb
-## y lo anima en código (sin esqueleto): caminar, sujetarse, cargar, tropezar y ladearse con
-## los empujones. No tiene física; la lógica vive en CuerpoPersonaje y aquí solo se dibuja.
-## Origen entre los pies, mirando a -Z (DECISIONES.md, D33 y D34).
+## Figura visual de un personaje: una malla con esqueleto (modelos/personajes/<modelo>.glb, la arma
+## Blender con scripts/herramientas/esqueleto_blender.py) que se anima en código: caminar,
+## sujetarse, cargar, tropezar, sentarse y ladearse con los empujones. La piel es continua, así que
+## al doblar una rodilla o un codo se dobla en lugar de partirse (D52). No tiene física; la lógica
+## vive en CuerpoPersonaje y aquí solo se dibuja. Origen entre los pies, mirando a -Z.
 ##
-## El .glb se puede editar en Blender: basta con que conserve las 6 piezas con su nombre
-## (un sufijo como ".001" no importa) y el origen de cada una en su articulación. La estatura,
-## el cuello, la cadera y las manos se sacan de las piezas al cargar.
+## Huesos: Cadera (raíz) > Torso > Cabeza, Brazo > Antebrazo; Cadera > Pierna > Pantorrilla
+## (Izquierdo/Derecho). Las rotaciones de la animación van en los ejes de la figura (x: a su
+## derecha, y: arriba, z: hacia atrás), alrededor de la articulación de cada hueso.
 
 const CARPETA := "res://modelos/personajes"
-const PIEZAS := ["Cabeza", "Torso", "BrazoIzquierdo", "BrazoDerecho", "PiernaIzquierda", "PiernaDerecha", "PantorrillaIzquierda", "PantorrillaDerecha", "AntebrazoIzquierdo", "AntebrazoDerecho"]
-## Cada pantorrilla cuelga de su muslo (la Pierna) y cada antebrazo de su brazo: siguen a la cadera o
-## al hombro y doblan en la rodilla o el codo.
-const PADRES := {"PantorrillaIzquierda": "PiernaIzquierda", "PantorrillaDerecha": "PiernaDerecha", "AntebrazoIzquierdo": "BrazoIzquierdo", "AntebrazoDerecho": "BrazoDerecho"}
+const HUESOS := ["Cadera", "Torso", "Cabeza", "BrazoIzquierdo", "AntebrazoIzquierdo", "BrazoDerecho", "AntebrazoDerecho", "PiernaIzquierda", "PantorrillaIzquierda", "PiernaDerecha", "PantorrillaDerecha"]
 
 ## Mallas con la normal suavizada para el contorno, ya calculadas (una por malla del modelo).
 static var _mallas_contorno: Dictionary = {}
+## Cajas de cada hueso por modelo (lo que ocupa su parte de la malla), para el ragdoll.
+static var _cajas_por_modelo: Dictionary = {}
 
 @export var modelo: String = "cobrador":
 	set(valor):
@@ -33,14 +33,24 @@ var altura_cadera: float = 0.8
 var mano_derecha := Vector3(0.3, 0.9, 0.0)
 
 var _figura: Node3D
-var _piezas: Dictionary = {}
+var _esqueleto: Skeleton3D
+var _malla: MeshInstance3D
+## Del esqueleto a la figura (el .glb puede traer un nodo encima).
+var _en_figura := Transform3D()
+## nombre -> índice del hueso.
+var _huesos: Dictionary = {}
+## índice -> reposo del hueso en la figura (su articulación y sus ejes).
+var _reposo: Dictionary = {}
+## nombre -> giro actual (euler, ejes de la figura), suavizado.
+var _giros: Dictionary = {}
+var _cabeza_oculta: bool = false
 var _fase: float = 0.0
 var _inclinacion := Vector3.ZERO
 ## Qué tanto está caminando (0 a 1), suavizado: los pasos empiezan y terminan sin brincos.
 var _paso: float = 0.0
 ## Reloj para la respiración y el peso en reposo (cada quien empieza en otro punto).
-var _reposo: float = randf() * TAU
-## Cara animada (CaraPersonaje), si el modelo la tiene: mandíbula y párpados.
+var _reloj: float = randf() * TAU
+## Cara animada (CaraPersonaje), si el modelo la tiene: boca y párpados.
 var _cara: Dictionary = {}
 var _hablando: float = 0.0
 var _gritando: bool = false
@@ -60,68 +70,59 @@ func _cargar() -> void:
 	if escena == null:
 		push_error("No existe el personaje: " + modelo)
 		return
-	# El .glb importado puede traer nodos de más (según cómo lo exporte Blender): se toman solo
-	# las 6 piezas, con su lugar relativo al modelo, y se cuelgan de una figura limpia.
 	var importado: Node3D = escena.instantiate()
+	var esqueletos := importado.find_children("*", "Skeleton3D", true, false)
+	if esqueletos.is_empty():
+		push_error("El personaje %s no tiene esqueleto (falta procesarlo con procesar_personajes.bat)" % modelo)
+		importado.free()
+		return
 	_figura = Node3D.new()
 	_figura.name = "Figura"
 	add_child(_figura)
-	_piezas.clear()
-	for nodo in importado.find_children("*", "MeshInstance3D", true, false):
-		var nombre := _nombre_de_pieza(String(nodo.name))
-		if nombre == "" or _piezas.has(nombre):
-			continue
-		var relativa := _relativa_a(nodo, importado)
-		nodo.owner = null
-		nodo.get_parent().remove_child(nodo)
-		nodo.name = nombre
-		nodo.transform = relativa
-		nodo.mesh = _malla_con_contorno(nodo.mesh)
-		_figura.add_child(nodo)
-		_piezas[nombre] = nodo
+	# Se toma solo el esqueleto (con su malla), con su lugar relativo al modelo.
+	_esqueleto = esqueletos[0]
+	_en_figura = _relativa_a(_esqueleto, importado)
+	_esqueleto.owner = null
+	_esqueleto.get_parent().remove_child(_esqueleto)
+	_esqueleto.name = "Esqueleto"
+	_esqueleto.transform = _en_figura
+	_figura.add_child(_esqueleto)
 	importado.free()
-	for nombre in PADRES:
-		if _piezas.has(nombre) and _piezas.has(PADRES[nombre]):
-			var hija: Node3D = _piezas[nombre]
-			var padre: Node3D = _piezas[PADRES[nombre]]
-			var relativa := padre.transform.affine_inverse() * hija.transform
-			_figura.remove_child(hija)
-			padre.add_child(hija)
-			hija.transform = relativa
+	for hijo in _esqueleto.get_children():
+		hijo.owner = null
+		if hijo is MeshInstance3D and _malla == null:
+			_malla = hijo
+	_malla.mesh = _malla_con_contorno(_malla.mesh)
+	_huesos.clear()
+	_reposo.clear()
+	_giros.clear()
+	for nombre in HUESOS:
+		var i := _esqueleto.find_bone(nombre)
+		if i >= 0:
+			_huesos[nombre] = i
+			_reposo[i] = _en_figura * _esqueleto.get_bone_global_rest(i)
 	EstiloToon.aplicar(_figura)
-	_cara = CaraPersonaje.armar(modelo, _piezas.get("Cabeza"))
+	_cara = CaraPersonaje.armar(modelo, _malla, _esqueleto, _en_figura)
 	_medir()
 
 
-## Estatura, ancho, cuello, cadera y mano, sacados de las piezas (respeta lo editado en Blender).
+## Estatura, ancho, cuello, cadera y mano, sacados de la malla y del esqueleto.
 func _medir() -> void:
-	var caja := AABB()
-	var primera := true
-	for pieza: MeshInstance3D in _piezas.values():
-		var suya := _en_figura(pieza) * pieza.get_aabb()
-		caja = suya if primera else caja.merge(suya)
-		primera = false
+	var caja := _en_figura * _malla.transform * _malla.get_aabb()
 	altura = caja.end.y
 	ancho = caja.size.x
 	var cuello := altura * 0.7
-	if _piezas.has("Cabeza"):
-		cuello = (_piezas["Cabeza"] as Node3D).position.y
+	if _huesos.has("Cabeza"):
+		cuello = (_reposo[_huesos["Cabeza"]] as Transform3D).origin.y
 	altura_ojos = cuello + (altura - cuello) * 0.45
-	if _piezas.has("PiernaIzquierda"):
-		altura_cadera = (_piezas["PiernaIzquierda"] as Node3D).position.y
-	var con_mano: String = "AntebrazoDerecho" if _piezas.has("AntebrazoDerecho") else "BrazoDerecho"
-	if _piezas.has(con_mano):
-		# La mano es la punta de abajo del brazo (o del antebrazo), que cuelga en la pose original.
-		var brazo: MeshInstance3D = _piezas[con_mano]
-		var su_caja := brazo.get_aabb()
-		mano_derecha = _en_figura(brazo) * Vector3(su_caja.get_center().x, su_caja.position.y, su_caja.get_center().z)
-
-
-static func _nombre_de_pieza(nombre_nodo: String) -> String:
-	for pieza in PIEZAS:
-		if nombre_nodo == pieza or nombre_nodo.begins_with(pieza + ".") or nombre_nodo.begins_with(pieza + "_"):
-			return pieza
-	return ""
+	if _huesos.has("PiernaIzquierda"):
+		altura_cadera = (_reposo[_huesos["PiernaIzquierda"]] as Transform3D).origin.y
+	var cajas := cajas_de_huesos()
+	if cajas.has("AntebrazoDerecho"):
+		# La mano es la punta del antebrazo (a lo largo del hueso, su eje Y).
+		var suya: AABB = cajas["AntebrazoDerecho"]
+		var c := suya.get_center()
+		mano_derecha = (_reposo[_huesos["AntebrazoDerecho"]] as Transform3D) * Vector3(c.x, suya.end.y * 0.92, c.z)
 
 
 static func _relativa_a(nodo: Node3D, raiz: Node3D) -> Transform3D:
@@ -136,7 +137,7 @@ static func _relativa_a(nodo: Node3D, raiz: Node3D) -> Transform3D:
 
 ## Copia de la malla con una normal suavizada (promedio de los vértices en la misma posición)
 ## guardada en el color de vértice: la usa el contorno para no abrirse en las costuras de la
-## textura. Se calcula una vez por malla y no se guarda en el .glb.
+## textura. Conserva la piel (huesos y pesos) y las claves de forma. Una vez por malla.
 static func _malla_con_contorno(malla: Mesh) -> Mesh:
 	if malla == null or not malla is ArrayMesh:
 		return malla
@@ -144,7 +145,6 @@ static func _malla_con_contorno(malla: Mesh) -> Mesh:
 	if _mallas_contorno.has(clave):
 		return _mallas_contorno[clave]
 	var nueva := ArrayMesh.new()
-	# Las claves de forma (la boca animada, caras_blender.py) se conservan.
 	nueva.blend_shape_mode = malla.blend_shape_mode
 	for b in malla.get_blend_shape_count():
 		nueva.add_blend_shape(malla.get_blend_shape_name(b))
@@ -168,36 +168,71 @@ static func _malla_con_contorno(malla: Mesh) -> Mesh:
 	return nueva
 
 
-## Cada pieza con su malla y su transformación relativa a este nodo, en la pose actual
-## (para armar el ragdoll): [[nombre, MeshInstance3D, Transform3D], ...].
-func piezas_con_transformacion() -> Array:
+## Lo que ocupa cada hueso: la caja de los vértices que mueve sobre todo él, en los ejes del hueso
+## (su eje Y va a lo largo del miembro). Una vez por modelo.
+func cajas_de_huesos() -> Dictionary:
+	if _cajas_por_modelo.has(modelo):
+		return _cajas_por_modelo[modelo]
+	var cajas := {}
+	var arreglos := _malla.mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arreglos[Mesh.ARRAY_VERTEX]
+	var indices_huesos: PackedInt32Array = arreglos[Mesh.ARRAY_BONES]
+	var pesos: PackedFloat32Array = arreglos[Mesh.ARRAY_WEIGHTS]
+	var por_vertice := indices_huesos.size() / maxi(vertices.size(), 1)
+	# Los índices de la piel son de sus "binds": se pasan a huesos del esqueleto.
+	var piel := _malla.skin
+	var hueso_de_bind := {}
+	for b in piel.get_bind_count():
+		var nombre := String(piel.get_bind_name(b))
+		hueso_de_bind[b] = _esqueleto.find_bone(nombre) if nombre != "" else piel.get_bind_bone(b)
+	var inversa := {}
+	for i in _reposo:
+		inversa[i] = _esqueleto.get_bone_global_rest(i).affine_inverse()
+	for v in vertices.size():
+		var mejor := -1
+		var mejor_peso := 0.0
+		for k in por_vertice:
+			var w := pesos[v * por_vertice + k]
+			if w > mejor_peso:
+				mejor_peso = w
+				mejor = hueso_de_bind.get(indices_huesos[v * por_vertice + k], -1)
+		if not inversa.has(mejor):
+			continue
+		var p: Vector3 = inversa[mejor] * (_malla.transform * vertices[v])
+		var nombre := _esqueleto.get_bone_name(mejor)
+		cajas[nombre] = AABB(p, Vector3.ZERO) if not cajas.has(nombre) else (cajas[nombre] as AABB).expand(p)
+	_cajas_por_modelo[modelo] = cajas
+	return cajas
+
+
+## Para el ragdoll: cada hueso con su pose actual respecto a este nodo y su caja (en sus ejes):
+## [[nombre, Transform3D, AABB], ...]. Sin la Cadera, que no mueve vértices.
+func huesos_para_ragdoll() -> Array:
 	var lista := []
-	for nombre in _piezas:
-		var pieza: MeshInstance3D = _piezas[nombre]
-		if pieza.mesh != null:
-			lista.append([nombre, pieza, _figura.transform * _en_figura(pieza)])
+	var cajas := cajas_de_huesos()
+	for nombre in _huesos:
+		if not cajas.has(nombre):
+			continue
+		var i: int = _huesos[nombre]
+		lista.append([nombre, _figura.transform * _en_figura * _esqueleto.get_bone_global_pose(i), cajas[nombre]])
 	return lista
 
 
-## Transformación de una pieza respecto a la figura (la pantorrilla cuelga del muslo).
-func _en_figura(pieza: Node3D) -> Transform3D:
-	var t := pieza.transform
-	var padre := pieza.get_parent()
-	while padre != null and padre != _figura and padre is Node3D:
-		t = (padre as Node3D).transform * t
-		padre = padre.get_parent()
-	return t
+## Para el ragdoll: una copia del esqueleto con su malla (y la cara como está), que el ragdoll
+## mueve hueso por hueso. Se cuelga donde va el Torso; devuelve también su lugar relativo a él.
+func copia_para_ragdoll() -> Array:
+	var copia: Skeleton3D = _esqueleto.duplicate()
+	for b in _malla.mesh.get_blend_shape_count():
+		var malla_copia: MeshInstance3D = copia.get_node(NodePath(_malla.name))
+		malla_copia.set_blend_shape_value(b, _malla.get_blend_shape_value(b))
+	var torso: Transform3D = _figura.transform * _en_figura * _esqueleto.get_bone_global_pose(_huesos["Torso"])
+	return [copia, torso.affine_inverse() * _figura.transform * _en_figura, _cabeza_oculta]
 
 
 ## Muestra u oculta toda la figura (mientras el personaje anda hecho ragdoll).
 func mostrar(visible_figura: bool) -> void:
 	if _figura != null:
 		_figura.visible = visible_figura
-
-
-## Si el modelo ya viene cortado con rodillas (muslo y pantorrilla).
-func tiene_rodillas() -> bool:
-	return _piezas.has("PantorrillaIzquierda")
 
 
 ## Mueve la boca como si hablara durante `segundos` (si el modelo tiene cara animada).
@@ -210,25 +245,26 @@ func gritar(si: bool) -> void:
 	_gritando = si
 
 
-## Oculta la cabeza (para la cámara en primera persona del propio jugador).
+## Oculta la cabeza (para la cámara en primera persona del propio jugador): el hueso se encoge.
 func ocultar_cabeza(ocultar: bool) -> void:
-	if _piezas.has("Cabeza"):
-		_piezas["Cabeza"].visible = not ocultar
+	_cabeza_oculta = ocultar
+	if _huesos.has("Cabeza"):
+		_esqueleto.set_bone_pose_scale(_huesos["Cabeza"], Vector3.ONE * (0.001 if ocultar else 1.0))
 
 
 ## Actualiza la pose. `velocidad` y `empujon` van en coordenadas de este nodo.
 func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, cargando: bool, tropezando: bool, en_el_aire: bool, sentado: bool = false, manejando: bool = false) -> void:
-	if _piezas.is_empty():
+	if _huesos.is_empty():
 		return
 	var rapidez := Vector2(velocidad.x, velocidad.z).length()
 	# El ritmo sigue a la velocidad: un ciclo (dos pasos) cada dos zancadas, así los pies no patinan.
 	var zancada := maxf(altura * 0.42, 0.3)
 	_paso = lerpf(_paso, clampf(rapidez / 2.2, 0.0, 1.0), 1.0 - exp(-8.0 * delta))
 	_fase = wrapf(_fase + delta * PI * rapidez / zancada, 0.0, TAU)
-	_reposo = wrapf(_reposo + delta * 1.7, 0.0, TAU)
+	_reloj = wrapf(_reloj + delta * 1.7, 0.0, TAU)
 	var amplitud := deg_to_rad(18.0 + 12.0 * _paso) * _paso
 	var balanceo := sin(_fase) * amplitud
-	# Caminando de lado o hacia atrás se balancea menos (no tiene rodillas).
+	# Caminando de lado o hacia atrás se balancea menos.
 	var de_frente := absf(velocidad.z) / maxf(rapidez, 0.001)
 	balanceo *= lerpf(0.6, 1.0, de_frente)
 
@@ -239,7 +275,7 @@ func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, 
 	var rodilla_izq := -maxf(0.0, cos(_fase)) * amplitud * 1.3
 	var rodilla_der := -maxf(0.0, -cos(_fase)) * amplitud * 1.3
 	# Brazos al revés de las piernas, un poco abiertos; en reposo cuelgan respirando.
-	var respiro := sin(_reposo) * (1.0 - _paso)
+	var respiro := sin(_reloj) * (1.0 - _paso)
 	var abrir := deg_to_rad(4.0 + 2.0 * respiro)
 	var brazo_izq := Vector3(-balanceo * 0.9, 0.0, -abrir)
 	var brazo_der := Vector3(balanceo * 0.9, 0.0, abrir)
@@ -249,9 +285,9 @@ func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, 
 	var cabeza := Vector3(deg_to_rad(1.5) * respiro, -balanceo * 0.15, 0.0)
 	# Los hombros giran contra la cadera y la cabeza sigue viendo al frente.
 	var torso := Vector3(0.0, balanceo * 0.15, 0.0)
-	# Con piernas rígidas, la cadera baja cuando las piernas se abren: el cuerpo sube y baja como
-	# un péndulo y los pies se quedan en el piso. La cadera se mece hacia la pierna que apoya.
-	var rebote := -altura_cadera * (1.0 - cos(balanceo)) * 0.8 + 0.004 * respiro
+	# Con las piernas abiertas la cadera baja: el cuerpo sube y baja al caminar, y se mece hacia la
+	# pierna que apoya.
+	var rebote := -altura_cadera * (1.0 - cos(balanceo)) * 0.6 + 0.004 * respiro
 	var meneo := cos(_fase) * deg_to_rad(3.0) * _paso
 	# Caminando se echa un poco hacia adelante.
 	var adelante := -deg_to_rad(4.0) * _paso
@@ -270,7 +306,7 @@ func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, 
 	if tropezando:
 		# Aspavientos: brazos girando y piernas trastabillando.
 		andando = false
-		var agitar := sin(_reposo * 6.0)
+		var agitar := sin(_reloj * 6.0)
 		brazo_izq = Vector3(deg_to_rad(100.0 + 60.0 * agitar), 0.0, deg_to_rad(-40.0))
 		brazo_der = Vector3(deg_to_rad(100.0 - 60.0 * agitar), 0.0, deg_to_rad(40.0))
 		codo_izq = deg_to_rad(40.0 + 30.0 * agitar)
@@ -286,9 +322,8 @@ func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, 
 		codo_izq = deg_to_rad(45.0)
 		codo_der = deg_to_rad(45.0)
 	if sentado:
-		# Piernas al frente y manos sobre las rodillas.
+		# Muslos al frente y pantorrillas hacia abajo, como en una silla; manos sobre las rodillas.
 		andando = false
-		# Muslos al frente y pantorrillas hacia abajo, como en una silla.
 		pierna_izq = deg_to_rad(85.0)
 		pierna_der = deg_to_rad(85.0)
 		rodilla_izq = deg_to_rad(-85.0)
@@ -305,8 +340,8 @@ func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, 
 		codo_izq = deg_to_rad(45.0)
 		codo_der = deg_to_rad(45.0)
 	if sujetado:
-		# Brazo derecho arriba, agarrado del pasamanos o del respaldo. Se abre hacia afuera (+Z gira
-		# la mano hacia la derecha) para que no pase por enfrente de la cara.
+		# Brazo derecho arriba, agarrado del pasamanos o del respaldo, abierto hacia afuera para que
+		# no pase por enfrente de la cara.
 		brazo_der = Vector3(deg_to_rad(165.0), 0.0, deg_to_rad(25.0))
 		codo_der = deg_to_rad(10.0)
 
@@ -335,8 +370,8 @@ func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, 
 	_animar_cara(delta, tropezando or en_el_aire)
 
 
-## Parpadea cada pocos segundos y mueve la mandíbula: cerrada en reposo, abierta al gritar o del
-## susto, y abre y cierra al hablar.
+## Parpadea cada pocos segundos y mueve la boca: cerrada en reposo, abierta al gritar o del susto,
+## y abre y cierra al hablar.
 func _animar_cara(delta: float, susto: bool) -> void:
 	if _cara.is_empty():
 		return
@@ -357,7 +392,7 @@ func _animar_cara(delta: float, susto: bool) -> void:
 			cierre = 0.0
 		for material: ShaderMaterial in parpados:
 			material.set_shader_parameter("cierre", cierre)
-	if _cara.cabeza == null:
+	if _cara.malla == null:
 		return
 	_hablando = maxf(0.0, _hablando - delta)
 	var objetivo := 0.0
@@ -365,15 +400,23 @@ func _animar_cara(delta: float, susto: bool) -> void:
 		objetivo = 1.0
 	elif _hablando > 0.0:
 		# Abre y cierra como al decir sílabas.
-		objetivo = clampf(0.55 + 0.45 * sin(_reposo * 9.0) * sin(_reposo * 3.7 + 1.0), 0.0, 1.0)
+		objetivo = clampf(0.55 + 0.45 * sin(_reloj * 9.0) * sin(_reloj * 3.7 + 1.0), 0.0, 1.0)
 	_boca = lerpf(_boca, objetivo, 1.0 - exp(-18.0 * delta))
 	# Claves de forma: en reposo "Cerrar" completa; al abrir se pasa a "Abrir".
-	var cabeza: MeshInstance3D = _cara.cabeza
-	cabeza.set_blend_shape_value(_cara.cerrar, 1.0 - _boca)
-	cabeza.set_blend_shape_value(_cara.abrir, _boca)
+	var malla: MeshInstance3D = _cara.malla
+	malla.set_blend_shape_value(_cara.cerrar, 1.0 - _boca)
+	malla.set_blend_shape_value(_cara.abrir, _boca)
 
 
+## Gira un hueso hacia `objetivo` (euler en los ejes de la figura, alrededor de su articulación):
+## la pose local es su reposo por el giro llevado a los ejes del hueso.
 func _girar(nombre: String, objetivo: Vector3, t: float) -> void:
-	if _piezas.has(nombre):
-		var pieza: Node3D = _piezas[nombre]
-		pieza.rotation = pieza.rotation.lerp(objetivo, t)
+	if not _huesos.has(nombre):
+		return
+	var actual: Vector3 = _giros.get(nombre, Vector3.ZERO)
+	actual = actual.lerp(objetivo, t)
+	_giros[nombre] = actual
+	var i: int = _huesos[nombre]
+	var reposo: Basis = (_reposo[i] as Transform3D).basis.orthonormalized()
+	var giro := reposo.inverse() * Basis.from_euler(actual) * reposo
+	_esqueleto.set_bone_pose_rotation(i, (_esqueleto.get_bone_rest(i).basis.orthonormalized() * giro).get_rotation_quaternion())

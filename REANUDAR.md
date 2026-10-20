@@ -1,6 +1,6 @@
 # Para reanudar el desarrollo de Bajan!
 
-Estado al 20/10/2026. Todo está en GitHub (último commit `d4e05ce`) y todas las pruebas pasan
+Estado al 20/10/2026. Todo está en GitHub y todas las pruebas pasan
 (`pruebas.bat`, etapas 0 a 6B, unos 45 minutos).
 
 ## Qué está hecho
@@ -18,10 +18,18 @@ Estado al 20/10/2026. Todo está en GitHub (último commit `d4e05ce`) y todas la
 | Caras animadas (parpadeo y boca) del voceador y el niño | `b60b810` | D50 |
 | Fresa nueva (modelo suelto en pose T), con cara animada | `8b202ab` | D50 |
 | Gótica (pasajera) y ladrón, con el evento de robo | `d4e05ce` | D51 |
+| Monedas que se salían del camión; rodillas y codos | `97e95bf` | — |
+| **Personajes con esqueleto** (piel continua, ragdoll sobre huesos) | ver `git log` | D52 |
 
 ## Qué sigue
 
-**Etapa 6B3** (la última parte de la 6B, ver D48): releer DISEÑO.md secciones 5.1, 6.2 y 6.3.
+**Físicas de los personajes** (el dueño pidió arreglarlas antes de seguir con funciones, D52):
+el "ragdoll ligero": manos que alcanzan el pasamanos o el respaldo, pies en el piso, cadera en el
+asiento real y reacciones de resorte a los empujones que se recuperan solas. Revisar también que
+los sentados no atraviesen los asientos.
+
+Luego la 
+**etapa 6B3** (la última parte de la 6B, ver D48): releer DISEÑO.md secciones 5.1, 6.2 y 6.3.
 - Penalización "bot fuera del camión": si un bot del interior sale volando, el equipo paga la mitad
   del pasaje y el bot vuelve a subir en la siguiente parada (hoy vuelve gratis).
 - Taxi del vendedor: si el camión deja abajo al vendedor jugador mientras reabastece por elección
@@ -51,8 +59,8 @@ la 9 (Steam).
 
 - Se avanza etapa por etapa; al terminar cada etapa o cambio importante se corre `pruebas.bat`
   completo y, si todo pasa, se hace commit y push a `main`.
-- Las decisiones van al final de `DECISIONES.md` (la última es D51).
+- Las decisiones van al final de `DECISIONES.md` (la última es D52).
 - Personajes nuevos de Tripo: se aligeran con Blender (200 000 caras, textura de 4K), se guardan en
   `modelos/fuentes/`, se les agrega una hoja y sus medidas en `modelos/personajes.cfg` y se corre
-  `procesar_personajes.bat --forzar <nombre>` (Blender 5.0 tapa los cortes, reduce, arma la textura,
-  pone la boca animada y comprime la textura).
+  `procesar_personajes.bat --forzar <nombre>` (Blender 5.0 une las piezas en una malla con esqueleto,
+  reduce, arma la textura, pone la boca animada y comprime la textura). Sin Blender ya no funciona.
