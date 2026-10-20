@@ -61,16 +61,26 @@ static func agarraderas() -> Array:
 ## Si hay una agarradera al alcance: a menos de `alcance` del hombro y no más alta que `alcance_altura`
 ## sobre los pies. `pies` va en coordenadas del camión.
 static func agarradera_cerca(pies: Vector3, alcance_altura: float, alcance: float) -> bool:
+	return punto_de_agarre(pies, alcance_altura, alcance).is_finite()
+
+
+## El punto de agarradera más cercano al hombro que cumpla lo mismo que `agarradera_cerca`
+## (dónde va la mano), o Vector3.INF si no hay ninguna.
+static func punto_de_agarre(pies: Vector3, alcance_altura: float, alcance: float) -> Vector3:
 	var hombro := pies + Vector3.UP * alcance_altura * 0.65
+	var mejor := Vector3.INF
+	var mejor_distancia := INF
 	for segmento in agarraderas():
 		var a: Vector3 = segmento[0]
 		var b: Vector3 = segmento[1]
 		var ab := b - a
 		var t := clampf((hombro - a).dot(ab) / ab.length_squared(), 0.0, 1.0)
 		var punto := a + ab * t
-		if punto.y - pies.y <= alcance_altura and punto.distance_to(hombro) <= alcance:
-			return true
-	return false
+		var distancia := punto.distance_to(hombro)
+		if punto.y - pies.y <= alcance_altura and distancia <= alcance and distancia < mejor_distancia:
+			mejor = punto
+			mejor_distancia = distancia
+	return mejor
 
 
 static func _caja(medidas: Vector3, posicion: Vector3, rotacion: Vector3) -> Array:

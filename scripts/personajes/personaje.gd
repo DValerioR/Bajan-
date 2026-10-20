@@ -6,6 +6,10 @@ extends Node3D
 ## al doblar una rodilla o un codo se dobla en lugar de partirse (D52). No tiene física; la lógica
 ## vive en CuerpoPersonaje y aquí solo se dibuja. Origen entre los pies, mirando a -Z.
 ##
+## Encima de la animación va un "ragdoll ligero": la mano que se sujeta alcanza la agarradera de
+## verdad, los pies no se hunden en el piso (ni flotan al estar parado), sentado la cadera queda
+## sobre el asiento, y el cuerpo se mece como un resorte con los empujones y se recupera solo.
+##
 ## Huesos: Cadera (raíz) > Torso > Cabeza, Brazo > Antebrazo; Cadera > Pierna > Pantorrilla
 ## (Izquierdo/Derecho). Las rotaciones de la animación van en los ejes de la figura (x: a su
 ## derecha, y: arriba, z: hacia atrás), alrededor de la articulación de cada hueso.
@@ -31,6 +35,10 @@ var ancho: float = 0.8
 var altura_cadera: float = 0.8
 ## Mano derecha en coordenadas de este nodo (para colocar lo que carga).
 var mano_derecha := Vector3(0.3, 0.9, 0.0)
+## Dónde se agarra la mano al sujetarse, en coordenadas de este nodo (Vector3.INF: en ningún lado).
+var agarre := Vector3.INF
+## Altura del asiento sobre el piso: sentado, el piso queda a altura_cadera - altura_asiento.
+var altura_asiento: float = 0.45
 
 var _figura: Node3D
 var _esqueleto: Skeleton3D
@@ -57,6 +65,24 @@ var _gritando: bool = false
 var _boca: float = 0.0
 var _para_parpadear: float = randf_range(1.0, 4.0)
 var _parpadeo: float = -1.0
+## Para alcanzar con manos y pies: la punta de la mano (en el hueso del antebrazo) y la planta del
+## pie (en el de la pantorrilla), por lado, y a qué altura queda la planta en reposo.
+var _mano_local: Dictionary = {}
+var _planta_local: Dictionary = {}
+var _altura_planta: Dictionary = {}
+## Lo que hay de la articulación de la cadera a la parte de atrás del muslo (sentado, al asiento).
+var _grosor_muslo: float = 0.0
+## Qué tanto va la mano a la agarradera (0 a 1, para que llegue y se suelte suave), con cuál mano y
+## a qué punto.
+var _peso_agarre: float = 0.0
+var _lado_agarre: String = "Derecho"
+var _ultimo_agarre := Vector3.INF
+## Velocidad del ladeo (el resorte de los empujones).
+var _vel_inclinacion := Vector3.ZERO
+
+## El resorte del ladeo: rigidez y amortiguamiento (por debajo del crítico: se pasa un poco y regresa).
+const RIGIDEZ_LADEO := 45.0
+const AMORTIGUA_LADEO := 6.0
 
 
 func _ready() -> void:
@@ -123,6 +149,32 @@ func _medir() -> void:
 		var suya: AABB = cajas["AntebrazoDerecho"]
 		var c := suya.get_center()
 		mano_derecha = (_reposo[_huesos["AntebrazoDerecho"]] as Transform3D) * Vector3(c.x, suya.end.y * 0.92, c.z)
+	_mano_local.clear()
+	_planta_local.clear()
+	_altura_planta.clear()
+	for lado in ["Izquierdo", "Derecho"]:
+		if cajas.has("Antebrazo" + lado):
+			var suya: AABB = cajas["Antebrazo" + lado]
+			_mano_local[lado] = Vector3(suya.get_center().x, suya.end.y * 0.92, suya.get_center().z)
+	var grosores := []
+	for lado in ["Izquierda", "Derecha"]:
+		if cajas.has("Pantorrilla" + lado):
+			var suya: AABB = cajas["Pantorrilla" + lado]
+			var planta := Vector3(suya.get_center().x, suya.end.y, suya.get_center().z)
+			_planta_local[lado] = planta
+			_altura_planta[lado] = ((_reposo[_huesos["Pantorrilla" + lado]] as Transform3D) * planta).y
+		if cajas.has("Pierna" + lado):
+			# Lo más atrás del muslo, en los ejes del hueso: sentado, eso es lo que va abajo.
+			var suya: AABB = cajas["Pierna" + lado]
+			var atras := (_reposo[_huesos["Pierna" + lado]] as Transform3D).basis.orthonormalized().inverse() * Vector3.BACK
+			var lo_mas := 0.0
+			for k in 8:
+				lo_mas = maxf(lo_mas, suya.get_endpoint(k).dot(atras))
+			grosores.append(lo_mas)
+	var suma := 0.0
+	for g in grosores:
+		suma += g
+	_grosor_muslo = clampf(suma / maxf(grosores.size(), 1) * 0.8, 0.0, 0.2)
 
 
 static func _relativa_a(nodo: Node3D, raiz: Node3D) -> Transform3D:
@@ -340,10 +392,30 @@ func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, 
 		codo_izq = deg_to_rad(45.0)
 		codo_der = deg_to_rad(45.0)
 	if sujetado:
-		# Brazo derecho arriba, agarrado del pasamanos o del respaldo, abierto hacia afuera para que
-		# no pase por enfrente de la cara.
-		brazo_der = Vector3(deg_to_rad(165.0), 0.0, deg_to_rad(25.0))
-		codo_der = deg_to_rad(10.0)
+		# Un brazo arriba, agarrado del pasamanos o del respaldo, abierto hacia afuera para que no
+		# pase por enfrente de la cara: el del lado de la agarradera (si carga algo, el izquierdo).
+		# Luego la mano alcanza el punto exacto (_alcanzar).
+		var izquierdo := cargando or (agarre.is_finite() and agarre.x < -0.05)
+		_lado_agarre = "Izquierdo" if izquierdo else "Derecho"
+		if izquierdo:
+			brazo_izq = Vector3(deg_to_rad(165.0), 0.0, deg_to_rad(-25.0))
+			codo_izq = deg_to_rad(10.0)
+		else:
+			brazo_der = Vector3(deg_to_rad(165.0), 0.0, deg_to_rad(25.0))
+			codo_der = deg_to_rad(10.0)
+
+	# Todo el cuerpo se ladea hacia donde lo empuja el camión (frente = -Z), como un resorte: los
+	# golpes (sacudir) le dan velocidad y regresa solo. La cabeza se queda un poco atrás y, sin
+	# agarrarse, los brazos se abren para no caerse.
+	var objetivo := Vector3(empujon.z, 0.0, -empujon.x) * deg_to_rad(2.2)
+	objetivo = objetivo.limit_length(deg_to_rad(25.0))
+	_vel_inclinacion += ((objetivo - _inclinacion) * RIGIDEZ_LADEO - _vel_inclinacion * AMORTIGUA_LADEO) * delta
+	_inclinacion = (_inclinacion + _vel_inclinacion * delta).limit_length(deg_to_rad(35.0))
+	cabeza -= Vector3(_vel_inclinacion.x, 0.0, _vel_inclinacion.z) * 0.08
+	if not (sujetado or cargando or sentado or manejando or tropezando):
+		var desequilibrio := clampf(_inclinacion.length() / deg_to_rad(20.0), 0.0, 1.0)
+		brazo_izq.z -= desequilibrio * deg_to_rad(45.0)
+		brazo_der.z += desequilibrio * deg_to_rad(45.0)
 
 	var t := 1.0 - exp(-14.0 * delta)
 	_girar("PiernaIzquierda", Vector3(pierna_izq, 0.0, 0.0), t)
@@ -357,17 +429,99 @@ func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, 
 	_girar("Cabeza", cabeza, t)
 	_girar("Torso", torso if andando else Vector3.ZERO, t)
 
-	# Todo el cuerpo se ladea hacia donde lo empuja el camión (frente = -Z).
-	var objetivo := Vector3(empujon.z, 0.0, -empujon.x) * deg_to_rad(2.2)
-	objetivo = objetivo.limit_length(deg_to_rad(25.0))
-	_inclinacion = _inclinacion.lerp(objetivo, 1.0 - exp(-6.0 * delta))
 	if not andando:
 		rebote = 0.0
 		meneo = 0.0
 		adelante = 0.0
+	if sentado:
+		# La cadera sobre el asiento, no hundida: se sube lo que mide el muslo por detrás.
+		rebote = _grosor_muslo
 	_figura.rotation = Vector3(_inclinacion.x + adelante, 0.0, _inclinacion.z + meneo)
 	_figura.position.y = lerpf(_figura.position.y, rebote, t)
+	_alcanzar(delta, sujetado, sentado, en_el_aire, tropezando)
 	_animar_cara(delta, tropezando or en_el_aire)
+
+
+## Un golpe directo (`golpe`: cambio de velocidad en m/s, en coordenadas de este nodo): el cuerpo se
+## mece hacia allá y regresa solo.
+func sacudir(golpe: Vector3) -> void:
+	_vel_inclinacion += Vector3(golpe.z, 0.0, -golpe.x) * 0.5
+	_vel_inclinacion = _vel_inclinacion.limit_length(4.0)
+
+
+## Sobre la pose de la animación: la mano que se sujeta va a la agarradera y los pies no se hunden en
+## el piso (parado, tampoco flotan; sentado, si la pierna no cabe, sube la rodilla).
+func _alcanzar(delta: float, sujetado: bool, sentado: bool, en_el_aire: bool, tropezando: bool) -> void:
+	var de_esqueleto := _figura.transform * _esqueleto.transform
+	var a_esqueleto := de_esqueleto.affine_inverse()
+	var quiere := sujetado and agarre.is_finite()
+	if quiere:
+		_ultimo_agarre = agarre
+	_peso_agarre = move_toward(_peso_agarre, 1.0 if quiere else 0.0, delta * 5.0)
+	if _peso_agarre > 0.0 and _ultimo_agarre.is_finite() and _mano_local.has(_lado_agarre):
+		var hacia_afuera := 1.0 if _lado_agarre == "Derecho" else -1.0
+		# El codo hacia afuera y abajo.
+		_dos_huesos("Brazo" + _lado_agarre, "Antebrazo" + _lado_agarre, _mano_local[_lado_agarre], a_esqueleto * _ultimo_agarre,
+			a_esqueleto.basis * Vector3(hacia_afuera * 0.7, -1.0, 0.3), smoothstep(0.0, 1.0, _peso_agarre))
+	if en_el_aire:
+		return
+	var piso := altura_cadera - altura_asiento if sentado else 0.0
+	for lado in ["Izquierda", "Derecha"]:
+		if not _planta_local.has(lado):
+			continue
+		var i: int = _huesos["Pantorrilla" + lado]
+		var planta := de_esqueleto * (_esqueleto.get_bone_global_pose(i) * (_planta_local[lado] as Vector3))
+		var minimo: float = piso + _altura_planta[lado]
+		var objetivo := planta
+		objetivo.y = maxf(planta.y, minimo)
+		if not sentado and not tropezando:
+			# Parado, el pie se queda en el piso aunque el cuerpo se ladee; caminando, va libre.
+			objetivo.y = lerpf(objetivo.y, minimo, 1.0 - _paso)
+		if absf(objetivo.y - planta.y) > 0.002:
+			# La rodilla hacia el frente.
+			_dos_huesos("Pierna" + lado, "Pantorrilla" + lado, _planta_local[lado], a_esqueleto * objetivo, a_esqueleto.basis * Vector3.FORWARD, 1.0)
+
+
+## Gira dos huesos encadenados (brazo y antebrazo, o muslo y pantorrilla) para que `punta` (en el
+## hueso de abajo) llegue a `objetivo`, con la articulación de en medio hacia `polo` (dirección).
+## Todo en coordenadas del esqueleto. `peso` mezcla con la pose que ya tenían.
+func _dos_huesos(arriba: String, abajo: String, punta: Vector3, objetivo: Vector3, polo: Vector3, peso: float) -> void:
+	if not _huesos.has(arriba) or not _huesos.has(abajo):
+		return
+	var i1: int = _huesos[arriba]
+	var i2: int = _huesos[abajo]
+	var g1 := _esqueleto.get_bone_global_pose(i1)
+	var g2 := _esqueleto.get_bone_global_pose(i2)
+	var s := g1.origin
+	var e := g2.origin
+	var p := g2 * punta
+	var l1 := s.distance_to(e)
+	var l2 := e.distance_to(p)
+	var hacia := objetivo - s
+	if l1 < 0.001 or l2 < 0.001 or hacia.length() < 0.001:
+		return
+	var direccion := hacia.normalized()
+	var d := clampf(hacia.length(), absf(l1 - l2) + 0.01, l1 + l2 - 0.001)
+	var meta := s + direccion * d
+	var coseno := clampf((l1 * l1 + d * d - l2 * l2) / (2.0 * l1 * d), -1.0, 1.0)
+	# La articulación de en medio se dobla hacia donde ya estaba doblada (la punta no siempre va en
+	# línea con los huesos: el pie sale hacia adelante); si iba casi recta, hacia `polo`.
+	var lado := (e - s) - direccion * (e - s).dot(direccion)
+	if lado.length() < l1 * 0.05:
+		lado = polo - direccion * polo.dot(direccion)
+		if lado.length_squared() < 0.000001:
+			return
+	lado = lado.normalized()
+	var codo := s + (direccion * coseno + lado * sqrt(1.0 - coseno * coseno)) * l1
+	var giro := Quaternion.IDENTITY.slerp(Quaternion((e - s).normalized(), (codo - s).normalized()), peso)
+	_esqueleto.set_bone_global_pose(i1, Transform3D(Basis(giro) * g1.basis, s))
+	g2 = _esqueleto.get_bone_global_pose(i2)
+	e = g2.origin
+	p = g2 * punta
+	if (p - e).length() < 0.001 or (meta - e).length() < 0.001:
+		return
+	giro = Quaternion.IDENTITY.slerp(Quaternion((p - e).normalized(), (meta - e).normalized()), peso)
+	_esqueleto.set_bone_global_pose(i2, Transform3D(Basis(giro) * g2.basis, e))
 
 
 ## Parpadea cada pocos segundos y mueve la boca: cerrada en reposo, abierta al gritar o del susto,

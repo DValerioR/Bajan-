@@ -130,6 +130,8 @@ func empujar(cambio_velocidad: Vector3) -> void:
 		return
 	velocity += cambio_velocidad
 	tropezando = maxf(tropezando, parametros.duracion_tropiezo * 0.6)
+	if visual:
+		visual.sacudir(global_basis.inverse() * cambio_velocidad)
 
 
 ## Se sienta en `lugar` (pies del personaje ya en su lugar) y se queda ahí hasta `pararse()`.
@@ -231,7 +233,8 @@ func _physics_process(delta: float) -> void:
 	# Empujones del camión, sujetarse y tropezar.
 	en_suelo = is_on_floor()
 	var empujon := marco.empuje(global_position + arriba * altura * 0.5)
-	sujetado = comandos.sujetarse and marco.pasamanos_cerca(global_position, altura * 1.25, p.alcance_pasamanos)
+	var agarre := marco.punto_de_agarre(global_position, altura * 1.25, p.alcance_pasamanos) if comandos.sujetarse else Vector3.INF
+	sujetado = agarre.is_finite()
 	if en_suelo and not sujetado and empujon.length() >= p.umbral_empujon_ragdoll:
 		pide_desplomarse.emit(empujon * 0.35)
 	if en_suelo and not sujetado and empujon.length() > p.umbral_tropiezo:
@@ -276,6 +279,8 @@ func _physics_process(delta: float) -> void:
 	if visual:
 		var local_velocidad := global_basis.inverse() * horizontal
 		var local_empujon := global_basis.inverse() * aplicado
+		# La mano va a la agarradera (en las coordenadas de la figura, que son las del cuerpo).
+		visual.agarre = global_transform.affine_inverse() * agarre if sujetado else Vector3.INF
 		visual.animar(delta, local_velocidad, local_empujon, sujetado, cargado != null, tropezando > 0.0, not is_on_floor(), false)
 
 

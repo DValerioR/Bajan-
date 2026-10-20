@@ -43,6 +43,12 @@ func pasamanos_cerca(_posicion: Vector3, _alcance_altura: float, _alcance: float
 	return false
 
 
+## Dónde agarrarse (el punto de la agarradera más cercano, en el espacio del cuerpo), o
+## Vector3.INF si no hay nada al alcance.
+func punto_de_agarre(_posicion: Vector3, _alcance_altura: float, _alcance: float) -> Vector3:
+	return Vector3.INF
+
+
 ## Si el cuerpo está dentro de un camión (para la interfaz y las transiciones).
 func en_camion() -> bool:
 	return false

@@ -221,6 +221,7 @@ func _probar_robo() -> void:
 	var monedas_tras_tumbarlo := 0
 	var cayo_al_tumbarlo := 0
 	var robado_antes := 0
+	var botin_segundo := 0
 	var tiempo := 0.0
 	var visto: BotLadron = null
 	while not escena.terminada and tiempo < 900.0:
@@ -245,6 +246,8 @@ func _probar_robo() -> void:
 			elif robos == 1:
 				robos = 2
 				robado_antes = gestor.robado
+				# Lo que se llevó (el morral pudo traer más o menos de los 30 si alguien pagó).
+				botin_segundo = ladron.botin
 		if robos == 2 and gestor.robado > robado_antes:
 			break
 		await get_tree().physics_frame
@@ -252,7 +255,7 @@ func _probar_robo() -> void:
 	_verificar(ladrones >= 2, "en las paradas sube un ratero (%d)" % ladrones)
 	_verificar(robos >= 1, "el ratero alcanza al cobrador y le roba el morral")
 	_verificar(tumbado and cayo_al_tumbarlo == 30 and monedas_tras_tumbarlo > 0, "si lo tumban, se le cae el botín en monedas ($%d, %d monedas)" % [cayo_al_tumbarlo, monedas_tras_tumbarlo])
-	_verificar(robos == 2 and gestor.robado == 30, "si nadie lo detiene, se baja con el dinero ($%d)" % gestor.robado)
+	_verificar(robos == 2 and botin_segundo > 0 and gestor.robado - robado_antes == botin_segundo, "si nadie lo detiene, se baja con el dinero ($%d de $%d)" % [gestor.robado - robado_antes, botin_segundo])
 	_verificar(not gestor.historial.is_empty() and gestor.historial.all(func(t): return t == "robo"), "solo pasan robos cuando solo están encendidos los robos")
 	escena.queue_free()
 	Ruta.eventos_activos = null

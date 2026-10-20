@@ -477,5 +477,9 @@ Aquí se agregan las decisiones que se tomen durante el desarrollo: la elección
   - **Animación:** la misma de antes (caminar, sentarse, sujetarse, cargar, tropezar, manejar), ahora girando huesos: la piel se dobla en rodillas, codos, hombros y cadera en lugar de abrirse. La cabeza del jugador en primera persona se oculta encogiendo su hueso. Los párpados van pegados al hueso de la cabeza.
   - **Ragdoll:** una caja física por hueso (sin la Cadera), unida a la de arriba con una articulación de cono; lo que se ve es una copia del esqueleto con su malla cuyos huesos siguen a las cajas, así el cuerpo tirado también se ve continuo. Sigue funcionando con el interior del camión (cada caja tiene su marcador "Visual" que pasa a su reflejo).
   - **Desprendimiento de extremidades (sección 8, etapa 7):** ya no hay piezas sueltas que se puedan soltar tal cual; cuando llegue la etapa 7 se decide con el dueño (por ejemplo, separar la parte de la malla de ese hueso en ese momento).
-  - **Siguiente paso (ragdoll ligero):** manos que alcanzan el pasamanos o el respaldo, pies en el piso, cadera en el asiento real y reacciones de resorte a los empujones que se recuperan solas.
+  - **Ragdoll ligero** (encima de la animación, en `personaje.gd`; los personajes no pierden el control):
+    - **Manos:** al sujetarse, la mano alcanza el punto real de la agarradera más cercana (pasamanos, poste o respaldo; `GeometriaInterior.punto_de_agarre`), con la del lado de la agarradera (la izquierda si carga algo). Llega y se suelta suave.
+    - **Pies:** no se hunden en el piso; parado tampoco flotan, aunque el cuerpo se ladee. Caminando van libres. Sentado, si la pierna no cabe, sube la rodilla.
+    - **Sentado:** la cadera queda sobre el asiento (se sube lo que mide el muslo por detrás), no hundida en él.
+    - **Empujones:** el ladeo es un resorte que se pasa un poco y regresa solo; un golpe directo (`sacudir`) le da un empujón extra. La cabeza se queda un poco atrás y, sin agarrarse, los brazos se abren para no caerse.
 - *Secciones:* 3, 8, 10, etapa 2.

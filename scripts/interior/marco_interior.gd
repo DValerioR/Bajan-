@@ -45,5 +45,9 @@ func pasamanos_cerca(posicion: Vector3, alcance_altura: float, alcance: float) -
 	return GeometriaInterior.agarradera_cerca(posicion, alcance_altura, alcance)
 
 
+func punto_de_agarre(posicion: Vector3, alcance_altura: float, alcance: float) -> Vector3:
+	return GeometriaInterior.punto_de_agarre(posicion, alcance_altura, alcance)
+
+
 func en_camion() -> bool:
 	return true

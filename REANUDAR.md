@@ -19,14 +19,14 @@ Estado al 20/10/2026. Todo está en GitHub y todas las pruebas pasan
 | Fresa nueva (modelo suelto en pose T), con cara animada | `8b202ab` | D50 |
 | Gótica (pasajera) y ladrón, con el evento de robo | `d4e05ce` | D51 |
 | Monedas que se salían del camión; rodillas y codos | `97e95bf` | — |
-| **Personajes con esqueleto** (piel continua, ragdoll sobre huesos) | ver `git log` | D52 |
+| **Personajes con esqueleto** (piel continua, ragdoll sobre huesos) | `db03ce4` | D52 |
+| Ragdoll ligero: manos a la agarradera, pies en el piso, cadera en el asiento, resorte | ver `git log` | D52 |
 
 ## Qué sigue
 
-**Físicas de los personajes** (el dueño pidió arreglarlas antes de seguir con funciones, D52):
-el "ragdoll ligero": manos que alcanzan el pasamanos o el respaldo, pies en el piso, cadera en el
-asiento real y reacciones de resorte a los empujones que se recuperan solas. Revisar también que
-los sentados no atraviesen los asientos.
+**Físicas de los personajes** (el dueño pidió arreglarlas antes de seguir con funciones, D52): ya
+están el esqueleto y el ragdoll ligero (manos a la agarradera, pies en el piso, cadera sobre el
+asiento, resorte con los empujones). Queda afinar el estiramiento del hombro al subir el brazo.
 
 Luego la 
 **etapa 6B3** (la última parte de la 6B, ver D48): releer DISEÑO.md secciones 5.1, 6.2 y 6.3.
