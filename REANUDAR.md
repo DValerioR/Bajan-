@@ -26,7 +26,7 @@ Estado al 20/10/2026. Todo está en GitHub y todas las pruebas pasan
 
 **Físicas de los personajes** (el dueño pidió arreglarlas antes de seguir con funciones, D52): ya
 están el esqueleto y el ragdoll ligero (manos a la agarradera, pies en el piso, cadera sobre el
-asiento, resorte con los empujones). Queda afinar el estiramiento del hombro al subir el brazo.
+asiento, resorte con los empujones). Hombros y texturas afinados (pesos automáticos y textura horneada desde el modelo completo).
 
 Luego la 
 **etapa 6B3** (la última parte de la 6B, ver D48): releer DISEÑO.md secciones 5.1, 6.2 y 6.3.
