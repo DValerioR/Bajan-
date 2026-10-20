@@ -142,6 +142,7 @@ func cobrar(cuerpo: CuerpoPersonaje) -> int:
 		p.pagado = true
 		if p.cuerpo.visual != null:
 			p.cuerpo.visual.hablar(0.8)
+			p.cuerpo.visual.reproducir("asentir")
 		cobrado.emit(cuerpo, monto)
 		return monto
 	return 0
@@ -635,6 +636,8 @@ func _ventana_de_parada(delta: float, parada_anterior: int) -> void:
 		if not enojados.is_empty():
 			var p: Pasajero = enojados[_azar.randi() % enojados.size()]
 			p.destino = parada_actual
+			if p.cuerpo.visual != null:
+				p.cuerpo.visual.reproducir("enojo")
 
 
 ## El camión está en una parada si va casi parado y su puerta queda cerca del poste.

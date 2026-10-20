@@ -59,8 +59,14 @@ la 9 (Steam).
 
 - Se avanza etapa por etapa; al terminar cada etapa o cambio importante se corre `pruebas.bat`
   completo y, si todo pasa, se hace commit y push a `main`.
-- Las decisiones van al final de `DECISIONES.md` (la última es D52).
-- Personajes nuevos de Tripo: se aligeran con Blender (200 000 caras, textura de 4K), se guardan en
+- Las decisiones van al final de `DECISIONES.md` (la última es D53).
+- Personajes nuevos de Tripo **con rig** (la forma preferida, D53): un personaje por modelo, en pose T
+  o A, con los brazos separados y el rig automático de Tripo. El FBX va en `modelos/fuentes/<nombre>/`,
+  se agrega una hoja con `rig`, `nombres`, `altura` y `brazos_caidos` en `modelos/personajes.cfg` y
+  se corre `procesar_personajes.bat`. Así se agregaron el señor y la abuelita nueva. Si el FBX trae
+  animaciones: `blender --background --factory-startup --python scripts/herramientas/animaciones_blender.py -- <fbx> animaciones`.
+  El dueño va a regenerar así a todos los de las hojas viejas.
+- Personajes nuevos de Tripo sin rig (los de antes): se aligeran con Blender (200 000 caras, textura de 4K), se guardan en
   `modelos/fuentes/`, se les agrega una hoja y sus medidas en `modelos/personajes.cfg` y se corre
   `procesar_personajes.bat --forzar <nombre>` (Blender 5.0 une las piezas en una malla con esqueleto,
   reduce, arma la textura, pone la boca animada y comprime la textura). Sin Blender ya no funciona.

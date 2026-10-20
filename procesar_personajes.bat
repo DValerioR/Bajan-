@@ -19,6 +19,9 @@ if not defined BLENDER (
 if errorlevel 1 exit /b 1
 "%BLENDER%" --background --factory-startup --python "%~dp0scripts\herramientas\esqueleto_blender.py" -- "%~dp0modelos\personajes"
 if errorlevel 1 exit /b 1
+rem Los que Tripo ya entrega con esqueleto (`rig` en personajes.cfg) conservan sus pesos (D53).
+"%BLENDER%" --background --factory-startup --python "%~dp0scripts\herramientas\rig_tripo_blender.py" -- "%~dp0modelos\personajes" %*
+if errorlevel 1 exit /b 1
 "%BLENDER%" --background --factory-startup --python "%~dp0scripts\herramientas\caras_blender.py" -- "%~dp0modelos\personajes"
 if errorlevel 1 exit /b 1
 "%GODOT_CONSOLA%" --headless --path "%~dp0." --import

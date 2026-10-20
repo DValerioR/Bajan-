@@ -10,6 +10,9 @@ extends Node3D
 ## verdad, los pies no se hunden en el piso (ni flotan al estar parado), sentado la cadera queda
 ## sobre el asiento, y el cuerpo se mece como un resorte con los empujones y se recupera solo.
 ##
+## Los modelos con rig de Tripo también tienen animaciones hechas (susto, asentir, enojo, pelear;
+## AnimacionesPersonaje) que se mezclan encima con `reproducir` (D53).
+##
 ## Huesos: Cadera (raíz) > Torso > Cabeza, Brazo > Antebrazo; Cadera > Pierna > Pantorrilla
 ## (Izquierdo/Derecho). Las rotaciones de la animación van en los ejes de la figura (x: a su
 ## derecha, y: arriba, z: hacia atrás), alrededor de la articulación de cada hueso.
@@ -80,6 +83,27 @@ var _ultimo_agarre := Vector3.INF
 ## Velocidad del ladeo (el resorte de los empujones).
 var _vel_inclinacion := Vector3.ZERO
 
+## Animación hecha que se está reproduciendo (AnimacionesPersonaje): su nombre, datos, tiempo, qué
+## tanto manda (0 a 1, para entrar y salir suave) y cuánto sube o baja la cadera. Sentado solo se
+## mueve de la cintura para arriba. `_descanso`: tiempo antes de poder repetir la misma.
+var _con_animaciones: bool = false
+var _clip_nombre: String = ""
+var _clip: Dictionary = {}
+var _clip_t: float = 0.0
+var _clip_peso: float = 0.0
+var _clip_subida: float = 0.0
+var _ultimo_clip: String = ""
+var _descanso: float = 0.0
+## Del clip a cada personaje: el giro de la pose T a su reposo, por hueso de brazos y piernas.
+var _de_t: Dictionary = {}
+const PADRE_HUESO := {
+	"Torso": "Cadera", "Cabeza": "Torso", "BrazoIzquierdo": "Torso", "BrazoDerecho": "Torso",
+	"AntebrazoIzquierdo": "BrazoIzquierdo", "AntebrazoDerecho": "BrazoDerecho",
+	"PiernaIzquierda": "Cadera", "PiernaDerecha": "Cadera",
+	"PantorrillaIzquierda": "PiernaIzquierda", "PantorrillaDerecha": "PiernaDerecha",
+}
+const DE_CINTURA_ABAJO := ["Cadera", "PiernaIzquierda", "PiernaDerecha", "PantorrillaIzquierda", "PantorrillaDerecha"]
+
 ## El resorte del ladeo: rigidez y amortiguamiento (por debajo del crítico: se pasa un poco y regresa).
 const RIGIDEZ_LADEO := 45.0
 const AMORTIGUA_LADEO := 6.0
@@ -130,6 +154,8 @@ func _cargar() -> void:
 	EstiloToon.aplicar(_figura)
 	_cara = CaraPersonaje.armar(modelo, _malla, _esqueleto, _en_figura)
 	_medir()
+	_con_animaciones = AnimacionesPersonaje.tiene_rig(modelo)
+	_de_t.clear()
 
 
 ## Estatura, ancho, cuello, cadera y mano, sacados de la malla y del esqueleto.
@@ -428,6 +454,7 @@ func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, 
 	_girar("AntebrazoDerecho", Vector3(codo_der, 0.0, 0.0), t)
 	_girar("Cabeza", cabeza, t)
 	_girar("Torso", torso if andando else Vector3.ZERO, t)
+	_aplicar_clip(delta, sentado)
 
 	if not andando:
 		rebote = 0.0
@@ -436,10 +463,85 @@ func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, 
 	if sentado:
 		# La cadera sobre el asiento, no hundida: se sube lo que mide el muslo por detrás.
 		rebote = _grosor_muslo
+	rebote += _clip_subida
 	_figura.rotation = Vector3(_inclinacion.x + adelante, 0.0, _inclinacion.z + meneo)
 	_figura.position.y = lerpf(_figura.position.y, rebote, t)
 	_alcanzar(delta, sujetado, sentado, en_el_aire, tropezando)
 	_animar_cara(delta, tropezando or en_el_aire)
+
+
+## Reproduce una animación hecha (si el modelo las tiene): "susto", "asentir", "enojo" o "pelear".
+## Devuelve si empezó. No interrumpe la que va ni repite la misma enseguida.
+func reproducir(nombre: String) -> bool:
+	if not _con_animaciones or _clip_nombre != "" or (nombre == _ultimo_clip and _descanso > 0.0):
+		return false
+	var datos := AnimacionesPersonaje.clip(nombre)
+	if datos.is_empty() or int(datos.cuadros) < 2:
+		return false
+	_clip_nombre = nombre
+	_clip = datos
+	_clip_t = 0.0
+	_ultimo_clip = nombre
+	return true
+
+
+## Qué animación hecha se está reproduciendo ("" si ninguna).
+func animacion_actual() -> String:
+	return _clip_nombre
+
+
+## Mezcla la animación hecha encima de la pose: entra y sale suave. Cada hueso toma el giro del
+## clip respecto a la pose T, corregido por el reposo de este personaje (los brazos caídos).
+func _aplicar_clip(delta: float, sentado: bool) -> void:
+	_descanso = maxf(0.0, _descanso - delta)
+	if _huesos.has("Cadera"):
+		# La Cadera no la mueve la animación de código: vuelve a su reposo en cada cuadro.
+		var i_cadera: int = _huesos["Cadera"]
+		_esqueleto.set_bone_pose_rotation(i_cadera, _esqueleto.get_bone_rest(i_cadera).basis.get_rotation_quaternion())
+	if _clip_nombre == "":
+		_clip_subida = 0.0
+		return
+	var fps: float = _clip.fps
+	var cuadros: int = _clip.cuadros
+	var duracion := (cuadros - 1) / fps
+	_clip_t += delta
+	if _clip_t >= duracion:
+		_clip_peso = move_toward(_clip_peso, 0.0, delta * 4.0)
+		if _clip_peso <= 0.0:
+			_clip_nombre = ""
+			_clip = {}
+			_clip_subida = 0.0
+			_descanso = 3.0
+			return
+	else:
+		_clip_peso = move_toward(_clip_peso, 1.0, delta * 5.0)
+	var posicion := clampf(_clip_t * fps, 0.0, cuadros - 1.0)
+	var k := mini(int(posicion), cuadros - 2)
+	var fraccion := posicion - k
+	var peso := smoothstep(0.0, 1.0, _clip_peso)
+	var giros := {}
+	for nombre in HUESOS:
+		if not _huesos.has(nombre) or not (_clip.huesos as Dictionary).has(nombre):
+			continue
+		var lista: Array = _clip.huesos[nombre]
+		var giro: Quaternion = (lista[k] as Quaternion).slerp(lista[k + 1], fraccion)
+		if sentado and nombre in DE_CINTURA_ABAJO:
+			giro = Quaternion.IDENTITY
+		var i: int = _huesos[nombre]
+		var reposo: Basis = (_reposo[i] as Transform3D).basis.orthonormalized()
+		# Brazos y piernas: el clip gira desde la pose T; este personaje está en su reposo.
+		if (_clip.en_t as Dictionary).has(nombre) and nombre != "Cadera" and nombre != "Torso" and nombre != "Cabeza":
+			if not _de_t.has(nombre):
+				var en_t: Vector3 = _clip.en_t[nombre]
+				_de_t[nombre] = Quaternion(en_t.normalized(), (reposo * Vector3.UP).normalized())
+			giro = giro * (_de_t[nombre] as Quaternion).inverse()
+		giros[nombre] = giro
+		var del_padre: Quaternion = giros.get(PADRE_HUESO.get(nombre, ""), Quaternion.IDENTITY)
+		var propio := Basis(del_padre.inverse() * giro)
+		var local := (_esqueleto.get_bone_rest(i).basis.orthonormalized() * (reposo.inverse() * propio * reposo)).get_rotation_quaternion()
+		_esqueleto.set_bone_pose_rotation(i, _esqueleto.get_bone_pose_rotation(i).slerp(local, peso))
+	var subidas: Array = _clip.cadera_y
+	_clip_subida = 0.0 if sentado else lerpf(float(subidas[k]), float(subidas[k + 1]), fraccion) * altura * peso
 
 
 ## Un golpe directo (`golpe`: cambio de velocidad en m/s, en coordenadas de este nodo): el cuerpo se
@@ -550,9 +652,9 @@ func _animar_cara(delta: float, susto: bool) -> void:
 		return
 	_hablando = maxf(0.0, _hablando - delta)
 	var objetivo := 0.0
-	if _gritando or susto:
+	if _gritando or susto or _clip_nombre == "susto":
 		objetivo = 1.0
-	elif _hablando > 0.0:
+	elif _hablando > 0.0 or _clip_nombre == "enojo":
 		# Abre y cierra como al decir sílabas.
 		objetivo = clampf(0.55 + 0.45 * sin(_reloj * 9.0) * sin(_reloj * 3.7 + 1.0), 0.0, 1.0)
 	_boca = lerpf(_boca, objetivo, 1.0 - exp(-18.0 * delta))

@@ -188,56 +188,14 @@ def armar(ruta):
 				grupos[n].add([v.index], w / total, "REPLACE")
 
 	# --- Esqueleto ---
-	datos = bpy.data.armatures.new("Esqueleto")
-	esqueleto = bpy.data.objects.new("Esqueleto", datos)
-	bpy.context.scene.collection.objects.link(esqueleto)
-	bpy.context.view_layer.objects.active = esqueleto
-	bpy.ops.object.mode_set(mode="EDIT")
-	huesos = {}
-	for n in PADRES:
-		h = datos.edit_bones.new(n)
-		h.head = cabeza[n]
-		h.tail = cola[n]
-		# Que el eje X del hueso apunte hacia la derecha del personaje (el giro de doblar).
-		h.align_roll(Vector((0.0, -1.0, 0.0)))
-		# La Cadera es la raíz: no mueve vértices (la pelvis va con el torso y las piernas).
-		h.use_deform = n != "Cadera"
-		huesos[n] = h
-	for n, padre in PADRES.items():
-		if padre:
-			huesos[n].parent = huesos[padre]
-	bpy.ops.object.mode_set(mode="OBJECT")
+	esqueleto = crear_esqueleto(cabeza, cola)
 	cuerpo.parent = esqueleto
 	modificador = cuerpo.modifiers.new("Esqueleto", "ARMATURE")
 	modificador.object = esqueleto
 
 	# --- Pose T: bajar los brazos y dejarlo como reposo ---
 	if "brazos_caidos" in cfg:
-		grados = float(cfg["brazos_caidos"])
-		bpy.context.view_layer.objects.active = esqueleto
-		bpy.ops.object.mode_set(mode="POSE")
-		for lado, signo in (("Izquierdo", -1.0), ("Derecho", 1.0)):
-			hueso = esqueleto.pose.bones["Brazo" + lado]
-			actual = (cola["Antebrazo" + lado] - cabeza["Brazo" + lado])
-			actual = Vector((actual.x, 0.0, actual.z)).normalized()
-			lado_x = 1.0 if actual.x > 0 else -1.0
-			objetivo = Vector((lado_x * math.sin(math.radians(grados)), 0.0, -math.cos(math.radians(grados))))
-			giro = actual.rotation_difference(objetivo)
-			# La rotación del hueso de pose va en su espacio: se convierte desde el del mundo.
-			reposo = hueso.bone.matrix_local.to_3x3()
-			hueso.rotation_mode = "QUATERNION"
-			hueso.rotation_quaternion = (reposo.inverted() @ giro.to_matrix() @ reposo).to_quaternion()
-		bpy.context.view_layer.update()
-		bpy.ops.object.mode_set(mode="OBJECT")
-		bpy.context.view_layer.objects.active = cuerpo
-		bpy.ops.object.modifier_apply(modifier=modificador.name)
-		bpy.context.view_layer.objects.active = esqueleto
-		bpy.ops.object.mode_set(mode="POSE")
-		bpy.ops.pose.select_all(action="SELECT")
-		bpy.ops.pose.armature_apply()
-		bpy.ops.object.mode_set(mode="OBJECT")
-		modificador = cuerpo.modifiers.new("Esqueleto", "ARMATURE")
-		modificador.object = esqueleto
+		modificador = bajar_brazos(cuerpo, esqueleto, modificador, float(cfg["brazos_caidos"]), cabeza, cola)
 
 	# --- Reducir, pesos automáticos, normales del completo y textura horneada ---
 	antes = len(cuerpo.data.polygons)
@@ -279,6 +237,65 @@ def armar(ruta):
 	bpy.data.objects.remove(referencia, do_unlink=True)
 	cuerpo[MARCA] = 1
 	esqueleto[MARCA] = 1
+	exportar(ruta)
+	print("  %s: %d -> %d triángulos, con esqueleto de %d huesos%s%s%s" % (nombre, antes, len(cuerpo.data.polygons), len(PADRES), ", brazos bajados" if "brazos_caidos" in cfg else "", ", %d vértices sin peso automático" % sin_calor if sin_calor else "", ", %d triángulos de mano fundida quitados" % separadas if separadas else ""))
+
+
+def crear_esqueleto(cabeza, cola):
+	"""El esqueleto de 11 huesos del juego, con las articulaciones dadas (coordenadas del mundo)."""
+	datos = bpy.data.armatures.new("Esqueleto")
+	esqueleto = bpy.data.objects.new("Esqueleto", datos)
+	bpy.context.scene.collection.objects.link(esqueleto)
+	bpy.context.view_layer.objects.active = esqueleto
+	bpy.ops.object.mode_set(mode="EDIT")
+	huesos = {}
+	for n in PADRES:
+		h = datos.edit_bones.new(n)
+		h.head = cabeza[n]
+		h.tail = cola[n]
+		# Que el eje X del hueso apunte hacia la derecha del personaje (el giro de doblar).
+		h.align_roll(Vector((0.0, -1.0, 0.0)))
+		# La Cadera es la raíz: no mueve vértices (la pelvis va con el torso y las piernas).
+		h.use_deform = n != "Cadera"
+		huesos[n] = h
+	for n, padre in PADRES.items():
+		if padre:
+			huesos[n].parent = huesos[padre]
+	bpy.ops.object.mode_set(mode="OBJECT")
+	return esqueleto
+
+
+def bajar_brazos(cuerpo, esqueleto, modificador, grados, cabeza, cola):
+	"""Pose T: baja los brazos hasta quedar abiertos `grados` desde la vertical y deja esa pose
+	como la de reposo. Devuelve el modificador del esqueleto nuevo."""
+	bpy.context.view_layer.objects.active = esqueleto
+	bpy.ops.object.mode_set(mode="POSE")
+	for lado in ("Izquierdo", "Derecho"):
+		hueso = esqueleto.pose.bones["Brazo" + lado]
+		actual = (cola["Antebrazo" + lado] - cabeza["Brazo" + lado])
+		actual = Vector((actual.x, 0.0, actual.z)).normalized()
+		lado_x = 1.0 if actual.x > 0 else -1.0
+		objetivo = Vector((lado_x * math.sin(math.radians(grados)), 0.0, -math.cos(math.radians(grados))))
+		giro = actual.rotation_difference(objetivo)
+		# La rotación del hueso de pose va en su espacio: se convierte desde el del mundo.
+		reposo = hueso.bone.matrix_local.to_3x3()
+		hueso.rotation_mode = "QUATERNION"
+		hueso.rotation_quaternion = (reposo.inverted() @ giro.to_matrix() @ reposo).to_quaternion()
+	bpy.context.view_layer.update()
+	bpy.ops.object.mode_set(mode="OBJECT")
+	bpy.context.view_layer.objects.active = cuerpo
+	bpy.ops.object.modifier_apply(modifier=modificador.name)
+	bpy.context.view_layer.objects.active = esqueleto
+	bpy.ops.object.mode_set(mode="POSE")
+	bpy.ops.pose.select_all(action="SELECT")
+	bpy.ops.pose.armature_apply()
+	bpy.ops.object.mode_set(mode="OBJECT")
+	modificador = cuerpo.modifiers.new("Esqueleto", "ARMATURE")
+	modificador.object = esqueleto
+	return modificador
+
+
+def exportar(ruta):
 	bpy.ops.object.select_all(action="SELECT")
 	bpy.ops.export_scene.gltf(
 		filepath=ruta,
@@ -295,7 +312,6 @@ def armar(ruta):
 		export_cameras=False,
 		export_lights=False,
 	)
-	print("  %s: %d -> %d triángulos, con esqueleto de %d huesos%s%s%s" % (nombre, antes, len(cuerpo.data.polygons), len(PADRES), ", brazos bajados" if "brazos_caidos" in cfg else "", ", %d vértices sin peso automático" % sin_calor if sin_calor else "", ", %d triángulos de mano fundida quitados" % separadas if separadas else ""))
 
 
 def pesos_automaticos(cuerpo, esqueleto):

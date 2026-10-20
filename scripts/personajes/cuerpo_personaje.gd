@@ -132,6 +132,8 @@ func empujar(cambio_velocidad: Vector3) -> void:
 	tropezando = maxf(tropezando, parametros.duracion_tropiezo * 0.6)
 	if visual:
 		visual.sacudir(global_basis.inverse() * cambio_velocidad)
+		# Al que empujan se enoja (y a veces se pone en guardia), si su modelo trae animaciones.
+		visual.reproducir("pelear" if randf() < 0.35 else "enojo")
 
 
 ## Se sienta en `lugar` (pies del personaje ya en su lugar) y se queda ahí hasta `pararse()`.
@@ -218,6 +220,9 @@ func _physics_process(delta: float) -> void:
 		cabeza.rotation = Vector3(_vertical, _giro_cabeza, 0.0)
 		comandos.mirar = Vector2.ZERO
 		if visual:
+			# Un frenazo o un volantazo fuerte asusta al que va sentado.
+			if not manejando and marco.empuje(global_position + up_direction * altura * 0.5).length() > p.umbral_tropiezo:
+				visual.reproducir("susto")
 			visual.animar(delta, Vector3.ZERO, Vector3(volante, 0.0, 0.0), false, false, false, false, true, manejando)
 		return
 
@@ -239,6 +244,9 @@ func _physics_process(delta: float) -> void:
 		pide_desplomarse.emit(empujon * 0.35)
 	if en_suelo and not sujetado and empujon.length() > p.umbral_tropiezo:
 		tropezando = p.duracion_tropiezo
+	elif sujetado and visual and empujon.length() > p.umbral_tropiezo:
+		# Agarrado no se cae, pero se asusta.
+		visual.reproducir("susto")
 	tropezando = maxf(0.0, tropezando - delta)
 	var aplicado := Vector3.ZERO
 	if en_suelo or marco.empuje_en_aire():

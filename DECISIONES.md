@@ -484,3 +484,18 @@ Aquí se agregan las decisiones que se tomen durante el desarrollo: la elección
     - **Sentado:** la cadera queda sobre el asiento (se sube lo que mide el muslo por detrás), no hundida en él.
     - **Empujones:** el ladeo es un resorte que se pasa un poco y regresa solo; un golpe directo (`sacudir`) le da un empujón extra. La cabeza se queda un poco atrás y, sin agarrarse, los brazos se abren para no caerse.
 - *Secciones:* 3, 8, 10, etapa 2.
+
+**D53. Personajes que Tripo entrega con esqueleto** (21/10/2026, con el dueño)
+- *Contexto:* el dueño generó un señor de otra forma en Tripo: un personaje solo, en pose T, con rig automático (estilo Mixamo, 65 huesos con dedos), unos 10 000 triángulos y textura de 4K propia, en FBX. Se revisó en Blender: se deforma limpio al sentarse y al subir el brazo, sus pesos son mejores que los calculados aquí, no tiene manos fundidas con el cuerpo y la textura es mucho más nítida que la de los personajes de las hojas (una textura de 4K repartida entre 6 a 8).
+- *Decisión:*
+  - **Así se generan de aquí en adelante:** un personaje por modelo, en pose T o A con los brazos separados del cuerpo, con el rig automático de Tripo, de 10 000 a 15 000 triángulos. Los de las hojas se pueden ir regenerando así (la abuelita primero).
+  - **Herramienta:** `scripts/herramientas/rig_tripo_blender.py` (lo llama `procesar_personajes.bat`). Conserva los pesos de Tripo y los junta en los 11 huesos del juego (columna → Torso; cuello y clavícula mitad y mitad; mano y dedos → Antebrazo; pie → Pantorrilla), arma el mismo esqueleto que los demás, lo voltea, lo escala a su `altura`, baja los brazos de la pose T (`brazos_caidos`) y deja la textura de 2048. No se corta ni se reduce.
+  - **En `personajes.cfg`:** una hoja con `rig` (el FBX en `modelos/fuentes/<nombre>/`) en lugar de `archivo`.
+  - **El señor** (`senor`, 1.66 m) es un pasajero nuevo.
+  - **La abuelita nueva** (21/10/2026, 1.20 m) reemplaza a la de Modelos1; viene con rig y con cuatro animaciones.
+  - **Animaciones hechas:** `scripts/herramientas/animaciones_blender.py <fbx> animaciones` las saca a `animaciones/<nombre>.json` como giros de los 11 huesos respecto a la pose T (en los ejes de la figura), así sirven para cualquier personaje con rig; cada uno las corrige con su reposo (los brazos caídos). Personaje las mezcla encima de su animación de código (`reproducir`); sentado solo de la cintura para arriba. Por decisión del dueño solo las usan los modelos con rig: los de las hojas viejas se van a regenerar así.
+    - **susto** (afraid): un frenazo o volantazo fuerte, sentado o agarrado del pasamanos.
+    - **asentir** (agree): al pagar el pasaje.
+    - **enojo** (angry): al que empujan, y al que se baja porque el camión se tardó en la parada.
+    - **pelear** (box): a veces, al que empujan (se pone en guardia).
+- *Secciones:* 3, 10.
