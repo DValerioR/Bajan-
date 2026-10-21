@@ -42,6 +42,13 @@ var mano_derecha := Vector3(0.3, 0.9, 0.0)
 var agarre := Vector3.INF
 ## Altura del asiento sobre el piso: sentado, el piso queda a altura_cadera - altura_asiento.
 var altura_asiento: float = 0.45
+## Asomado (el voceador colgado de la puerta): qué tanto se echa el cuerpo hacia `asomar_hacia`
+## (0 a 1, dirección horizontal en coordenadas de este nodo), girando sobre los pies.
+var asomado: float = 0.0
+var asomar_hacia := Vector3.ZERO
+## A dónde estira la mano libre (la que no se sujeta), en coordenadas de este nodo: el voceador
+## que jala gente desde la puerta o el que hace la parada (Vector3.INF: no la estira).
+var estirar := Vector3.INF
 
 var _figura: Node3D
 var _esqueleto: Skeleton3D
@@ -80,6 +87,9 @@ var _grosor_muslo: float = 0.0
 var _peso_agarre: float = 0.0
 var _lado_agarre: String = "Derecho"
 var _ultimo_agarre := Vector3.INF
+## Lo mismo para la mano que se estira.
+var _peso_estirar: float = 0.0
+var _ultimo_estirar := Vector3.INF
 ## Velocidad del ladeo (el resorte de los empujones).
 var _vel_inclinacion := Vector3.ZERO
 
@@ -109,6 +119,8 @@ const DE_CINTURA_ABAJO := ["Cadera", "PiernaIzquierda", "PiernaDerecha", "Pantor
 ## El resorte del ladeo: rigidez y amortiguamiento (por debajo del crítico: se pasa un poco y regresa).
 const RIGIDEZ_LADEO := 45.0
 const AMORTIGUA_LADEO := 6.0
+## Cuánto se echa hacia afuera del todo asomado.
+const ANGULO_ASOMADO := deg_to_rad(32.0)
 
 
 func _ready() -> void:
@@ -442,6 +454,15 @@ func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, 
 		else:
 			brazo_der = Vector3(deg_to_rad(165.0), 0.0, deg_to_rad(25.0))
 			codo_der = deg_to_rad(10.0)
+	if estirar.is_finite():
+		# La mano libre ya va hacia arriba y al frente: desde el brazo colgando, el alcance no sabría
+		# para dónde doblarlo. Luego llega al punto exacto (_alcanzar).
+		if sujetado and _lado_agarre == "Derecho":
+			brazo_izq = Vector3(deg_to_rad(100.0), 0.0, deg_to_rad(-30.0))
+			codo_izq = deg_to_rad(15.0)
+		else:
+			brazo_der = Vector3(deg_to_rad(100.0), 0.0, deg_to_rad(30.0))
+			codo_der = deg_to_rad(15.0)
 
 	# Todo el cuerpo se ladea hacia donde lo empuja el camión (frente = -Z), como un resorte: los
 	# golpes (sacudir) le dan velocidad y regresa solo. La cabeza se queda un poco atrás y, sin
@@ -478,6 +499,10 @@ func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, 
 		rebote = _grosor_muslo
 	rebote += _clip_subida
 	_figura.rotation = Vector3(_inclinacion.x + adelante, 0.0, _inclinacion.z + meneo)
+	if asomado > 0.0:
+		# Con el mismo signo que el ladeo: x echa la cabeza hacia +z, z la echa hacia -x.
+		var hacia := Vector3(asomar_hacia.x, 0.0, asomar_hacia.z).normalized()
+		_figura.rotation += Vector3(hacia.z, 0.0, -hacia.x) * ANGULO_ASOMADO * asomado
 	_figura.position.y = lerpf(_figura.position.y, rebote, t)
 	_alcanzar(delta, sujetado, sentado, en_el_aire, tropezando)
 	_animar_cara(delta, tropezando or en_el_aire)
@@ -583,6 +608,14 @@ func _alcanzar(delta: float, sujetado: bool, sentado: bool, en_el_aire: bool, tr
 		# El codo hacia afuera y abajo.
 		_dos_huesos("Brazo" + _lado_agarre, "Antebrazo" + _lado_agarre, _mano_local[_lado_agarre], a_esqueleto * _ultimo_agarre,
 			a_esqueleto.basis * Vector3(hacia_afuera * 0.7, -1.0, 0.3), smoothstep(0.0, 1.0, _peso_agarre))
+	# La otra mano (o la derecha, si no se sujeta) se estira hacia `estirar`, con el codo hacia abajo.
+	var lado_libre := ("Izquierdo" if _lado_agarre == "Derecho" else "Derecho") if _peso_agarre > 0.0 else "Derecho"
+	if estirar.is_finite():
+		_ultimo_estirar = estirar
+	_peso_estirar = move_toward(_peso_estirar, 1.0 if estirar.is_finite() else 0.0, delta * 4.0)
+	if _peso_estirar > 0.0 and _ultimo_estirar.is_finite() and _mano_local.has(lado_libre):
+		_dos_huesos("Brazo" + lado_libre, "Antebrazo" + lado_libre, _mano_local[lado_libre], a_esqueleto * _ultimo_estirar,
+			a_esqueleto.basis * Vector3(0.0, -1.0, 0.2), smoothstep(0.0, 1.0, _peso_estirar))
 	if en_el_aire:
 		return
 	var piso := altura_cadera - altura_asiento if sentado else 0.0

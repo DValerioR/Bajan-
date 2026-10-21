@@ -9,7 +9,7 @@ const AYUDA_FINAL := ["AYUDA_PILOTO", "AYUDA_REINICIAR_INTERIOR", "AYUDA_CONFIG"
 ## Lo propio de cada rol, entre la ayuda de caminar y la final.
 const AYUDA_ROL := {
 	"cobrador": ["AYUDA_COBRAR"],
-	"voceador": ["AYUDA_GRITAR", "AYUDA_JALAR"],
+	"voceador": ["AYUDA_GRITAR", "AYUDA_JALAR", "AYUDA_COLGARSE"],
 	"vendedor": ["AYUDA_VENDER", "AYUDA_PUESTO"],
 }
 const AYUDA_CHOFER := ["AYUDA_TITULO", "AYUDA_MANEJO", "AYUDA_VOLANTE", "AYUDA_CLAXON", "AYUDA_PUERTA", "AYUDA_MIRAR", "AYUDA_REINICIAR", "AYUDA_CONFIG", "AYUDA_SALIR"]

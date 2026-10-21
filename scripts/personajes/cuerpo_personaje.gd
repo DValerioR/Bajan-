@@ -8,7 +8,8 @@ extends CharacterBody3D
 ## una "firmeza" que la lleva hacia donde el personaje quiere caminar. Con un empujón fuerte y sin
 ## sujetarse, el personaje tropieza un momento; con uno muy fuerte (o un golpe directo) pide
 ## volverse ragdoll (`pide_desplomarse`), y GestorRagdolls decide si se puede.
-## Sentado, no lo mueve nada: va pegado a su asiento.
+## Sentado, no lo mueve nada: va pegado a su asiento. Colgado de la puerta (el voceador) es igual:
+## va fijo en el escalón, agarrado del tubo, con el cuerpo asomado hacia afuera.
 
 ## El personaje recibió un empujón o golpe suficiente para caer como ragdoll.
 signal pide_desplomarse(empujon: Vector3)
@@ -47,6 +48,15 @@ var volante: float = 0.0
 ## arranca del asiento y sale volando. 0 = nunca (los pasajeros y el bot chofer, D23). El jugador
 ## chofer sí puede salir volando (5.3).
 var umbral_salir_del_asiento: float = 0.0
+## Colgado de la puerta (va también `sentado`, fijo en su lugar): se asoma hacia `hacia_afuera`
+## (dirección en su espacio) y estira la mano libre a `mano_afuera` (en su espacio, INF = no la
+## estira). Una sacudida de al menos `umbral_soltarse` lo avienta a la calle.
+var colgado: bool = false
+var hacia_afuera := Vector3.ZERO
+var mano_afuera := Vector3.INF
+var umbral_soltarse: float = 14.0
+## Qué tanto va asomado ya (0 a 1): entra y sale suave, y la cabeza (la cámara) va con el cuerpo.
+var asomado: float = 0.0
 
 var _lugar_sentado := Transform3D()
 var _mascara := MASCARA
@@ -156,6 +166,7 @@ func sentarse(lugar: Transform3D) -> void:
 func pararse(lugar: Transform3D) -> void:
 	var giro := giro_actual() + _giro_cabeza if sentado else giro_actual()
 	sentado = false
+	_descolgar()
 	_enderezar_cabeza()
 	collision_layer = CAPA_PERSONAJES
 	collision_mask = _mascara
@@ -171,11 +182,32 @@ func _enderezar_cabeza() -> void:
 		cabeza.rotation.y = 0.0
 
 
+## Se cuelga de la puerta en `lugar` (pies en el escalón), asomándose hacia `afuera` (dirección en
+## su espacio). Se baja con `pararse()`.
+func colgarse(lugar: Transform3D, afuera: Vector3) -> void:
+	sentarse(lugar)
+	colgado = true
+	hacia_afuera = afuera.normalized()
+	asomado = 0.0
+
+
+func _descolgar() -> void:
+	colgado = false
+	asomado = 0.0
+	mano_afuera = Vector3.INF
+	if cabeza:
+		cabeza.position = Vector3(0.0, altura_ojos, 0.0)
+	if visual:
+		visual.asomado = 0.0
+		visual.estirar = Vector3.INF
+
+
 ## Se apaga mientras anda hecho ragdoll (lo llama GestorRagdolls).
 func desplomar() -> void:
 	desplomado = true
 	# Si iba sentado, sale del asiento (al levantarse queda de pie donde caiga).
 	sentado = false
+	_descolgar()
 	manejando = false
 	_soltar(Vector3.ZERO)
 	collision_layer = 0
@@ -205,12 +237,22 @@ func _physics_process(delta: float) -> void:
 	var p := parametros
 	if desplomado:
 		return
-	if sentado and umbral_salir_del_asiento > 0.0:
+	if sentado and umbral_salir_del_asiento > 0.0 and not colgado:
 		var tiron := marco.sacudida(global_position + up_direction * altura * 0.5)
 		if tiron.length() >= umbral_salir_del_asiento:
 			pide_desplomarse.emit(tiron.limit_length(12.0) * 0.6 + up_direction * 3.0)
 			if desplomado:
 				return
+	if colgado and umbral_soltarse > 0.0:
+		# Colgado, un golpe fuerte lo suelta del tubo y sale para afuera.
+		var tiron := marco.sacudida(global_position + up_direction * altura * 0.5)
+		if tiron.length() >= umbral_soltarse:
+			pide_desplomarse.emit(tiron.limit_length(12.0) * 0.6 + hacia_afuera * 4.0 + up_direction * 2.0)
+			if desplomado:
+				return
+	if colgado:
+		_animar_colgado(delta)
+		return
 	if sentado:
 		global_transform = _lugar_sentado
 		velocity = Vector3.ZERO
@@ -290,6 +332,34 @@ func _physics_process(delta: float) -> void:
 		# La mano va a la agarradera (en las coordenadas de la figura, que son las del cuerpo).
 		visual.agarre = global_transform.affine_inverse() * agarre if sujetado else Vector3.INF
 		visual.animar(delta, local_velocidad, local_empujon, sujetado, cargado != null, tropezando > 0.0, not is_on_floor(), false)
+
+
+## Colgado: fijo en el escalón, agarrado del tubo, asomado y con la mano libre estirada. Se mece con
+## los empujones del camión y puede voltear a ver como sentado.
+func _animar_colgado(delta: float) -> void:
+	global_transform = _lugar_sentado
+	velocity = Vector3.ZERO
+	sujetado = true
+	en_suelo = true
+	_giro_cabeza = clampf(_giro_cabeza + deg_to_rad(comandos.mirar.x), -GIRO_CABEZA_SENTADO, GIRO_CABEZA_SENTADO)
+	_vertical = clampf(_vertical + deg_to_rad(comandos.mirar.y), deg_to_rad(-80.0), deg_to_rad(80.0))
+	comandos.mirar = Vector2.ZERO
+	asomado = move_toward(asomado, 1.0, delta * 2.5)
+	# La cabeza (y la cámara del jugador) va con el cuerpo asomado: gira sobre los pies.
+	var afuera := global_basis.inverse() * hacia_afuera
+	afuera.y = 0.0
+	afuera = afuera.normalized()
+	var angulo := Personaje.ANGULO_ASOMADO * asomado
+	cabeza.position = afuera * altura_ojos * sin(angulo) + Vector3.UP * altura_ojos * cos(angulo)
+	cabeza.rotation = Vector3(_vertical, _giro_cabeza, 0.0)
+	if visual:
+		var empujon := marco.empuje(global_position + up_direction * altura * 0.5)
+		var agarre := marco.punto_de_agarre(global_position, altura * 1.25, parametros.alcance_pasamanos)
+		visual.agarre = global_transform.affine_inverse() * agarre if agarre.is_finite() else Vector3.INF
+		visual.asomado = asomado
+		visual.asomar_hacia = afuera
+		visual.estirar = global_transform.affine_inverse() * mano_afuera if mano_afuera.is_finite() else Vector3.INF
+		visual.animar(delta, Vector3.ZERO, global_basis.inverse() * empujon * parametros.factor_sujetado, agarre.is_finite(), false, false, false)
 
 
 ## Si choca de frente con algo bajo (una banqueta, un escalón) mientras camina, lo sube.

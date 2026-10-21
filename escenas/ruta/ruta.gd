@@ -243,6 +243,8 @@ func _crear_nodos_de_rol() -> void:
 	cobrador.entrego.connect(func(monto): _avisar_si_jugador(cobrador, tr("MSJ_ENTREGA") % monto, Color(0.7, 0.9, 1.0)))
 	cobrador.moneda_perdida.connect(func(monto): _avisar_si_jugador(cobrador, tr("MSJ_MONEDA_PERDIDA") % monto, Color(1.0, 0.5, 0.4)))
 	voceador.ayudo.connect(func(): _avisar_si_jugador(voceador, tr("MSJ_AYUDO"), Color(0.7, 0.9, 1.0)))
+	voceador.recogio.connect(func(bono): _avisar_si_jugador(voceador, tr("MSJ_RECOGIO") % bono, Color(0.6, 1.0, 0.5)))
+	voceador.se_le_resbalo.connect(func(): _avisar_si_jugador(voceador, tr("MSJ_SE_RESBALO"), Color(1.0, 0.6, 0.4)))
 	vendedor.vendio.connect(func(monto): _avisar_si_jugador(vendedor, tr("MSJ_VENTA") % monto, Color(0.6, 1.0, 0.5)))
 	vendedor.no_quiso.connect(func(): _avisar_si_jugador(vendedor, tr("MSJ_NO_QUISO"), Color(1.0, 0.9, 0.7)))
 	vendedor.se_le_cayeron.connect(func(cuantos): _avisar_si_jugador(vendedor, tr("MSJ_DULCES_CAIDOS") % cuantos, Color(1.0, 0.75, 0.3)))
@@ -695,6 +697,8 @@ func _actualizar_hud() -> void:
 				hud.mostrar_rol(nombre + " · " + (tr("HUD_PUERTA_ABIERTA") if interior.puerta_abierta else tr("HUD_PUERTA_CERRADA")), Color(0.7, 1.0, 0.7) if interior.puerta_abierta else Color(1.0, 0.75, 0.4))
 		"voceador":
 			var texto := nombre + " · " + tr("HUD_ALIENTO") % roundi(voceador.aliento)
+			if jugador.colgado:
+				texto += " · " + tr("HUD_COLGADO")
 			if voceador.gritando:
 				texto += " · " + tr("HUD_GRITANDO")
 			hud.mostrar_rol(texto, Color(1.0, 0.9, 0.6) if voceador.aliento > 25.0 else Color(1.0, 0.5, 0.4))

@@ -16,8 +16,12 @@ extends Node
 ## Roles (etapa 6A): solo suben y bajan con la puerta abierta. El grito del voceador junta gente
 ## en la parada y la acerca a la puerta; "ayudar a subir" deja pasar al siguiente de inmediato.
 ## El vendedor le ofrece dulce a cada pasajero una vez.
+##
+## A medio camino (D55): entre parada y parada aparece gente en la banqueta que hace la parada con
+## la mano. Solo sube si el voceador, colgado de la puerta, la jala al pasar (`recoger_al_paso`);
+## si el camión la deja atrás, se va desanimada.
 
-enum Estado { ESPERANDO, SUBIENDO, CAMINANDO, SENTADO, DE_PIE, BAJANDO, ALEJANDOSE }
+enum Estado { ESPERANDO, SUBIENDO, CAMINANDO, SENTADO, DE_PIE, BAJANDO, ALEJANDOSE, EN_LA_ORILLA }
 
 const RUTA := "res://config/pasajeros.cfg"
 ## Puntos de la puerta en coordenadas del camión: abajo de los escalones, en el umbral y ya adentro.
@@ -68,6 +72,9 @@ var total_perdidos: int = 0
 var total_sin_pagar: int = 0
 var total_atraidos: int = 0
 var total_ayudados: int = 0
+var total_en_la_orilla: int = 0
+var total_recogidos: int = 0
+var total_resbalados: int = 0
 ## Si alguien gritó la ruta en este cuadro (lo pone el voceador; se consume cada cuadro).
 var gritando: bool = false
 ## Segundos de más en la ventana de parada (rotación de "Tírame paro").
@@ -81,6 +88,9 @@ var desesperacion: float = 0.0
 var _azar_animaciones := RandomNumberGenerator.new()
 
 var _azar := RandomNumberGenerator.new()
+## Azar aparte para la gente a medio camino (así no cambia quién espera en las paradas).
+var _azar_orilla := RandomNumberGenerator.new()
+var _tiempo_orilla: float = 0.0
 var _cfg: ConfigFile
 var _lugares: Array[Dictionary] = []
 var _turno_puerta: float = 0.0
@@ -111,10 +121,13 @@ class Pasajero:
 	var marca: Label3D
 	## Al alejarse: a dónde camina (INF = lejos de la puerta del camión).
 	var ir_a := Vector3.INF
+	## A medio camino: en qué punto de la calle está.
+	var indice: int = -1
 
 
 func _ready() -> void:
 	_azar.randomize()
+	_azar_orilla.randomize()
 	_cfg = Config.archivo_config(RUTA)
 	_roles = ParametrosRoles.cargar()
 	Config.recargado.connect(func():
@@ -283,6 +296,7 @@ func _atender_grito(delta: float) -> void:
 ## Sustos y llegadas repetibles (para las pruebas automáticas).
 func fijar_semilla(semilla: int) -> void:
 	_azar.seed = semilla
+	_azar_orilla.seed = semilla + 1
 
 
 func a_bordo() -> int:
@@ -360,25 +374,168 @@ func _aparecer_en_parada(k: int, por_grito: bool = false) -> bool:
 	var a_lo_largo: Vector3 = pista.direcciones[i]
 	p.espera_poste = pista.paradas[k].poste + a_lo_largo * _azar.randf_range(-2.0, 2.5) + pista.derecha(i) * _azar.randf_range(0.2, 1.2)
 
+	var modelos: Array = _cfg.get_value("pasajeros", "modelos", ["galan"])
+	_poner_en_calle(p, modelos[_azar.randi() % modelos.size()], Transform3D(Basis.looking_at(-pista.derecha(i), Vector3.UP), p.espera_poste + Vector3.UP * 0.05))
+	return true
+
+
+## Arma el cuerpo de un pasajero nuevo con este modelo, parado en la calle en `donde`.
+func _poner_en_calle(p: Pasajero, modelo: String, donde: Transform3D) -> void:
 	var cuerpo := CuerpoPersonaje.new()
 	_contador += 1
 	cuerpo.name = "Pasajero%d" % _contador
 	cuerpo.parametros = interior.parametros
 	var visual := Personaje.new()
 	visual.name = "Visual"
-	var modelos: Array = _cfg.get_value("pasajeros", "modelos", ["galan"])
-	visual.modelo = modelos[_azar.randi() % modelos.size()]
+	visual.modelo = modelo
 	cuerpo.add_child(visual)
 	cuerpo.visual = visual
 	p.cuerpo = cuerpo
 	_poner_marca(p)
-	interior.agregar_en_calle(cuerpo, null, Transform3D(Basis.looking_at(-pista.derecha(i), Vector3.UP), p.espera_poste + Vector3.UP * 0.05))
+	interior.agregar_en_calle(cuerpo, null, donde)
 	cuerpo.configurar(visual.altura, visual.altura_ojos)
 	cuerpo.orientar(cuerpo.giro_actual())
 	cuerpo.atravesar_personajes(true)
 	ragdolls.vigilar(cuerpo)
 	pasajeros.append(p)
+
+
+# --- A medio camino (D55) ----------------------------------------------------
+
+## Aparece alguien haciendo la parada en la banqueta, unos metros adelante del camión y lejos de
+## las paradas. Devuelve true si apareció.
+func _aparecer_en_la_orilla() -> bool:
+	var azar := _azar_orilla
+	if pasajeros.size() >= int(_cfg.get_value("pasajeros", "max_total", 30)):
+		return false
+	if _contar(Estado.EN_LA_ORILLA) >= int(_cfg.get_value("orilla", "maximo", 3)):
+		return false
+	var n := pista.puntos.size()
+	var distancias: Array = _cfg.get_value("orilla", "distancia", [70.0, 130.0])
+	var i := pista.indice_cercano(interior.camion.global_position) + roundi(azar.randf_range(distancias[0], distancias[1]) / Calle.PASO)
+	if pista.cerrada:
+		i = posmod(i, n)
+	elif i >= n - 1:
+		return false
+	var lejos := float(_cfg.get_value("orilla", "lejos_de_parada", 30.0)) / Calle.PASO
+	for parada in pista.paradas:
+		if _pasos_entre(i, parada.indice_poste) < lejos:
+			return false
+	for o in pasajeros:
+		if o.estado == Estado.EN_LA_ORILLA and _pasos_entre(i, o.indice) < 15.0 / Calle.PASO:
+			return false
+	var p := Pasajero.new()
+	p.estado = Estado.EN_LA_ORILLA
+	p.indice = i
+	# Va a la siguiente parada o a la de después.
+	var siguiente := pista.paradas.size() - 1
+	for k in pista.paradas.size():
+		if pista.paradas[k].indice_poste > i:
+			siguiente = k
+			break
+	if pista.cerrada and pista.paradas[pista.paradas.size() - 1].indice_poste <= i:
+		siguiente = 0
+	p.destino = siguiente + azar.randi_range(0, 1)
+	p.destino = p.destino % pista.paradas.size() if pista.cerrada else mini(p.destino, pista.paradas.size() - 1)
+	var lateral := pista.ancho_carril + float(_cfg.get_value("orilla", "lateral", 0.9))
+	p.espera_poste = pista.puntos[i] + pista.derecha(i) * lateral + Vector3.UP * (pista.alto_calle + pista.alto_banqueta)
+	var modelos: Array = _cfg.get_value("pasajeros", "modelos", ["galan"])
+	_poner_en_calle(p, modelos[azar.randi() % modelos.size()], Transform3D(Basis.looking_at(-pista.derecha(i), Vector3.UP), p.espera_poste + Vector3.UP * 0.05))
+	total_en_la_orilla += 1
 	return true
+
+
+## Pasos de la calle entre dos índices (en una ruta cerrada, por el lado más corto).
+func _pasos_entre(a: int, b: int) -> float:
+	var d := absi(a - b)
+	if pista.cerrada:
+		d = mini(d, pista.puntos.size() - d)
+	return float(d)
+
+
+## Cuántos metros adelante del camión está el más cercano que hace la parada a medio camino (desde
+## unos metros atrás, mientras todavía lo alcanza a jalar), o INF si no hay nadie.
+func orilla_adelante() -> float:
+	var camion := interior.camion
+	var adelante := -camion.global_basis.z
+	var mejor := INF
+	for p in pasajeros:
+		if p.estado != Estado.EN_LA_ORILLA or p.cuerpo.desplomado:
+			continue
+		var hacia := p.cuerpo.global_position - camion.global_position
+		hacia.y = 0.0
+		var a_lo_largo := hacia.dot(adelante)
+		if a_lo_largo > -6.0 and a_lo_largo < mejor and (hacia - adelante * a_lo_largo).length() < 8.0:
+			mejor = a_lo_largo
+	return mejor
+
+
+## El voceador, colgado de la puerta, jala al que hace la parada a medio camino, si alguno queda a
+## menos de `alcance` de su mano (`mano`, en el mundo). Hasta la velocidad `maxima` (m/s) sube al
+## vuelo y devuelve el bono (de bono[0] a vuelta de rueda a bono[1] a la máxima); más rápido se le
+## resbala, sale rodando y devuelve -1. Sin nadie al alcance (o sin lugar), devuelve 0.
+func recoger_al_paso(mano: Vector3, alcance: float, maxima: float, bono: Array) -> int:
+	if not interior.puerta_abierta or not _hay_lugar():
+		return 0
+	var elegido: Pasajero = null
+	var mejor := alcance
+	for p in pasajeros:
+		if p.estado != Estado.EN_LA_ORILLA or p.cuerpo.desplomado:
+			continue
+		var hacia := p.cuerpo.global_position + Vector3.UP * p.cuerpo.altura * 0.6 - mano
+		if absf(hacia.y) > 1.5:
+			continue
+		hacia.y = 0.0
+		if hacia.length() < mejor:
+			mejor = hacia.length()
+			elegido = p
+	if elegido == null:
+		return 0
+	var p := elegido
+	var camion := interior.camion
+	var rapidez := absf(camion.velocidad_adelante)
+	p.cuerpo.visual.estirar = Vector3.INF
+	if rapidez > maxima:
+		# Muy rápido: se le resbala de la mano y sale rodando en la banqueta. Se va enojado.
+		p.estado = Estado.ALEJANDOSE
+		p.ir_a = p.espera_poste + pista.derecha(p.indice) * 3.0
+		p.tiempo = -4.0
+		total_resbalados += 1
+		p.cuerpo.pide_desplomarse.emit(-camion.global_basis.z * rapidez * 0.5 + Vector3.UP * 2.0)
+		return -1
+	_reservar_lugar(p)
+	if p.lugar.is_empty():
+		return 0
+	# Sube de un jalón: queda en el escalón y camina a su lugar.
+	interior.recolocar(p.cuerpo, Transform3D(Basis.looking_at(Vector3.LEFT, Vector3.UP), PUERTA_UMBRAL + Vector3.UP * 0.02))
+	p.estado = Estado.CAMINANDO
+	p.ruta = [PUERTA_ADENTRO, p.lugar.pasillo]
+	p.tiempo = 0.0
+	total_subieron += 1
+	total_recogidos += 1
+	subio.emit(p.cuerpo)
+	p.cuerpo.visual.hablar(0.8)
+	return maxi(1, roundi(lerpf(float(bono[0]), float(bono[1]), clampf(rapidez / maxf(maxima, 0.01), 0.0, 1.0))))
+
+
+func _en_la_orilla(p: Pasajero) -> void:
+	var camion := interior.camion
+	var hacia := p.cuerpo.global_position - camion.global_position
+	hacia.y = 0.0
+	var a_lo_largo := hacia.dot(-camion.global_basis.z)
+	# Ya lo dejó atrás (o el camión anda lejísimos): se va desanimado.
+	if a_lo_largo < -12.0 or hacia.length() > 250.0:
+		p.cuerpo.visual.estirar = Vector3.INF
+		if a_lo_largo < -12.0:
+			p.cuerpo.visual.reproducir("deprimido")
+		p.estado = Estado.ALEJANDOSE
+		p.ir_a = p.espera_poste + pista.derecha(p.indice) * 3.0
+		p.tiempo = -2.0
+		return
+	# Cuando ve venir el camión, le hace la parada con la mano.
+	var viene := a_lo_largo > -6.0 and a_lo_largo < 60.0
+	p.cuerpo.visual.estirar = Vector3(0.3, p.cuerpo.altura * 1.1, -0.2) if viene else Vector3.INF
+	_caminar_hacia(p, p.espera_poste, 0.5, false)
 
 
 ## Los que esperan en la parada k se van con otro camión (el rival de la carrerita): caminan
@@ -408,7 +565,7 @@ func vaciar() -> void:
 ## Quita a los que esperan en las paradas.
 func vaciar_paradas() -> void:
 	for p in pasajeros.duplicate():
-		if p.estado == Estado.ESPERANDO:
+		if p.estado in [Estado.ESPERANDO, Estado.EN_LA_ORILLA]:
 			_desaparecer(p)
 
 
@@ -489,6 +646,9 @@ func _atender_jugadores() -> void:
 		if not cuerpo.comandos.sentarse:
 			continue
 		cuerpo.comandos.sentarse = false
+		# Colgado de la puerta (el voceador) no se sienta: eso lo atiende su rol.
+		if cuerpo.colgado:
+			continue
 		if al_volante == cuerpo:
 			if puede_dejar_volante.is_valid() and puede_dejar_volante.call(cuerpo):
 				dejar_volante(cuerpo)
@@ -586,6 +746,11 @@ func _physics_process(delta: float) -> void:
 		for k in pista.paradas.size():
 			if k != parada_actual and not _es_terminal(k) and _azar.randf() < float(_cfg.get_value("pasajeros", "probabilidad_llegada", 0.5)):
 				_aparecer_en_parada(k)
+	_tiempo_orilla += delta
+	if llegadas_activas and _tiempo_orilla > float(_cfg.get_value("orilla", "intervalo", 10.0)):
+		_tiempo_orilla = 0.0
+		if _azar_orilla.randf() < float(_cfg.get_value("orilla", "probabilidad", 0.6)):
+			_aparecer_en_la_orilla()
 	for p: Pasajero in pasajeros.duplicate():
 		if not is_instance_valid(p.cuerpo):
 			pasajeros.erase(p)
@@ -612,6 +777,8 @@ func _physics_process(delta: float) -> void:
 				_bajar(p)
 			Estado.ALEJANDOSE:
 				_alejarse(p)
+			Estado.EN_LA_ORILLA:
+				_en_la_orilla(p)
 
 
 ## Cuánto dura la ventana de parada: la de config/partida.cfg más lo que se alargue (la rotación
@@ -812,7 +979,7 @@ func _al_levantarse(cuerpo: CuerpoPersonaje) -> void:
 	for p in pasajeros:
 		if p.cuerpo != cuerpo:
 			continue
-		if p.estado in [Estado.ESPERANDO, Estado.ALEJANDOSE]:
+		if p.estado in [Estado.ESPERANDO, Estado.ALEJANDOSE, Estado.EN_LA_ORILLA]:
 			return
 		if not interior.esta_dentro(cuerpo):
 			if p.estado != Estado.SUBIENDO:

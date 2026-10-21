@@ -4,6 +4,8 @@ extends Node
 ## - Con cada rol se corre una ruta completa. El jugador hace lo mínimo de su rol (o nada) y los
 ##   bots cubren el resto: el bot cobrador cobra, el bot voceador grita y jala gente, el bot
 ##   vendedor sube en algunas paradas y vende, y el bot chofer maneja.
+## - El voceador (jugador o bot) se cuelga de la puerta y jala a la gente que hace la parada a medio
+##   camino, con el camión en marcha (D55).
 ## - La puerta es física: cerrada, nadie sube ni sale volando por ahí.
 ## Uso: Godot --headless --fixed-fps 60 res://pruebas/prueba_etapa6a.tscn [-- detalle]
 
@@ -13,7 +15,7 @@ const FPS := 60
 const SEMILLA := 3
 
 ## Si se corren menos verificaciones que esto, algo se rompió antes de tiempo (un script que no compila).
-const VERIFICACIONES_MINIMAS := 28
+const VERIFICACIONES_MINIMAS := 30
 var _fallos: int = 0
 var _verificaciones: int = 0
 var _detalle := false
@@ -75,6 +77,10 @@ func _probar_rol(rol: String) -> void:
 	var reabastecio := false
 	var dulces_antes := 0
 	var regreso := false
+	# Velocidad más baja del camión al jalar a alguien a medio camino (tiene que ir en marcha).
+	var recogidas_en := [INF]
+	escena.voceador.recogio.connect(func(_bono): recogidas_en[0] = minf(recogidas_en[0], absf(escena.camion.velocidad_adelante)))
+	var para_colgarse := 0
 	while not escena.terminada and tiempo < 1000.0:
 		match rol:
 			"chofer":
@@ -92,6 +98,15 @@ func _probar_rol(rol: String) -> void:
 				jugador.comandos.sujetarse = true
 				jugador.comandos.gritar = pasajeros.parada_que_oye() >= 0
 				if pasajeros.parada_actual >= 0 and Engine.get_physics_frames() % 50 == 0:
+					jugador.comandos.accion_rol = true
+				# Entre paradas: se cuelga si alguien hace la parada adelante y lo jala al pasar.
+				var orilla := pasajeros.orilla_adelante()
+				var quiere := pasajeros.parada_actual < 0 and orilla < 70.0
+				para_colgarse -= 1
+				if quiere != jugador.colgado and (jugador.colgado or escena.voceador.puede_colgarse()) and para_colgarse <= 0:
+					jugador.comandos.sentarse = true
+					para_colgarse = 30
+				if jugador.colgado and absf(orilla + Voceador.MANO_AFUERA.z) < 0.6:
 					jugador.comandos.accion_rol = true
 			"vendedor":
 				jugador.comandos.sujetarse = true
@@ -117,12 +132,14 @@ func _probar_rol(rol: String) -> void:
 		"cobrador":
 			_verificar(escena.voceador.segundos_gritados > 3.0 and pasajeros.total_atraidos > 0, "el bot voceador grita (%.0f s) y junta gente (%d)" % [escena.voceador.segundos_gritados, pasajeros.total_atraidos])
 			_verificar(escena.voceador.total_ayudados > 0, "el bot voceador jala a la gente que sube (%d)" % escena.voceador.total_ayudados)
+			_verificar(escena.voceador.total_recogidos > 0 and recogidas_en[0] > 3.0, "el bot voceador jala a %d de %d a medio camino en marcha (%d se le resbalaron)" % [escena.voceador.total_recogidos, pasajeros.total_en_la_orilla, escena.voceador.total_resbalados])
 			var bot_vendedor: BotVendedor = escena.bots["vendedor"]
 			_verificar(bot_vendedor.veces_subio > 0 and bot_vendedor.total_ventas > 0, "el bot vendedor sube %d veces y vende %d dulces ($%d)" % [bot_vendedor.veces_subio, bot_vendedor.total_ventas, bot_vendedor.total_propinas])
 		"voceador":
 			_verificar(pasajeros.total_atraidos > 0, "el grito del jugador junta gente en las paradas (%d)" % pasajeros.total_atraidos)
 			_verificar(escena.voceador.total_ayudados > 0, "el jugador jala a la gente que sube (%d)" % escena.voceador.total_ayudados)
 			_verificar(escena.voceador.aliento <= 100.0 and escena.voceador.segundos_gritados > 0.0, "gritar gasta aliento y se recupera (%.0f s gritados)" % escena.voceador.segundos_gritados)
+			_verificar(escena.voceador.total_recogidos > 0 and escena.voceador.total_bonos > 0 and recogidas_en[0] > 3.0, "colgado de la puerta jala a %d de %d a medio camino en marcha (a %.0f km/h o más, $%d de bono)" % [escena.voceador.total_recogidos, pasajeros.total_en_la_orilla, recogidas_en[0] * 3.6, escena.voceador.total_bonos])
 			_verificar(bot_cobrador.total_cobrado > 0, "el bot cobrador cobra ($%d)" % bot_cobrador.total_cobrado)
 		"vendedor":
 			_verificar(escena.vendedor.total_ventas > 0 and escena.vendedor.total_propinas > 0, "el jugador vende %d dulces ($%d de propina)" % [escena.vendedor.total_ventas, escena.vendedor.total_propinas])

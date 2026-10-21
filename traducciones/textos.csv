@@ -96,14 +96,18 @@ ROL_AZAR,Al azar,Random
 AYUDA_PUERTA,E: abrir o cerrar la puerta,E: open or close the door
 AYUDA_GRITAR,Q (mantener): gritar la ruta,Q (hold): shout the route
 AYUDA_JALAR,F: jalar al que va a subir,F: pull in whoever is boarding
+AYUDA_COLGARSE,"C en la puerta: colgarte y asomarte (F jala al que hace la parada a medio camino)","C at the door: hang out of it (F pulls in whoever flags the bus down along the way)"
 AYUDA_VENDER,F: ofrecerle dulce al que tienes enfrente,F: offer candy to whoever is in front of you
 AYUDA_PUESTO,Bájate en los puestos de dulces para llenar la caja,Get off at candy stands to refill your box
 HUD_PUERTA_ABIERTA,Puerta abierta,Door open
 HUD_PUERTA_CERRADA,Puerta cerrada · E para abrir,Door closed · E to open
 HUD_ALIENTO,Aliento: %d%%,Breath: %d%%
+HUD_COLGADO,Colgado de la puerta,Hanging out the door
 HUD_GRITANDO,"¡Súbale, súbale, hay lugares!","Hop on, hop on, plenty of seats!"
 HUD_DULCES,Dulces: %d de %d,Candy: %d of %d
 MSJ_AYUDO,¡Súbale!,Hop on!
+MSJ_RECOGIO,¡Súbale al vuelo! +$%d,Picked up on the fly! +$%d
+MSJ_SE_RESBALO,¡Ibas muy rápido y se te resbaló!,Too fast: they slipped from your hand!
 MSJ_VENTA,+$%d de propina,+$%d tip
 MSJ_NO_QUISO,No quiso dulce,"No candy, thanks"
 MSJ_DULCES_CAIDOS,¡Se te cayeron %d dulces!,You dropped %d candies!

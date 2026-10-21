@@ -509,3 +509,14 @@ Aquí se agregan las decisiones que se tomen durante el desarrollo: la elección
 - *Contexto:* la carrocería se ladea de más (hasta 8° de lado y 6° hacia adelante o atrás) cada que el camión acelera, frena o da vuelta. Como la cámara del chofer y la de los pasajeros van dentro de ella, se ladeaba toda la pantalla a cada arrancón, y al dueño no le gustaba.
 - *Decisión:* el balanceo visual se multiplica por un factor que va de 0 a 1 según la velocidad: nada abajo de 50 km/h y completo desde 70 km/h (`balanceo_desde_kmh` y `balanceo_pleno_kmh` en `config/conduccion.cfg`, sección `[visual]`). La física y los empujones a los pasajeros no cambian.
 - *Secciones:* 3.
+
+**D55. El voceador se cuelga de la puerta y jala gente a medio camino** (21/10/2026, pedido del dueño)
+- *Contexto:* el dueño quiere que el voceador pueda colgarse de la puerta asomando el cuerpo para alcanzar con la mano a la gente que hace la parada entre una parada y otra, como bonificación al dinero. Pidió que el chofer no se detenga por ellos: el voceador los sube con el camión en marcha.
+- *Decisión:*
+  - **Colgarse:** con la puerta abierta, la acción de sentarse (C) junto a la puerta lo cuelga del tubo: va fijo en el borde del escalón, con el cuerpo asomado unos 32° hacia afuera y la mano libre estirada hacia adelante. La cámara del jugador va con la cabeza asomada y puede voltear como sentado. C otra vez lo mete; si cierran la puerta, se mete solo. Sigue con sus dos acciones (gritar y jalar), así que no le crece la lista de controles.
+  - **A medio camino:** cada tanto aparece alguien en la banqueta, adelante del camión y lejos de las paradas, que levanta la mano cuando ve venir el camión. Si el camión lo deja atrás, se va desanimado. Se ajusta en `config/pasajeros.cfg`, sección `[orilla]`.
+  - **Jalar al paso:** colgado y con el camión andando, F jala al que pasa al alcance de su mano. Sube de un jalón al escalón y camina a su lugar, sin que el camión se detenga. Paga su pasaje normal al cobrador, y además deja un bono que entra directo al fondo: de $5 a vuelta de rueda a $12 a la velocidad máxima (55 km/h). Más rápido que eso se le resbala y el pasajero sale rodando en la banqueta.
+  - **El riesgo:** colgado no lo tumban los frenazos normales, ni los sustos del chofer; una sacudida de 14 m/s² o más (un choque, como la que saca al chofer del asiento) lo avienta a la calle.
+  - **El bot voceador** se cuelga cuando ve a alguien adelante, estira la mano justo al pasarlo y se mete al llegar a la parada. El bot chofer no baja la velocidad.
+  - Los números del voceador van en `config/roles.cfg`, sección `[voceador]`.
+- *Secciones:* 5.1, 10.1.

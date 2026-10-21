@@ -11,6 +11,11 @@ var alcance_grito := 40.0
 var segundos_por_pasajero := 1.6
 var max_atraidos_por_parada := 4
 var alcance_ayuda := 2.5
+var alcance_colgarse := 1.2
+var alcance_recoger := 1.8
+var recoger_maxima := 55.0 / 3.6
+var bono_recoger := [5, 12]
+var umbral_soltarse := 14.0
 
 var mercancia := 10
 var propina := [3, 6]
@@ -45,6 +50,11 @@ static func cargar() -> ParametrosRoles:
 	p.segundos_por_pasajero = c.get_value("voceador", "segundos_por_pasajero", p.segundos_por_pasajero)
 	p.max_atraidos_por_parada = c.get_value("voceador", "max_atraidos_por_parada", p.max_atraidos_por_parada)
 	p.alcance_ayuda = c.get_value("voceador", "alcance_ayuda", p.alcance_ayuda)
+	p.alcance_colgarse = c.get_value("voceador", "alcance_colgarse", p.alcance_colgarse)
+	p.alcance_recoger = c.get_value("voceador", "alcance_recoger", p.alcance_recoger)
+	p.recoger_maxima = float(c.get_value("voceador", "recoger_maxima_kmh", p.recoger_maxima * 3.6)) / 3.6
+	p.bono_recoger = c.get_value("voceador", "bono_recoger", p.bono_recoger)
+	p.umbral_soltarse = c.get_value("voceador", "umbral_soltarse", p.umbral_soltarse)
 	p.mercancia = c.get_value("vendedor", "mercancia", p.mercancia)
 	p.propina = c.get_value("vendedor", "propina", p.propina)
 	p.probabilidad_compra = c.get_value("vendedor", "probabilidad_compra", p.probabilidad_compra)
