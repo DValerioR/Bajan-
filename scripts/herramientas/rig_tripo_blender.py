@@ -138,7 +138,8 @@ def convertir(fbx, nombre, datos, salida):
 		for g in v.groups:
 			destinos = destino_de(viejos[g.group])
 			if cabeza_en is not None and viejos[g.group].split(":")[-1] in ("Neck", "Head", "HeadTop_End"):
-				cuello = articulacion["Neck"].z
+				# Si la base del cuello de Tripo queda arriba de la barbilla, el paso empieza un poco abajo.
+				cuello = min(articulacion["Neck"].z, cabeza_en - altura * 0.04)
 				x = min(max((v.co.z - cuello) / max(cabeza_en - cuello, 0.001), 0.0), 1.0)
 				destinos = {"Torso": 1.0 - x * x * (3.0 - 2.0 * x), "Cabeza": x * x * (3.0 - 2.0 * x)}
 			for destino, parte in destinos.items():
