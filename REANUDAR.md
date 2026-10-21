@@ -63,7 +63,7 @@ la 9 (Steam).
 - Personajes nuevos de Tripo **con rig** (la forma preferida, D53): un personaje por modelo, en pose T
   o A, con los brazos separados y el rig automático de Tripo. El FBX va en `modelos/fuentes/<nombre>/`,
   se agrega una hoja con `rig`, `nombres`, `altura` y `brazos_caidos` en `modelos/personajes.cfg` y
-  se corre `procesar_personajes.bat`. Así se agregaron el señor, la abuelita, el punk, el turista, el viejo, la fresa, la gótica, el ladrón, la señora, el cobrador, el voceador, el albañil, el luchador, el niño y el oficinista; faltan la vendedora, el galán y el chavo. Si Tripo pone la articulación de la cabeza en la boca (revisarlo con Blender), `cabeza_en` la baja a la barbilla. Si el FBX trae
+  se corre `procesar_personajes.bat`. Así se agregaron el señor, la abuelita, el punk, el turista, el viejo, la fresa, la gótica, el ladrón, la señora, el cobrador, el voceador, el albañil, el luchador, el niño, el oficinista y la vendedora; faltan el galán y el chavo. Si Tripo pone la articulación de la cabeza en la boca (revisarlo con Blender), `cabeza_en` la baja a la barbilla. Si el FBX trae
   animaciones: `blender --background --factory-startup --python scripts/herramientas/animaciones_blender.py -- <fbx> animaciones`.
   El dueño va a regenerar así a todos los de las hojas viejas.
 - Personajes nuevos de Tripo sin rig (los de antes): se aligeran con Blender (200 000 caras, textura de 4K), se guardan en
