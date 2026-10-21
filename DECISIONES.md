@@ -498,4 +498,6 @@ Aquí se agregan las decisiones que se tomen durante el desarrollo: la elección
     - **asentir** (agree): al pagar el pasaje.
     - **enojo** (angry): al que empujan, y al que se baja porque el camión se tardó en la parada.
     - **pelear** (box): a veces, al que empujan (se pone en guardia).
+    - Del punk y el turista (21/10/2026): **aplaudir** (clap, unos 3 s) al que espera cuando llega el camión a su parada; **deprimido** (depressed) al que se queda porque el camión se fue sin él; **bailar** (dance) y **reposo** (idle) de vez en cuando mientras espera; **quejarse** (complain) a bordo, si el camión se tarda y la gente se desespera; **llamar** (make_a_call) sentado, de vez en cuando; **reírse** (laugh) a los de cerca cuando alguien cae hecho ragdoll. Las largas se cortan a unos segundos; caminando o sentado solo se mueve de la cintura para arriba.
+  - **Ya con rig (21/10/2026):** abuelita, señor, punk, turista, viejo, fresa, gótica, ladrón y señora (en `modelos/fuentes/<nombre>/`). La fresa nueva se quedó sin cara animada: las medidas de `ojos` y `boca` eran de su modelo anterior.
 - *Secciones:* 3, 10.

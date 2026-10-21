@@ -77,6 +77,8 @@ var sin_chofer: bool = false
 ## Segundos que lleva el camión en la parada actual y qué tan desesperada está la gente (0 a 1).
 var tiempo_en_parada: float = 0.0
 var desesperacion: float = 0.0
+## Azar aparte para las animaciones hechas de los pasajeros (no altera la simulación).
+var _azar_animaciones := RandomNumberGenerator.new()
 
 var _azar := RandomNumberGenerator.new()
 var _cfg: ConfigFile
@@ -119,7 +121,14 @@ func _ready() -> void:
 		_cfg = Config.archivo_config(RUTA)
 		_roles = ParametrosRoles.cargar())
 	_armar_lugares()
+	Personaje.precargar(_cfg.get_value("pasajeros", "modelos", []), self)
 	ragdolls.levantado.connect(_al_levantarse)
+	# Cuando alguien cae, los de cerca se ríen (si su modelo trae la animación).
+	ragdolls.desplomado.connect(func(caido: CuerpoPersonaje):
+		for o in pasajeros:
+			if o.cuerpo != caido and is_instance_valid(o.cuerpo) and o.cuerpo.visual != null and _azar_animaciones.randf() < 0.5 \
+					and o.cuerpo.get_parent() == caido.get_parent() and o.cuerpo.global_position.distance_to(caido.global_position) < 5.0:
+				o.cuerpo.visual.reproducir("reirse", 4.0))
 	var inicial: Array = _cfg.get_value("pasajeros", "esperando_al_inicio", [1, 3])
 	for k in pista.paradas.size():
 		if _es_terminal(k):
@@ -567,6 +576,7 @@ func _physics_process(delta: float) -> void:
 	var antes := parada_actual
 	parada_actual = _detectar_parada()
 	_ventana_de_parada(delta, antes)
+	_animaciones_de_pasajeros(delta, antes)
 	_turno_puerta = maxf(0.0, _turno_puerta - delta)
 	_atender_grito(delta)
 	_atender_jugadores()
@@ -638,6 +648,30 @@ func _ventana_de_parada(delta: float, parada_anterior: int) -> void:
 			p.destino = parada_actual
 			if p.cuerpo.visual != null:
 				p.cuerpo.visual.reproducir("enojo")
+
+
+## Animaciones hechas de los pasajeros (solo las tienen los modelos con rig, D53): aplauden cuando
+## llega el camión, se deprimen si se va sin ellos, bailan o esperan mientras tanto, se quejan si
+## se tarda y, sentados, a veces hablan por teléfono.
+func _animaciones_de_pasajeros(delta: float, antes: int) -> void:
+	# Con su propio azar: así no cambia quién aparece ni adónde va (eso sigue la semilla de la ruta).
+	var azar := _azar_animaciones
+	for p: Pasajero in pasajeros:
+		if not is_instance_valid(p.cuerpo) or p.cuerpo.visual == null or p.cuerpo.desplomado:
+			continue
+		var visual: Personaje = p.cuerpo.visual
+		if p.estado == Estado.ESPERANDO:
+			if parada_actual == p.origen and antes != p.origen and azar.randf() < 0.6:
+				visual.reproducir("aplaudir", 3.0)
+			elif antes == p.origen and parada_actual != p.origen:
+				visual.reproducir("deprimido")
+			elif parada_actual != p.origen and azar.randf() < 0.03 * delta:
+				visual.reproducir("bailar" if azar.randf() < 0.5 else "reposo", 6.0)
+		elif _a_bordo(p):
+			if desesperacion > 0.3 and azar.randf() < 0.08 * delta:
+				visual.reproducir("quejarse", 5.0)
+			elif p.estado == Estado.SENTADO and azar.randf() < 0.01 * delta:
+				visual.reproducir("llamar", 8.0)
 
 
 ## El camión está en una parada si va casi parado y su puerta queda cerca del poste.

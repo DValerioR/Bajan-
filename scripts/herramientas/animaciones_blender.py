@@ -31,7 +31,11 @@ MAPA = {
 	"PantorrillaDerecha": ("RightLeg", "RightFoot"),
 }
 # Nombres en el juego de las animaciones de Tripo (las demás se quedan con el suyo).
-NOMBRES = {"afraid": "susto", "agree": "asentir", "angry": "enojo", "box": "pelear"}
+NOMBRES = {
+	"afraid": "susto", "agree": "asentir", "angry": "enojo", "box": "pelear",
+	"clap": "aplaudir", "complain": "quejarse", "dance": "bailar", "depressed": "deprimido",
+	"idle": "reposo", "laugh": "reirse", "make_a_call": "llamar",
+}
 # De Blender (mirando a -Y, como entrega Tripo) a la figura de Godot (mirando a -Z): se voltea
 # sobre Z y se pasa a Y arriba. (x, y, z) -> (-x, z, y).
 A_GODOT = Matrix(((-1.0, 0.0, 0.0), (0.0, 0.0, 1.0), (0.0, 1.0, 0.0)))

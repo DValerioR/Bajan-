@@ -92,6 +92,8 @@ var _clip: Dictionary = {}
 var _clip_t: float = 0.0
 var _clip_peso: float = 0.0
 var _clip_subida: float = 0.0
+## Hasta cuántos segundos se reproduce (0 = completa): las largas se cortan.
+var _clip_maximo: float = 0.0
 var _ultimo_clip: String = ""
 var _descanso: float = 0.0
 ## Del clip a cada personaje: el giro de la pose T a su reposo, por hueso de brazos y piernas.
@@ -111,6 +113,17 @@ const AMORTIGUA_LADEO := 6.0
 
 func _ready() -> void:
 	_cargar()
+
+
+## Prepara de antemano lo que se calcula una vez por modelo (la malla del contorno y las cajas de
+## los huesos), para que no se trabe el juego la primera vez que aparece cada uno.
+static func precargar(modelos: Array, donde: Node) -> void:
+	for nombre in modelos:
+		var figura := Personaje.new()
+		figura.modelo = nombre
+		donde.add_child(figura)
+		figura.cajas_de_huesos()
+		figura.queue_free()
 
 
 func _cargar() -> void:
@@ -472,7 +485,7 @@ func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, 
 
 ## Reproduce una animación hecha (si el modelo las tiene): "susto", "asentir", "enojo" o "pelear".
 ## Devuelve si empezó. No interrumpe la que va ni repite la misma enseguida.
-func reproducir(nombre: String) -> bool:
+func reproducir(nombre: String, duracion_maxima: float = 0.0) -> bool:
 	if not _con_animaciones or _clip_nombre != "" or (nombre == _ultimo_clip and _descanso > 0.0):
 		return false
 	var datos := AnimacionesPersonaje.clip(nombre)
@@ -481,6 +494,7 @@ func reproducir(nombre: String) -> bool:
 	_clip_nombre = nombre
 	_clip = datos
 	_clip_t = 0.0
+	_clip_maximo = duracion_maxima
 	_ultimo_clip = nombre
 	return true
 
@@ -504,6 +518,8 @@ func _aplicar_clip(delta: float, sentado: bool) -> void:
 	var fps: float = _clip.fps
 	var cuadros: int = _clip.cuadros
 	var duracion := (cuadros - 1) / fps
+	if _clip_maximo > 0.0:
+		duracion = minf(duracion, _clip_maximo)
 	_clip_t += delta
 	if _clip_t >= duracion:
 		_clip_peso = move_toward(_clip_peso, 0.0, delta * 4.0)
@@ -525,7 +541,8 @@ func _aplicar_clip(delta: float, sentado: bool) -> void:
 			continue
 		var lista: Array = _clip.huesos[nombre]
 		var giro: Quaternion = (lista[k] as Quaternion).slerp(lista[k + 1], fraccion)
-		if sentado and nombre in DE_CINTURA_ABAJO:
+		# Sentado o caminando, solo de la cintura para arriba.
+		if (sentado or _paso > 0.25) and nombre in DE_CINTURA_ABAJO:
 			giro = Quaternion.IDENTITY
 		var i: int = _huesos[nombre]
 		var reposo: Basis = (_reposo[i] as Transform3D).basis.orthonormalized()
