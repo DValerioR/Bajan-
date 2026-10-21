@@ -220,9 +220,11 @@ func _process(delta: float) -> void:
 		var giro: Node3D = r.giro
 		giro.rotation.x = wrapf(giro.rotation.x - float(r.velocidad_giro) * delta, -PI, PI)
 
-	# Balanceo exagerado de la carrocería según cómo acelera el camión.
-	var objetivo_lado := clampf(aceleracion_local.x * p.inclinacion_lateral_factor, -p.inclinacion_lateral_max, p.inclinacion_lateral_max)
-	var objetivo_cabeceo := clampf(-aceleracion_local.z * p.cabeceo_factor, -p.cabeceo_max, p.cabeceo_max)
+	# Balanceo exagerado de la carrocería según cómo acelera el camión, solo a velocidades altas
+	# (las cámaras van dentro de la carrocería: a velocidad normal no se ladea la pantalla).
+	var rapido := smoothstep(p.balanceo_desde, p.balanceo_pleno, absf(velocidad_adelante))
+	var objetivo_lado := clampf(aceleracion_local.x * p.inclinacion_lateral_factor, -p.inclinacion_lateral_max, p.inclinacion_lateral_max) * rapido
+	var objetivo_cabeceo := clampf(-aceleracion_local.z * p.cabeceo_factor, -p.cabeceo_max, p.cabeceo_max) * rapido
 	var t := 1.0 - exp(-p.suavizado_visual * delta)
 	_carroceria.rotation.z = lerpf(_carroceria.rotation.z, deg_to_rad(objetivo_lado), t)
 	_carroceria.rotation.x = lerpf(_carroceria.rotation.x, deg_to_rad(objetivo_cabeceo), t)

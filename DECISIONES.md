@@ -504,3 +504,8 @@ Aquí se agregan las decisiones que se tomen durante el desarrollo: la elección
   - **Cabeza (21/10/2026, pedido del dueño):** al cobrador y al luchador Tripo les puso la articulación de la cabeza en la boca, y la quijada se iba con el cuello. `cabeza_en` (fracción de la estatura) la baja a la barbilla y reparte el peso del cuello y la cabeza de Torso a Cabeza a lo largo del cuello. También se usa en el oficinista, que la tenía un poco alta.
   - **Piernas sentado (21/10/2026, pedido del dueño):** al reproducir una animación sentado o caminando, las piernas se iban a la pose T (rectas) en lugar de quedarse como estaban; ahora el clip no toca la cadera ni las piernas en esos casos.
 - *Secciones:* 3, 10.
+
+**D54. Balanceo de la carrocería solo a velocidades altas** (21/10/2026, pedido del dueño)
+- *Contexto:* la carrocería se ladea de más (hasta 8° de lado y 6° hacia adelante o atrás) cada que el camión acelera, frena o da vuelta. Como la cámara del chofer y la de los pasajeros van dentro de ella, se ladeaba toda la pantalla a cada arrancón, y al dueño no le gustaba.
+- *Decisión:* el balanceo visual se multiplica por un factor que va de 0 a 1 según la velocidad: nada abajo de 50 km/h y completo desde 70 km/h (`balanceo_desde_kmh` y `balanceo_pleno_kmh` en `config/conduccion.cfg`, sección `[visual]`). La física y los empujones a los pasajeros no cambian.
+- *Secciones:* 3.

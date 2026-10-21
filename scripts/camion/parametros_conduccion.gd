@@ -43,6 +43,8 @@ var inclinacion_lateral_factor := 1.1
 var inclinacion_lateral_max := 8.0
 var cabeceo_factor := 0.8
 var cabeceo_max := 6.0
+var balanceo_desde := 50.0 / 3.6
+var balanceo_pleno := 70.0 / 3.6
 var suavizado_visual := 5.0
 
 var sensibilidad_raton := 0.12
@@ -95,6 +97,8 @@ static func cargar() -> ParametrosConduccion:
 	p.inclinacion_lateral_max = c.get_value("visual", "inclinacion_lateral_max", p.inclinacion_lateral_max)
 	p.cabeceo_factor = c.get_value("visual", "cabeceo_factor", p.cabeceo_factor)
 	p.cabeceo_max = c.get_value("visual", "cabeceo_max", p.cabeceo_max)
+	p.balanceo_desde = c.get_value("visual", "balanceo_desde_kmh", p.balanceo_desde * 3.6) / 3.6
+	p.balanceo_pleno = c.get_value("visual", "balanceo_pleno_kmh", p.balanceo_pleno * 3.6) / 3.6
 	p.suavizado_visual = c.get_value("visual", "suavizado", p.suavizado_visual)
 
 	p.sensibilidad_raton = c.get_value("camara", "sensibilidad_raton", p.sensibilidad_raton)
