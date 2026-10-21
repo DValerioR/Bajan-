@@ -6,6 +6,9 @@
 #   UpLeg -> Pierna; Leg, Foot y Toe -> Pantorrilla.
 # Lo voltea para que mire al frente del juego, lo escala a su estatura (`altura`) con los pies en
 # el piso, baja los brazos de la pose T (`brazos_caidos`) y deja la textura de `tamano_textura`.
+# A veces Tripo pone la articulación de la cabeza muy arriba (en la boca, como al cobrador y al
+# luchador): `cabeza_en` (fracción de la estatura) la pone bajo la barbilla, y el peso del cuello y
+# de la cabeza pasa de Torso a Cabeza a lo largo del cuello, hasta quedar todo en Cabeza ahí.
 #
 # En modelos/personajes.cfg cada uno es una hoja con `rig` en lugar de `archivo`:
 #   [Senor]
@@ -125,12 +128,20 @@ def convertir(fbx, nombre, datos, salida):
 			tabla[k] = ajuste @ tabla[k]
 
 	# Pesos: los de Tripo, juntados en los huesos del juego.
+	cabeza_en = float(datos["cabeza_en"]) * altura if "cabeza_en" in datos else None
+	if cabeza_en is not None:
+		articulacion["Head"].z = cabeza_en
 	viejos = {g.index: g.name for g in cuerpo.vertex_groups}
 	nuevos = {}
 	for v in cuerpo.data.vertices:
 		suma = {}
 		for g in v.groups:
-			for destino, parte in destino_de(viejos[g.group]).items():
+			destinos = destino_de(viejos[g.group])
+			if cabeza_en is not None and viejos[g.group].split(":")[-1] in ("Neck", "Head", "HeadTop_End"):
+				cuello = articulacion["Neck"].z
+				x = min(max((v.co.z - cuello) / max(cabeza_en - cuello, 0.001), 0.0), 1.0)
+				destinos = {"Torso": 1.0 - x * x * (3.0 - 2.0 * x), "Cabeza": x * x * (3.0 - 2.0 * x)}
+			for destino, parte in destinos.items():
 				suma[destino] = suma.get(destino, 0.0) + g.weight * parte
 		nuevos[v.index] = suma
 	cuerpo.vertex_groups.clear()

@@ -539,11 +539,12 @@ func _aplicar_clip(delta: float, sentado: bool) -> void:
 	for nombre in HUESOS:
 		if not _huesos.has(nombre) or not (_clip.huesos as Dictionary).has(nombre):
 			continue
+		# Sentado o caminando, solo de la cintura para arriba: las piernas se quedan con la pose que
+		# ya tenían (no se pasan a la del clip ni a la pose T, que las enderezaría).
+		if (sentado or _paso > 0.25) and nombre in DE_CINTURA_ABAJO:
+			continue
 		var lista: Array = _clip.huesos[nombre]
 		var giro: Quaternion = (lista[k] as Quaternion).slerp(lista[k + 1], fraccion)
-		# Sentado o caminando, solo de la cintura para arriba.
-		if (sentado or _paso > 0.25) and nombre in DE_CINTURA_ABAJO:
-			giro = Quaternion.IDENTITY
 		var i: int = _huesos[nombre]
 		var reposo: Basis = (_reposo[i] as Transform3D).basis.orthonormalized()
 		# Brazos y piernas: el clip gira desde la pose T; este personaje está en su reposo.
