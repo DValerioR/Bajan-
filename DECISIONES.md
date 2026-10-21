@@ -528,4 +528,10 @@ Aquí se agregan las decisiones que se tomen durante el desarrollo: la elección
   - **Caminando:** los hombros giran y se mecen al revés que la cadera, el pecho va un poco al frente, los brazos se balancean más y la cabeza cabecea con cada paso, viendo al frente.
   - **Parados:** pasan el peso de una pierna a otra despacio (la cadera de lado, los hombros compensan y se afloja la rodilla libre). Parados o sentados, de vez en cuando voltean a ver a un lado.
   - **Empujones del camión:** los brazos sueltos se quedan atrás y se balancean.
+  - **Torso (21/10/2026, pedido del dueño, porque se veía muy recto):** cada personaje tiene su postura (de 3° a 7° encorvado al frente y hasta 2° ladeado), y el pecho se mueve al respirar. Caminando se inclina 5° más al frente y se tuerce y se mece más. Parado se dobla poco a poco de lado y al frente. Sentado se encorva más y al manejar se echa hacia el volante. Con los empujones se dobla hasta 12°. La cabeza compensa casi todo para seguir viendo al frente.
+- *Secciones:* 3.
+
+**D57. En primera persona solo se ven los brazos** (21/10/2026, pedido del dueño)
+- *Contexto:* jugando, el modelo del propio personaje se veía debajo de la cámara: solo se encogía la cabeza.
+- *Decisión:* el jugador (`Personaje.primera_persona`) dibuja una copia de su malla con solo los triángulos de los brazos (cada vértice con al menos la mitad de su peso en brazo o antebrazo), y el cuerpo completo queda nada más para la sombra. Se ven la mano que se sujeta, las manos en el volante y lo que carga; la sombra sigue entera. Hecho ragdoll se ve entero menos la cabeza, como antes.
 - *Secciones:* 3.

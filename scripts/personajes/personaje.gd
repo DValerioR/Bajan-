@@ -29,6 +29,9 @@ const HUESOS := ["Cadera", "Torso", "Cabeza", "BrazoIzquierdo", "AntebrazoIzquie
 static var _mallas_contorno: Dictionary = {}
 ## Cajas de cada hueso por modelo (lo que ocupa su parte de la malla), para el ragdoll.
 static var _cajas_por_modelo: Dictionary = {}
+## Por modelo: la malla con solo los brazos (para la primera persona del jugador).
+static var _mallas_brazos: Dictionary = {}
+const HUESOS_BRAZOS := ["BrazoIzquierdo", "AntebrazoIzquierdo", "BrazoDerecho", "AntebrazoDerecho"]
 
 @export var modelo: String = "cobrador":
 	set(valor):
@@ -73,6 +76,8 @@ var _vel_giros: Dictionary = {}
 var _reloj_lento: float = randf() * TAU
 var _mirada := Vector2.ZERO
 var _para_mirar: float = randf_range(1.0, 4.0)
+## Postura de cada quien (euler del torso): un poco encorvado al frente y ladeado, distinto en cada uno.
+var _postura := Vector3(-deg_to_rad(randf_range(3.0, 7.0)), 0.0, deg_to_rad(randf_range(-2.0, 2.0)))
 var _cabeza_oculta: bool = false
 var _fase: float = 0.0
 var _inclinacion := Vector3.ZERO
@@ -343,8 +348,14 @@ func huesos_para_ragdoll() -> Array:
 
 ## Para el ragdoll: una copia del esqueleto con su malla (y la cara como está), que el ragdoll
 ## mueve hueso por hueso. Se cuelga donde va el Torso; devuelve también su lugar relativo a él.
+## En primera persona el ragdoll sí se ve entero (menos la cabeza, que lo hace el ragdoll).
 func copia_para_ragdoll() -> Array:
 	var copia: Skeleton3D = _esqueleto.duplicate()
+	var brazos := copia.get_node_or_null("SoloBrazos")
+	if brazos != null:
+		copia.remove_child(brazos)
+		brazos.free()
+		(copia.get_node(NodePath(_malla.name)) as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	for b in _malla.mesh.get_blend_shape_count():
 		var malla_copia: MeshInstance3D = copia.get_node(NodePath(_malla.name))
 		malla_copia.set_blend_shape_value(b, _malla.get_blend_shape_value(b))
@@ -368,11 +379,73 @@ func gritar(si: bool) -> void:
 	_gritando = si
 
 
-## Oculta la cabeza (para la cámara en primera persona del propio jugador): el hueso se encoge.
-func ocultar_cabeza(ocultar: bool) -> void:
-	_cabeza_oculta = ocultar
-	if _huesos.has("Cabeza"):
-		_esqueleto.set_bone_pose_scale(_huesos["Cabeza"], Vector3.ONE * (0.001 if ocultar else 1.0))
+## Primera persona (el propio jugador): del cuerpo solo se ven los brazos; lo demás solo hace sombra,
+## así la cámara (en los ojos) no ve el cuello ni el pecho por debajo. Hecho ragdoll, se ve entero
+## menos la cabeza.
+func primera_persona(si: bool) -> void:
+	_cabeza_oculta = si
+	if _malla == null:
+		return
+	_malla.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY if si else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	var brazos := _esqueleto.get_node_or_null("SoloBrazos") as MeshInstance3D
+	if si and brazos == null:
+		brazos = MeshInstance3D.new()
+		brazos.name = "SoloBrazos"
+		brazos.mesh = _malla_de_brazos()
+		brazos.skin = _malla.skin
+		brazos.transform = _malla.transform
+		brazos.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_esqueleto.add_child(brazos)
+		brazos.skeleton = brazos.get_path_to(_esqueleto)
+		for i in brazos.mesh.get_surface_count():
+			brazos.set_surface_override_material(i, _malla.get_active_material(brazos.mesh.get_meta("superficies")[i]))
+	if brazos != null:
+		brazos.visible = si
+
+
+## Copia de la malla con solo los triángulos que mueven sobre todo los brazos (cada vértice con al
+## menos la mitad de su peso en brazo o antebrazo). Una vez por modelo.
+func _malla_de_brazos() -> ArrayMesh:
+	if _mallas_brazos.has(modelo):
+		return _mallas_brazos[modelo]
+	var piel := _malla.skin
+	var de_brazo := {}
+	for b in piel.get_bind_count():
+		var nombre := String(piel.get_bind_name(b))
+		if nombre == "":
+			nombre = _esqueleto.get_bone_name(piel.get_bind_bone(b))
+		de_brazo[b] = nombre in HUESOS_BRAZOS
+	var nueva := ArrayMesh.new()
+	var superficies := []
+	for s in _malla.mesh.get_surface_count():
+		var arreglos := _malla.mesh.surface_get_arrays(s)
+		var vertices: PackedVector3Array = arreglos[Mesh.ARRAY_VERTEX]
+		var indices_huesos: PackedInt32Array = arreglos[Mesh.ARRAY_BONES]
+		var pesos: PackedFloat32Array = arreglos[Mesh.ARRAY_WEIGHTS]
+		if indices_huesos.is_empty():
+			continue
+		var por_vertice := indices_huesos.size() / maxi(vertices.size(), 1)
+		var en_brazo := PackedByteArray()
+		en_brazo.resize(vertices.size())
+		for v in vertices.size():
+			var suma := 0.0
+			for k in por_vertice:
+				if de_brazo.get(indices_huesos[v * por_vertice + k], false):
+					suma += pesos[v * por_vertice + k]
+			en_brazo[v] = 1 if suma >= 0.5 else 0
+		var indices: PackedInt32Array = arreglos[Mesh.ARRAY_INDEX] if arreglos[Mesh.ARRAY_INDEX] != null else PackedInt32Array(range(vertices.size()))
+		var quedan := PackedInt32Array()
+		for t in range(0, indices.size(), 3):
+			if en_brazo[indices[t]] and en_brazo[indices[t + 1]] and en_brazo[indices[t + 2]]:
+				quedan.append_array([indices[t], indices[t + 1], indices[t + 2]])
+		if quedan.is_empty():
+			continue
+		arreglos[Mesh.ARRAY_INDEX] = quedan
+		nueva.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arreglos, [], {}, _malla.mesh.surface_get_format(s) & Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS)
+		superficies.append(s)
+	nueva.set_meta("superficies", superficies)
+	_mallas_brazos[modelo] = nueva
+	return nueva
 
 
 ## Actualiza la pose. `velocidad` y `empujon` van en coordenadas de este nodo.
@@ -415,18 +488,20 @@ func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, 
 	# Caminando se echa un poco hacia adelante.
 	var adelante := -deg_to_rad(4.0) * _paso
 	var andando := true
-	# Al caminar los hombros giran contra la cadera y se mecen al revés que ella, el pecho va un poco
-	# al frente y la cabeza cabecea con los pasos, viendo al frente.
-	torso = Vector3(deg_to_rad(2.0) * _paso, balanceo * 0.3, -meneo * 0.8)
-	cabeza.y = -torso.y * 0.8
+	# El torso nunca va recto: tiene su postura y se mueve al respirar. Al caminar los hombros giran
+	# contra la cadera y se mecen al revés que ella, el pecho va al frente y la cabeza cabecea con los
+	# pasos, viendo al frente. (En x, negativo es hacia adelante.)
+	torso = _postura + Vector3(-deg_to_rad(5.0) * _paso + deg_to_rad(1.2) * respiro, balanceo * 0.45, -meneo * 1.2)
+	cabeza.y = -balanceo * 0.36
 	cabeza.x += sin(_fase * 2.0) * deg_to_rad(1.5) * _paso
 	# Parado, pasa el peso de una pierna a otra: la cadera se va de lado, los hombros compensan y la
 	# rodilla de la pierna libre se afloja.
 	_reloj_lento = wrapf(_reloj_lento + delta * 0.45, 0.0, TAU)
 	var peso := sin(_reloj_lento) * (1.0 - _paso)
 	meneo += peso * deg_to_rad(2.2)
-	torso.z -= peso * deg_to_rad(3.0)
-	torso.y += sin(_reloj_lento * 0.7 + 1.0) * deg_to_rad(3.0) * (1.0 - _paso)
+	torso.z -= peso * deg_to_rad(4.0)
+	torso.y += sin(_reloj_lento * 0.7 + 1.0) * deg_to_rad(5.0) * (1.0 - _paso)
+	torso.x += sin(_reloj_lento * 1.3 + 2.0) * deg_to_rad(2.0) * (1.0 - _paso)
 	rodilla_izq -= maxf(0.0, -peso) * deg_to_rad(10.0)
 	rodilla_der -= maxf(0.0, peso) * deg_to_rad(10.0)
 	# De vez en cuando voltea a ver a un lado (parado o sentado; caminando, al frente).
@@ -476,6 +551,8 @@ func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, 
 		brazo_der = Vector3(deg_to_rad(20.0), 0.0, 0.0)
 		codo_izq = deg_to_rad(55.0)
 		codo_der = deg_to_rad(55.0)
+		# Sentado se encorva más.
+		torso.x += _postura.x * 0.8
 	if manejando:
 		# Las dos manos al volante, que se mueve con la vuelta (empujon.x trae el volante).
 		andando = false
@@ -483,6 +560,8 @@ func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, 
 		brazo_der = Vector3(deg_to_rad(45.0 - 12.0 * empujon.x), 0.0, deg_to_rad(-12.0))
 		codo_izq = deg_to_rad(45.0)
 		codo_der = deg_to_rad(45.0)
+		# Echado hacia el volante.
+		torso.x = -deg_to_rad(8.0) + deg_to_rad(1.0) * respiro
 	if sujetado:
 		# Un brazo arriba, agarrado del pasamanos o del respaldo, abierto hacia afuera para que no
 		# pase por enfrente de la cara: el del lado de la agarradera (si carga algo, el izquierdo).
@@ -521,8 +600,12 @@ func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, 
 	var inercia := (Vector3(-empujon.z, 0.0, empujon.x) * 0.03).limit_length(0.4)
 	brazo_izq += inercia
 	brazo_der += inercia
+	# La parte de arriba se dobla un poco con los empujones (y con el resorte se mece).
+	torso += (Vector3(empujon.z, 0.0, -empujon.x) * deg_to_rad(0.8)).limit_length(deg_to_rad(12.0))
 	if en_el_aire or tropezando:
 		torso = Vector3.ZERO
+	# La cabeza compensa casi todo lo que se dobla el torso: sigue viendo al frente.
+	cabeza -= Vector3(torso.x * 0.7, 0.0, torso.z * 0.6)
 
 	var t := 1.0 - exp(-14.0 * delta)
 	_girar("PiernaIzquierda", Vector3(pierna_izq, 0.0, 0.0), t)

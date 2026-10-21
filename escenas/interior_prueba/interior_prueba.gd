@@ -65,7 +65,7 @@ func _crear_jugador() -> CuerpoPersonaje:
 	interior.agregar(cuerpo, camara, Transform3D(Basis(), PUESTO_JUGADOR))
 	cuerpo.orientar(PI)
 	cuerpo.configurar(visual.altura, visual.altura_ojos)
-	visual.ocultar_cabeza(true)
+	visual.primera_persona(true)
 	ragdolls.vigilar(cuerpo)
 	var entrada := EntradaJugador.new()
 	entrada.name = "EntradaJugador"

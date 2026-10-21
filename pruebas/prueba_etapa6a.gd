@@ -96,6 +96,7 @@ func _probar_rol(rol: String) -> void:
 						escena.camion.comandos.puerta = true
 			"voceador":
 				jugador.comandos.sujetarse = true
+				jugador.comandos.mover = Vector2.ZERO
 				jugador.comandos.gritar = pasajeros.parada_que_oye() >= 0
 				if pasajeros.parada_actual >= 0 and Engine.get_physics_frames() % 50 == 0:
 					jugador.comandos.accion_rol = true
@@ -106,6 +107,11 @@ func _probar_rol(rol: String) -> void:
 				if quiere != jugador.colgado and (jugador.colgado or escena.voceador.puede_colgarse()) and para_colgarse <= 0:
 					jugador.comandos.sentarse = true
 					para_colgarse = 30
+				elif quiere and not jugador.colgado and not jugador.desplomado and interior.esta_dentro(jugador):
+					# Si lo movieron de la puerta, camina hacia ella.
+					var hacia := jugador.global_basis.inverse() * (Voceador.COLGADO_EN - interior.posicion_local(jugador))
+					jugador.comandos.sujetarse = false
+					jugador.comandos.mover = Vector2(hacia.x, -hacia.z).normalized()
 				if jugador.colgado and absf(orilla + Voceador.MANO_AFUERA.z) < 0.6:
 					jugador.comandos.accion_rol = true
 			"vendedor":

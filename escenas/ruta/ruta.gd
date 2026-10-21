@@ -265,7 +265,7 @@ func _crear_jugador() -> CuerpoPersonaje:
 	interior.agregar(cuerpo, camara, Transform3D(Basis(), PUESTOS["voceador"] if rol == "voceador" else PUESTO_JUGADOR))
 	cuerpo.orientar(PI)
 	cuerpo.configurar(cuerpo.visual.altura, cuerpo.visual.altura_ojos)
-	cuerpo.visual.ocultar_cabeza(true)
+	cuerpo.visual.primera_persona(true)
 	ragdolls.vigilar(cuerpo)
 	pasajeros.agregar_jugador(cuerpo)
 	var entrada := EntradaJugador.new()
