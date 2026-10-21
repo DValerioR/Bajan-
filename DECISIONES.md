@@ -520,3 +520,12 @@ Aquí se agregan las decisiones que se tomen durante el desarrollo: la elección
   - **El bot voceador** se cuelga cuando ve a alguien adelante, estira la mano justo al pasarlo y se mete al llegar a la parada. El bot chofer no baja la velocidad.
   - Los números del voceador van en `config/roles.cfg`, sección `[voceador]`.
 - *Secciones:* 5.1, 10.1.
+
+**D56. Más soltura en la animación de código** (21/10/2026, pedido del dueño)
+- *Contexto:* con el rig nuevo de Tripo, los personajes se ven tiesos: la parte de arriba seguía su pose de golpe y, parados, solo respiraban.
+- *Decisión:*
+  - **Resortes:** brazos, antebrazos, torso y cabeza siguen su pose con un resorte por debajo del amortiguamiento crítico (`SUELTOS` en `personaje.gd`). Se pasan un poco y regresan, así que se mecen con los pasos, los frenazos y los empujones. Las piernas siguen como antes, porque si no los pies patinan.
+  - **Caminando:** los hombros giran y se mecen al revés que la cadera, el pecho va un poco al frente, los brazos se balancean más y la cabeza cabecea con cada paso, viendo al frente.
+  - **Parados:** pasan el peso de una pierna a otra despacio (la cadera de lado, los hombros compensan y se afloja la rodilla libre). Parados o sentados, de vez en cuando voltean a ver a un lado.
+  - **Empujones del camión:** los brazos sueltos se quedan atrás y se balancean.
+- *Secciones:* 3.

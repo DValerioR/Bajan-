@@ -6,6 +6,11 @@ extends Node3D
 ## al doblar una rodilla o un codo se dobla en lugar de partirse (D52). No tiene física; la lógica
 ## vive en CuerpoPersonaje y aquí solo se dibuja. Origen entre los pies, mirando a -Z.
 ##
+## Soltura (D56): brazos, antebrazos, torso y cabeza siguen su pose con resortes un poco flojos, así
+## se pasan tantito y se mecen con los pasos y los empujones en lugar de ir rígidos. Parado, pasa el
+## peso de una pierna a otra y voltea a ver a los lados de vez en cuando; al caminar, la cadera se
+## mece y los hombros la compensan.
+##
 ## Encima de la animación va un "ragdoll ligero": la mano que se sujeta alcanza la agarradera de
 ## verdad, los pies no se hunden en el piso (ni flotan al estar parado), sentado la cadera queda
 ## sobre el asiento, y el cuerpo se mece como un resorte con los empujones y se recupera solo.
@@ -61,6 +66,13 @@ var _huesos: Dictionary = {}
 var _reposo: Dictionary = {}
 ## nombre -> giro actual (euler, ejes de la figura), suavizado.
 var _giros: Dictionary = {}
+## nombre -> velocidad del giro (para los huesos con resorte, SUELTOS).
+var _vel_giros: Dictionary = {}
+## Reloj lento para pasar el peso de una pierna a otra; hacia dónde voltea a ver (giro y cabeceo) y
+## cuánto falta para cambiar.
+var _reloj_lento: float = randf() * TAU
+var _mirada := Vector2.ZERO
+var _para_mirar: float = randf_range(1.0, 4.0)
 var _cabeza_oculta: bool = false
 var _fase: float = 0.0
 var _inclinacion := Vector3.ZERO
@@ -118,6 +130,13 @@ const DE_CINTURA_ABAJO := ["Cadera", "PiernaIzquierda", "PiernaDerecha", "Pantor
 
 ## El resorte del ladeo: rigidez y amortiguamiento (por debajo del crítico: se pasa un poco y regresa).
 const RIGIDEZ_LADEO := 45.0
+## Huesos que van con resorte: [rigidez, amortiguamiento]. Por debajo del amortiguamiento crítico
+## (2·√rigidez): se pasan un poco y regresan. Las piernas no: los pies patinarían.
+const SUELTOS := {
+	"BrazoIzquierdo": [110.0, 11.0], "BrazoDerecho": [110.0, 11.0],
+	"AntebrazoIzquierdo": [160.0, 12.0], "AntebrazoDerecho": [160.0, 12.0],
+	"Cabeza": [180.0, 17.0], "Torso": [200.0, 20.0],
+}
 const AMORTIGUA_LADEO := 6.0
 ## Cuánto se echa hacia afuera del todo asomado.
 const ANGULO_ASOMADO := deg_to_rad(32.0)
@@ -171,6 +190,7 @@ func _cargar() -> void:
 	_huesos.clear()
 	_reposo.clear()
 	_giros.clear()
+	_vel_giros.clear()
 	for nombre in HUESOS:
 		var i := _esqueleto.find_bone(nombre)
 		if i >= 0:
@@ -380,8 +400,8 @@ func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, 
 	# Brazos al revés de las piernas, un poco abiertos; en reposo cuelgan respirando.
 	var respiro := sin(_reloj) * (1.0 - _paso)
 	var abrir := deg_to_rad(4.0 + 2.0 * respiro)
-	var brazo_izq := Vector3(-balanceo * 0.9, 0.0, -abrir)
-	var brazo_der := Vector3(balanceo * 0.9, 0.0, abrir)
+	var brazo_izq := Vector3(-balanceo * 1.1, 0.0, -abrir)
+	var brazo_der := Vector3(balanceo * 1.1, 0.0, abrir)
 	# Codos (positivo: la mano va hacia el frente). Un poco doblados siempre, más al caminar.
 	var codo_izq := deg_to_rad(8.0 + 14.0 * _paso) + maxf(0.0, -balanceo) * 0.6
 	var codo_der := deg_to_rad(8.0 + 14.0 * _paso) + maxf(0.0, balanceo) * 0.6
@@ -395,6 +415,27 @@ func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, 
 	# Caminando se echa un poco hacia adelante.
 	var adelante := -deg_to_rad(4.0) * _paso
 	var andando := true
+	# Al caminar los hombros giran contra la cadera y se mecen al revés que ella, el pecho va un poco
+	# al frente y la cabeza cabecea con los pasos, viendo al frente.
+	torso = Vector3(deg_to_rad(2.0) * _paso, balanceo * 0.3, -meneo * 0.8)
+	cabeza.y = -torso.y * 0.8
+	cabeza.x += sin(_fase * 2.0) * deg_to_rad(1.5) * _paso
+	# Parado, pasa el peso de una pierna a otra: la cadera se va de lado, los hombros compensan y la
+	# rodilla de la pierna libre se afloja.
+	_reloj_lento = wrapf(_reloj_lento + delta * 0.45, 0.0, TAU)
+	var peso := sin(_reloj_lento) * (1.0 - _paso)
+	meneo += peso * deg_to_rad(2.2)
+	torso.z -= peso * deg_to_rad(3.0)
+	torso.y += sin(_reloj_lento * 0.7 + 1.0) * deg_to_rad(3.0) * (1.0 - _paso)
+	rodilla_izq -= maxf(0.0, -peso) * deg_to_rad(10.0)
+	rodilla_der -= maxf(0.0, peso) * deg_to_rad(10.0)
+	# De vez en cuando voltea a ver a un lado (parado o sentado; caminando, al frente).
+	_para_mirar -= delta
+	if _para_mirar <= 0.0:
+		_para_mirar = randf_range(1.5, 5.0)
+		_mirada = Vector2(randf_range(-0.6, 0.6), randf_range(-0.15, 0.2)) if randf() < 0.6 else Vector2.ZERO
+	var voltear := (1.0 - _paso) * (0.0 if manejando or tropezando or en_el_aire else 1.0)
+	cabeza += Vector3(_mirada.y, _mirada.x, 0.0) * voltear
 
 	if en_el_aire:
 		andando = false
@@ -476,18 +517,24 @@ func animar(delta: float, velocidad: Vector3, empujon: Vector3, sujetado: bool, 
 		var desequilibrio := clampf(_inclinacion.length() / deg_to_rad(20.0), 0.0, 1.0)
 		brazo_izq.z -= desequilibrio * deg_to_rad(45.0)
 		brazo_der.z += desequilibrio * deg_to_rad(45.0)
+	# Los brazos se quedan atrás con los empujones del camión (y con el resorte se mecen).
+	var inercia := (Vector3(-empujon.z, 0.0, empujon.x) * 0.03).limit_length(0.4)
+	brazo_izq += inercia
+	brazo_der += inercia
+	if en_el_aire or tropezando:
+		torso = Vector3.ZERO
 
 	var t := 1.0 - exp(-14.0 * delta)
 	_girar("PiernaIzquierda", Vector3(pierna_izq, 0.0, 0.0), t)
 	_girar("PiernaDerecha", Vector3(pierna_der, 0.0, 0.0), t)
 	_girar("PantorrillaIzquierda", Vector3(rodilla_izq, 0.0, 0.0), t)
 	_girar("PantorrillaDerecha", Vector3(rodilla_der, 0.0, 0.0), t)
-	_girar("BrazoIzquierdo", brazo_izq, t)
-	_girar("BrazoDerecho", brazo_der, t)
-	_girar("AntebrazoIzquierdo", Vector3(codo_izq, 0.0, 0.0), t)
-	_girar("AntebrazoDerecho", Vector3(codo_der, 0.0, 0.0), t)
-	_girar("Cabeza", cabeza, t)
-	_girar("Torso", torso if andando else Vector3.ZERO, t)
+	_girar_suelto("BrazoIzquierdo", brazo_izq, delta)
+	_girar_suelto("BrazoDerecho", brazo_der, delta)
+	_girar_suelto("AntebrazoIzquierdo", Vector3(codo_izq, 0.0, 0.0), delta)
+	_girar_suelto("AntebrazoDerecho", Vector3(codo_der, 0.0, 0.0), delta)
+	_girar_suelto("Cabeza", cabeza, delta)
+	_girar_suelto("Torso", torso, delta)
 	_aplicar_clip(delta, sentado)
 
 	if not andando:
@@ -723,6 +770,29 @@ func _girar(nombre: String, objetivo: Vector3, t: float) -> void:
 	var actual: Vector3 = _giros.get(nombre, Vector3.ZERO)
 	actual = actual.lerp(objetivo, t)
 	_giros[nombre] = actual
+	_poner_giro(nombre, actual)
+
+
+## Como `_girar`, pero el hueso sigue al objetivo con un resorte (SUELTOS): se pasa tantito y se mece.
+func _girar_suelto(nombre: String, objetivo: Vector3, delta: float) -> void:
+	if not _huesos.has(nombre):
+		return
+	var resorte: Array = SUELTOS[nombre]
+	var actual: Vector3 = _giros.get(nombre, objetivo)
+	var vel: Vector3 = _vel_giros.get(nombre, Vector3.ZERO)
+	# En pasos cortos, para que no se dispare si un cuadro tarda.
+	var pasos := ceili(delta * 120.0)
+	var dt := delta / maxi(pasos, 1)
+	for _k in pasos:
+		vel += ((objetivo - actual) * float(resorte[0]) - vel * float(resorte[1])) * dt
+		vel = vel.limit_length(30.0)
+		actual += vel * dt
+	_giros[nombre] = actual
+	_vel_giros[nombre] = vel
+	_poner_giro(nombre, actual)
+
+
+func _poner_giro(nombre: String, actual: Vector3) -> void:
 	var i: int = _huesos[nombre]
 	var reposo: Basis = (_reposo[i] as Transform3D).basis.orthonormalized()
 	var giro := reposo.inverse() * Basis.from_euler(actual) * reposo
