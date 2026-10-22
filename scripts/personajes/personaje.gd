@@ -92,6 +92,10 @@ var _gritando: bool = false
 var _boca: float = 0.0
 var _para_parpadear: float = randf_range(1.0, 4.0)
 var _parpadeo: float = -1.0
+## Reloj de la cara (s) para el ritmo de la boca, y qué tan cerrados van los párpados por la
+## expresión (suavizado).
+var _reloj_cara: float = randf() * 10.0
+var _entrecerrar: float = 0.0
 ## Para alcanzar con manos y pies: la punta de la mano (en el hueso del antebrazo) y la planta del
 ## pie (en el de la pantorrilla), por lado, y a qué altura queda la planta en reposo.
 var _mano_local: Dictionary = {}
@@ -130,6 +134,21 @@ const PADRE_HUESO := {
 	"AntebrazoIzquierdo": "BrazoIzquierdo", "AntebrazoDerecho": "BrazoDerecho",
 	"PiernaIzquierda": "Cadera", "PiernaDerecha": "Cadera",
 	"PantorrillaIzquierda": "PiernaIzquierda", "PantorrillaDerecha": "PiernaDerecha",
+}
+## Expresión de la cara durante cada animación hecha: párpados (0 abiertos, 1 cerrados), boca en
+## reposo (0 cerrada, 1 abierta), cuánto abre y cierra encima (como al hablar o reír) y a qué ritmo
+## (veces por segundo), y si parpadea (los del susto, no).
+const EXPRESIONES := {
+	"susto": {"parpados": 0.0, "boca": 1.0, "habla": 0.0, "ritmo": 0.0, "parpadea": false},
+	"asentir": {"parpados": 0.25, "boca": 0.15, "habla": 0.35, "ritmo": 5.0, "parpadea": true},
+	"enojo": {"parpados": 0.4, "boca": 0.45, "habla": 0.45, "ritmo": 8.5, "parpadea": true},
+	"pelear": {"parpados": 0.45, "boca": 0.0, "habla": 0.0, "ritmo": 0.0, "parpadea": false},
+	"aplaudir": {"parpados": 0.35, "boca": 0.55, "habla": 0.3, "ritmo": 3.5, "parpadea": true},
+	"deprimido": {"parpados": 0.55, "boca": 0.05, "habla": 0.0, "ritmo": 0.0, "parpadea": true},
+	"bailar": {"parpados": 0.3, "boca": 0.2, "habla": 0.25, "ritmo": 2.2, "parpadea": true},
+	"quejarse": {"parpados": 0.3, "boca": 0.4, "habla": 0.5, "ritmo": 7.5, "parpadea": true},
+	"llamar": {"parpados": 0.1, "boca": 0.3, "habla": 0.5, "ritmo": 6.5, "parpadea": true},
+	"reirse": {"parpados": 0.6, "boca": 0.65, "habla": 0.35, "ritmo": 10.0, "parpadea": false},
 }
 const DE_CINTURA_ABAJO := ["Cadera", "PiernaIzquierda", "PiernaDerecha", "PantorrillaIzquierda", "PantorrillaDerecha"]
 
@@ -808,10 +827,14 @@ func _dos_huesos(arriba: String, abajo: String, punta: Vector3, objetivo: Vector
 
 
 ## Parpadea cada pocos segundos y mueve la boca: cerrada en reposo, abierta al gritar o del susto,
-## y abre y cierra al hablar.
+## y abre y cierra al hablar. Durante una animación hecha pone su expresión (EXPRESIONES): entra y
+## sale junto con la animación.
 func _animar_cara(delta: float, susto: bool) -> void:
 	if _cara.is_empty():
 		return
+	_reloj_cara = wrapf(_reloj_cara + delta, 0.0, 1000.0)
+	var expresion: Dictionary = EXPRESIONES.get(_clip_nombre, {})
+	var peso := smoothstep(0.0, 1.0, _clip_peso) if not expresion.is_empty() else 0.0
 	var parpados: Array = _cara.parpados
 	if not parpados.is_empty():
 		_para_parpadear -= delta
@@ -824,6 +847,10 @@ func _animar_cara(delta: float, susto: bool) -> void:
 			cierre = sin(clampf(_parpadeo, 0.0, 1.0) * PI)
 			if _parpadeo >= 1.0:
 				_parpadeo = -1.0
+		if peso > 0.5 and not expresion.parpadea:
+			cierre = 0.0
+		_entrecerrar = lerpf(_entrecerrar, float(expresion.get("parpados", 0.0)) * peso, 1.0 - exp(-10.0 * delta))
+		cierre = maxf(cierre, _entrecerrar)
 		# Del susto, los ojos bien abiertos.
 		if susto:
 			cierre = 0.0
@@ -833,11 +860,17 @@ func _animar_cara(delta: float, susto: bool) -> void:
 		return
 	_hablando = maxf(0.0, _hablando - delta)
 	var objetivo := 0.0
-	if _gritando or susto or _clip_nombre == "susto":
+	if _gritando or susto:
 		objetivo = 1.0
-	elif _hablando > 0.0 or _clip_nombre == "enojo":
+	elif _hablando > 0.0:
 		# Abre y cierra como al decir sílabas.
-		objetivo = clampf(0.55 + 0.45 * sin(_reloj * 9.0) * sin(_reloj * 3.7 + 1.0), 0.0, 1.0)
+		objetivo = clampf(0.55 + 0.45 * sin(_reloj_cara * 9.0) * sin(_reloj_cara * 3.7 + 1.0), 0.0, 1.0)
+	if peso > 0.0 and not (_gritando or susto):
+		# La boca de la expresión: su apertura más un abrir y cerrar a su ritmo (sílabas, risa, tarareo).
+		var ritmo: float = expresion.ritmo
+		var vaiven := sin(_reloj_cara * TAU * ritmo) * (0.6 + 0.4 * sin(_reloj_cara * TAU * ritmo * 0.37 + 1.0)) if ritmo > 0.0 else 0.0
+		var de_expresion := clampf(float(expresion.boca) + float(expresion.habla) * vaiven, 0.0, 1.0)
+		objetivo = lerpf(objetivo, maxf(objetivo, de_expresion), peso)
 	_boca = lerpf(_boca, objetivo, 1.0 - exp(-18.0 * delta))
 	# Claves de forma: en reposo "Cerrar" completa; al abrir se pasa a "Abrir".
 	var malla: MeshInstance3D = _cara.malla

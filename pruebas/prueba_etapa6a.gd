@@ -108,8 +108,9 @@ func _probar_rol(rol: String) -> void:
 					jugador.comandos.sentarse = true
 					para_colgarse = 30
 				elif quiere and not jugador.colgado and not jugador.desplomado and interior.esta_dentro(jugador):
-					# Si lo movieron de la puerta, camina hacia ella.
-					var hacia := jugador.global_basis.inverse() * (Voceador.COLGADO_EN - interior.posicion_local(jugador))
+					# Si lo movieron de la puerta, camina a su lugar junto a ella (adentro: al borde del
+					# escalón se podría ir de bajada).
+					var hacia := jugador.global_basis.inverse() * (Voceador.AL_BAJARSE - interior.posicion_local(jugador))
 					jugador.comandos.sujetarse = false
 					jugador.comandos.mover = Vector2(hacia.x, -hacia.z).normalized()
 				if jugador.colgado and absf(orilla + Voceador.MANO_AFUERA.z) < 0.6:

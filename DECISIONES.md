@@ -535,3 +535,18 @@ Aquí se agregan las decisiones que se tomen durante el desarrollo: la elección
 - *Contexto:* jugando, el modelo del propio personaje se veía debajo de la cámara: solo se encogía la cabeza.
 - *Decisión:* el jugador (`Personaje.primera_persona`) dibuja una copia de su malla con solo los triángulos de los brazos (cada vértice con al menos la mitad de su peso en brazo o antebrazo), y el cuerpo completo queda nada más para la sombra. Se ven la mano que se sujeta, las manos en el volante y lo que carga; la sombra sigue entera. Hecho ragdoll se ve entero menos la cabeza, como antes.
 - *Secciones:* 3.
+
+**D58. La cara acompaña a cada animación del cuerpo** (21/10/2026, pedido del dueño)
+- *Contexto:* las animaciones hechas solo movían el cuerpo; la cara se quedaba igual (salvo la boca abierta del susto y del enojo).
+- *Decisión:* cada animación tiene su expresión (`EXPRESIONES` en `personaje.gd`): qué tan cerrados van los párpados, qué tan abierta va la boca, cuánto abre y cierra encima y a qué ritmo, y si parpadea. Entra y sale junto con la animación. Gritar, hablar al pagar y el susto de un tropiezo siguen mandando sobre ella.
+  - **susto:** ojos bien abiertos, sin parpadear, y boca abierta.
+  - **asentir:** ojos un poco entrecerrados y la boca diciendo "sí".
+  - **enojo:** ojos entrecerrados y hablando rápido.
+  - **pelear:** ojos entrecerrados, sin parpadear, y la boca cerrada.
+  - **aplaudir:** ojos contentos y la boca abierta echando porras.
+  - **deprimido:** ojos caídos y la boca cerrada.
+  - **bailar:** tarareando.
+  - **quejarse:** reclamando.
+  - **llamar:** platicando.
+  - **reírse:** ojos casi cerrados y la boca abriendo y cerrando rápido ("¡ja, ja!").
+- *Secciones:* 3.
