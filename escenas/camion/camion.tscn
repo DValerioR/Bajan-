@@ -5,7 +5,7 @@
 [ext_resource type="Script" path="res://scripts/camion/camara_chofer.gd" id="3_camara"]
 
 [sub_resource type="BoxShape3D" id="Forma_cuerpo"]
-size = Vector3(3.0, 2.6, 8.1)
+size = Vector3(3.0, 2.6, 9.1)
 
 [sub_resource type="StandardMaterial3D" id="Mat_llanta"]
 albedo_color = Color(0.1, 0.1, 0.12, 1)
@@ -31,18 +31,19 @@ radial_segments = 6
 collision_layer = 2
 collision_mask = 3
 mass = 3500.0
+inertia = Vector3(28571, 21739, 11905)
 can_sleep = false
 continuous_cd = true
 script = ExtResource("1_camion")
 
 [node name="Cuerpo" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -0.27)
 shape = SubResource("Forma_cuerpo")
 
 [node name="Ruedas" type="Node3D" parent="."]
 
 [node name="DelanteraIzquierda" type="Node3D" parent="Ruedas"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.25, -0.25, -2.1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.25, -0.25, -3.12)
 
 [node name="Llanta" type="Node3D" parent="Ruedas/DelanteraIzquierda"]
 
@@ -57,7 +58,7 @@ transform = Transform3D(0, -1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0)
 mesh = SubResource("Malla_rin")
 
 [node name="DelanteraDerecha" type="Node3D" parent="Ruedas"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.25, -0.25, -2.1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.25, -0.25, -3.12)
 
 [node name="Llanta" type="Node3D" parent="Ruedas/DelanteraDerecha"]
 

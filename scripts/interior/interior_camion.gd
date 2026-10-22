@@ -315,6 +315,9 @@ func _cambiar_espacio(registro: Dictionary, a_dentro: bool) -> void:
 			w = camion.angular_velocity + base * w
 		estados.append([cuerpo, t, v, w])
 	var origen_entidad := transformacion.affine_inverse() * entidad.global_transform if a_dentro else transformacion * entidad.global_transform
+	# Por donde pasó (en coordenadas del camión), si no fue por la puerta, se rompe el vidrio (D61).
+	var por_donde := transformacion.affine_inverse() * _centro(entidad) if a_dentro else _centro(entidad)
+	_romper_vidrio(por_donde)
 	_quitar_reflejos(registro)
 	_mover_a(entidad, espacio if a_dentro else mundo)
 	entidad.global_transform = origen_entidad
@@ -326,6 +329,16 @@ func _cambiar_espacio(registro: Dictionary, a_dentro: bool) -> void:
 	_poner_dentro(registro, a_dentro)
 	if entidad.has_method("al_cambiar_espacio"):
 		entidad.al_cambiar_espacio()
+
+
+## Rompe el vidrio de la carrocería por donde algo salió o entró (no por el hueco de la puerta).
+func _romper_vidrio(punto_local: Vector3) -> void:
+	var carroceria := camion.get_node_or_null("Carroceria")
+	if carroceria == null or not carroceria.has_method("romper_vidrios"):
+		return
+	var por_la_puerta := punto_local.x > 1.0 and punto_local.z > -3.8 and punto_local.z < -2.5
+	if not por_la_puerta:
+		carroceria.romper_vidrios(punto_local - carroceria.position)
 
 
 func _poner_dentro(registro: Dictionary, dentro: bool) -> void:

@@ -110,9 +110,19 @@ func _probar() -> void:
 	_verificar(_salto_maximo < 0.25 and _hundimiento < 0.12, "sin fallos de física con sustos")
 
 	print("Frenazo en seco sin sujetarse:")
+	# Si con los sustos salió volando, se espera a que se levante antes de regresarlo al camión.
+	for _k in 10 * FPS:
+		if not jugador.desplomado:
+			break
+		await get_tree().physics_frame
 	escena._reiniciar()
 	piloto.cambiar_modo(PilotoAutomatico.Modo.NORMAL)
-	await _esperar(4.0, func(): pass)
+	# Frena en cuanto va a buena velocidad (más de 42 km/h, o a los 8 s).
+	for _k in 8 * FPS:
+		if camion.velocidad_adelante * 3.6 > 42.0:
+			break
+		await get_tree().physics_frame
+		_medir()
 	var desplomes_antes: int = escena.ragdolls.total_desplomes
 	var velocidad_frenazo := camion.velocidad_adelante * 3.6
 	piloto.cambiar_modo(PilotoAutomatico.Modo.PARADO)

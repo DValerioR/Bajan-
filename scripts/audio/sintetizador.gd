@@ -44,6 +44,32 @@ static func aviso() -> AudioStreamWAV:
 	return _crear(muestras, false)
 
 
+## Vidrio que se rompe: un golpe de ruido que se apaga rápido y tintineos agudos de los pedazos.
+static func vidrio() -> AudioStreamWAV:
+	var duracion := 0.9
+	var muestras := PackedFloat32Array()
+	muestras.resize(int(FRECUENCIA_MUESTREO * duracion))
+	var azar := RandomNumberGenerator.new()
+	azar.seed = 7
+	var tintineos := []
+	for k in 9:
+		tintineos.append([azar.randf_range(0.05, 0.7), azar.randf_range(2500.0, 6500.0), azar.randf_range(0.15, 0.35)])
+	var anterior := 0.0
+	for i in muestras.size():
+		var t := float(i) / FRECUENCIA_MUESTREO
+		# Ruido "brillante" (solo lo agudo: menos lo de la muestra anterior).
+		var ruido := azar.randf_range(-1.0, 1.0)
+		var agudo := ruido - anterior
+		anterior = ruido
+		var valor := agudo * 0.45 * exp(-t * 14.0)
+		for tin in tintineos:
+			var desde: float = tin[0]
+			if t >= desde:
+				valor += sin(TAU * float(tin[1]) * (t - desde)) * float(tin[2]) * exp(-(t - desde) * 22.0)
+		muestras[i] = clampf(valor, -1.0, 1.0)
+	return _crear(muestras, false)
+
+
 ## Grito del voceador ("¡aaah!"): voz ronca con vibrato, en bucle mientras grita.
 ## Frecuencias enteras en 1 s para que el bucle no truene.
 static func grito() -> AudioStreamWAV:

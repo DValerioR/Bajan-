@@ -566,3 +566,37 @@ Aquí se agregan las decisiones que se tomen durante el desarrollo: la elección
   - **El camión rival** no arma estos detalles (`con_interior = false`).
   - **Párpados en primera persona:** el jugador también esconde sus párpados, que son mallas aparte.
 - *Secciones:* 3, 4.
+
+**D60. El microbús de Tripo por fuera; el eje delantero va debajo de la puerta** (21/10/2026, pedido del dueño)
+- *Contexto:* el dueño subió un modelo del microbús (Tripo, en `modelos/fuentes/microbus/`) y pidió usarlo para la parte de afuera, dejando el interior igual. El modelo tiene la puerta delantera encima de la llanta delantera, y en el juego la puerta iba adelante de la llanta. Elegimos mover la llanta del juego.
+- *Decisión:*
+  - **Herramienta:** `scripts/herramientas/microbus_blender.py` lo prepara y deja `modelos/camion/microbus.glb`. Hace esto:
+    - separa una llanta, centrada y del radio del juego, y quita las demás;
+    - quita lo que trae por dentro (tablero y volante);
+    - abre huecos de verdad en las ventanas (las caras con el azul del vidrio) y en la puerta delantera;
+    - lo estira a la medida del camión: 9.1 de largo, 6 de alto y 7 de ancho. Su puerta cae en la puerta del juego, su llanta trasera en la del juego y su falda queda justo arriba de las llantas.
+  - **En el juego** (`carroceria_basica.gd`):
+    - el modelo va dentro de la carrocería (se ladea con ella) y su llanta reemplaza a los cilindros de las cuatro llantas, que siguen girando y dando vuelta;
+    - se esconden las piezas que solo se veían por fuera (faldas, frente y parte de atrás de abajo, franjas, defensas, faros y techo); siguen chocando igual, y por dentro las tapa el forro (al frente, uno oscuro nuevo);
+    - el letrero de la ruta va en la caja del letrero del modelo;
+    - por las ventanas y la puerta se ve el interior y a la gente;
+    - el rival tiñe el modelo de su color.
+  - **Física:**
+    - el eje delantero pasa de z = -2.1 a -3.12 (debajo de la puerta);
+    - la caja de choque del camión se alarga a 9.1 m, porque el frente del modelo sobresale;
+    - los arcos de las llantas delanteras se quedan en el interior aunque ya no haya llanta abajo (como la tapa del motor). Sin el de la derecha, en los acelerones la gente se resbalaba hasta la puerta y salía;
+    - la inercia del camión se fija en la que tenía con la caja de antes (`inertia` en `camion.tscn`), porque con la caja más larga cabeceaba menos y los frenazos ya no tumbaban a nadie. El centro de masa lo sigue poniendo el código entre los dos ejes;
+    - con 22 % más distancia entre ejes, el camión daba vueltas más abiertas y se atoraba en la vuelta de prueba a 90 km/h. Las llantas delanteras ahora giran más parado: 41.5° (antes 36°); a velocidad máxima siguen en 8°.
+- *Secciones:* 3, 4.
+
+**D61. Vidrio en las ventanas, que se rompe cuando alguien sale volando** (21/10/2026, pedido del dueño)
+- *Contexto:* con el microbús nuevo (D60), las ventanas eran huecos. El dueño pidió que tuvieran vidrio y que se rompiera cuando alguien sale volando.
+- *Decisión:*
+  - **Vidrios:** la herramienta del microbús deja los vidrios como piezas aparte, "Vidrio1", "Vidrio2", etc. Tripo une el parabrisas, las ventanas y el vidrio de atrás en una sola tira, así que se cortan según hacia dónde ven las caras (frente, atrás, lados, arriba, abajo) y, los de los lados, en tramos de unos 55 cm: quedan unos 340 pedazos.
+  - **Cómo se ven:** en el juego son transparentes, un poco azulados y con brillo, y se ven por los dos lados: se ve a la gente a través de ellos.
+  - **No chocan:** nadie se detiene en un vidrio.
+  - **Cuándo se rompen:** cuando algo pasa entre el interior y la calle sin usar el hueco de la puerta (una persona, un ragdoll o un objeto). Lo detecta `InteriorCamion`, que le avisa a la carrocería (`romper_vidrios`). Se rompen todos los pedazos a menos de 60 cm de por donde pasó.
+  - **Qué pasa al romperse:** el vidrio desaparece, saltan pedazos hacia afuera de ese lado y suena el vidrio (`Sintetizador.vidrio`). La ventana se queda rota el resto de la ruta.
+  - **Por si acaso:** un pedazo que cruce todo el camión de lado a lado no se rompe nunca, porque se llevaría todas las ventanas.
+  - **Parabrisas (pedido del dueño):** el modelo trae ese hueco sin vidrio, así que la carrocería pone el suyo en el hueco del frente del interior. Se rompe cuando un choque arranca al chofer del volante (`arrancado_del_asiento`, solo el jugador chofer: el bot no sale volando, D23), salga por donde salga, porque el tablero casi siempre lo detiene antes del parabrisas. También se rompe si algo pasa por ahí.
+- *Secciones:* 3, 4.

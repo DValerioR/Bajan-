@@ -26,7 +26,7 @@ var frenado := 12.0
 var resistencia_rodado := 0.04
 var resistencia_aire := 0.0009
 
-var angulo_maximo := deg_to_rad(36.0)
+var angulo_maximo := deg_to_rad(41.5)
 var angulo_a_velocidad_maxima := deg_to_rad(8.0)
 var rapidez_volante := 2.4
 var retorno_volante := 3.5

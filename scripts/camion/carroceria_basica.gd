@@ -2,7 +2,12 @@
 extends Node3D
 ## Carrocería del microbús hecha con formas básicas (DISEÑO.md, sección 3).
 ## Se genera al cargar la escena, también en el editor, a partir de la lista de piezas.
-## Cuando llegue un modelo importado, se reemplaza este nodo por el modelo y la lógica no cambia.
+## Por fuera se ve el modelo del microbús (D60, modelos/camion/microbus.glb, lo prepara
+## scripts/herramientas/microbus_blender.py): tapa estas piezas, que siguen siendo el interior y las
+## colisiones, y su llanta se usa en las cuatro llantas del camión. Lo que solo se veía por fuera
+## (franjas, defensas, faros, techo) se esconde. Sus ventanas tienen vidrio (D61): se ve a través de
+## él por los dos lados y no choca, pero se rompe cuando alguien sale volando por ahí
+## (`romper_vidrios`, lo llama InteriorCamion): saltan los pedazos y suena.
 ## Coordenadas: el piso del camión está en y = 0, el frente apunta a -Z y la derecha a +X.
 
 const VERDE := Color(0.16, 0.58, 0.36)
@@ -30,6 +35,24 @@ const ROSA := Color(0.95, 0.35, 0.65)
 ## Si arma los detalles del interior (forro, luces, adornos del chofer, letreros). El rival no, que
 ## solo se ve de lejos.
 @export var con_interior: bool = true
+
+## El modelo de por fuera (D60); si no existe, se ve la carrocería de formas básicas.
+const MODELO_EXTERIOR := "res://modelos/camion/microbus.glb"
+## Piezas que solo se ven por fuera: con el modelo, se esconden (siguen chocando si eran cajas). Las
+## paredes de abajo también: por dentro las tapa el forro.
+const SOLO_POR_FUERA := ["FaldaIzquierda", "FaldaDerechaFrente", "FaldaDerechaAtras", "FrenteInferior", "TraseraInferior", "FranjaIzquierda", "FranjaDerecha", "Techo", "ParachoquesDelantero", "ParachoquesTrasero", "FaroIzquierdo", "FaroDerecho", "CalaveraIzquierda", "CalaveraDerecha"]
+## El letrero de la ruta va en la caja del letrero del modelo, arriba del parabrisas.
+const LETRERO_CON_MODELO := Vector3(0, 2.25, -4.09)
+## Se rompen los pedazos de vidrio a menos de esto (m) de por donde salió alguien.
+const RADIO_ROTURA := 0.6
+## El modelo trae el hueco del parabrisas sin vidrio: se pone uno en el hueco del frente del
+## interior, [medidas, centro] en coordenadas de la carrocería.
+const PARABRISAS := [Vector3(2.72, 1.0, 0.012), Vector3(0, 1.5, -3.99)]
+
+## Pedazos de vidrio del modelo: [{nodo, caja (AABB en coordenadas de la carrocería), roto}].
+var vidrios: Array[Dictionary] = []
+## Cuántas veces se rompió un vidrio (para las pruebas).
+var vidrios_rotos: int = 0
 
 ## Piezas que van sin contorno (los tubos, que con él se ven gruesos).
 const SIN_CONTORNO := ["PasamanosIzquierdo", "PasamanosDerecho", "PostePuerta"]
@@ -65,6 +88,8 @@ const PIEZAS := [
 	["RespaldoChofer", "caja", Vector3(0.6, 0.8, 0.12), Vector3(-0.85, 0.85, -2.4), Vector3.ZERO, VINO],
 	["Volante", "toro", Vector3(0.15, 0.2, 0), Vector3(-0.85, 1.1, -3.3), Vector3(60, 0, 0), NEGRO],
 	["ColumnaVolante", "cilindro", Vector3(0.03, 0.45, 0), Vector3(-0.85, 0.95, -3.45), Vector3(60, 0, 0), NEGRO],
+	# Delante: ya no hay llanta abajo (D60), pero se quedan como estorbo (la tapa del motor): sin el de la
+	# derecha, en los acelerones la gente se resbala hasta la puerta.
 	["ArcoDelanteroIzquierdo", "caja", Vector3(0.5, 0.35, 1.1), Vector3(-1.2, 0.175, -2.1), Vector3.ZERO, GRIS_OSCURO],
 	["ArcoDelanteroDerecho", "caja", Vector3(0.5, 0.35, 1.1), Vector3(1.2, 0.175, -2.05), Vector3.ZERO, GRIS_OSCURO],
 	["ArcoTraseroIzquierdo", "caja", Vector3(0.5, 0.35, 1.1), Vector3(-1.2, 0.175, 2.6), Vector3.ZERO, GRIS_OSCURO],
@@ -84,6 +109,7 @@ const DETALLES := [
 	["ForroDerecho", "caja", Vector3(0.02, 0.95, 6.5), Vector3(1.41, 0.52, 0.72), Vector3.ZERO, FORRO, false],
 	["ForroDerechoFrente", "caja", Vector3(0.02, 0.95, 0.24), Vector3(1.41, 0.52, -3.82), Vector3.ZERO, FORRO, false],
 	["ForroAtras", "caja", Vector3(2.8, 0.95, 0.02), Vector3(0, 0.52, 3.93), Vector3.ZERO, FORRO, false],
+	["ForroFrente", "caja", Vector3(2.8, 0.95, 0.02), Vector3(0, 0.52, -3.93), Vector3.ZERO, GRIS_OSCURO, false],
 	["ZocloIzquierdo", "caja", Vector3(0.03, 0.16, 7.86), Vector3(-1.4, 0.08, 0), Vector3.ZERO, GRIS_OSCURO, false],
 	["ZocloDerecho", "caja", Vector3(0.03, 0.16, 6.5), Vector3(1.4, 0.08, 0.72), Vector3.ZERO, GRIS_OSCURO, false],
 	# Rieles de aluminio abajo y arriba de las ventanas.
@@ -161,6 +187,73 @@ func _ready() -> void:
 	if con_interior:
 		_armar_interior(piezas)
 	EstiloToon.aplicar(piezas)
+	_poner_exterior(piezas)
+
+
+## El modelo de por fuera y sus llantas (si existe). El rival lo tiñe de su color.
+func _poner_exterior(piezas: Node3D) -> void:
+	if not ResourceLoader.exists(MODELO_EXTERIOR):
+		return
+	var modelo: Node3D = (load(MODELO_EXTERIOR) as PackedScene).instantiate()
+	var exterior := modelo.find_child("Exterior", true, false) as MeshInstance3D
+	var llanta := modelo.find_child("Llanta", true, false) as MeshInstance3D
+	if exterior == null:
+		modelo.free()
+		return
+	var tinte := Color.WHITE if color_principal == VERDE else color_principal.lightened(0.35)
+	var textura: Texture2D = null
+	var original := exterior.get_active_material(0)
+	if original is BaseMaterial3D:
+		textura = original.albedo_texture
+	var material := EstiloToon.material(tinte, true, EstiloToon.ModoContorno.NORMAL, textura)
+	var cuerpo := MeshInstance3D.new()
+	cuerpo.name = "Exterior"
+	cuerpo.mesh = exterior.mesh
+	cuerpo.set_surface_override_material(0, material)
+	add_child(cuerpo)
+	var vidrio := _material_vidrio()
+	for pedazo: MeshInstance3D in modelo.find_children("Vidrio*", "MeshInstance3D", true, false):
+		var nuevo := MeshInstance3D.new()
+		nuevo.name = pedazo.name
+		nuevo.mesh = pedazo.mesh
+		nuevo.material_override = vidrio
+		nuevo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(nuevo)
+		vidrios.append({"nodo": nuevo, "caja": pedazo.mesh.get_aabb(), "roto": false})
+	var parabrisas := MeshInstance3D.new()
+	parabrisas.name = "Parabrisas"
+	var lamina := BoxMesh.new()
+	lamina.size = PARABRISAS[0]
+	parabrisas.mesh = lamina
+	parabrisas.position = PARABRISAS[1]
+	parabrisas.material_override = vidrio
+	parabrisas.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(parabrisas)
+	vidrios.append({"nodo": parabrisas, "caja": AABB(PARABRISAS[1] - PARABRISAS[0] * 0.5, PARABRISAS[0]), "roto": false, "parabrisas": true})
+	for nombre in SOLO_POR_FUERA:
+		var pieza := piezas.get_node_or_null(NodePath(nombre)) as Node3D
+		if pieza != null:
+			pieza.visible = false
+	var letrero := get_node_or_null("Letrero") as Node3D
+	if letrero != null:
+		letrero.position = LETRERO_CON_MODELO
+	# Las llantas: la del modelo en lugar del cilindro, con su cara hacia afuera.
+	var ruedas := get_parent().get_node_or_null("Ruedas") if get_parent() != null else null
+	if llanta != null and ruedas != null:
+		for anclaje: Node3D in ruedas.get_children():
+			var giro := anclaje.get_node_or_null("Llanta/Giro") as Node3D
+			if giro == null or giro.has_node("LlantaModelo"):
+				continue
+			for vieja in giro.get_children():
+				(vieja as Node3D).visible = false
+			var nueva := MeshInstance3D.new()
+			nueva.name = "LlantaModelo"
+			nueva.mesh = llanta.mesh
+			nueva.set_surface_override_material(0, material)
+			if anclaje.position.x < 0.0:
+				nueva.rotation.y = PI
+			giro.add_child(nueva)
+	modelo.free()
 
 
 ## Los detalles del interior (DETALLES, el fleco, el rosario, las agarraderas y los letreros).
@@ -190,6 +283,107 @@ func _armar_interior(piezas: Node3D) -> void:
 			piezas.add_child(_crear_pieza("Aro", "toro", Vector3(0.032, 0.042, 0), Vector3(x, 1.875, z), Vector3(0, 0, 90), AMARILLO, false))
 	for l in LETREROS:
 		piezas.add_child(_crear_letrero(l[0], l[1], l[2], l[3], l[4]))
+
+
+## Rompe los vidrios de cerca de `punto` (coordenadas de la carrocería), por donde algo salió o
+## entró al camión. Por el hueco de la puerta no hay vidrio. Devuelve cuántos pedazos rompió.
+func romper_vidrios(punto: Vector3) -> int:
+	var rotos: Array[Dictionary] = []
+	for v in vidrios:
+		var caja: AABB = v.caja
+		# Un pedazo que cruza de lado a lado (Tripo los junta así) no se rompe: lo tomaría todo.
+		if v.roto or (caja.size.x > 1.0 and caja.size.z > 1.0):
+			continue
+		var cercano := punto.clamp(caja.position, caja.end)
+		if cercano.distance_to(punto) < RADIO_ROTURA:
+			rotos.append(v)
+	if rotos.is_empty():
+		return 0
+	for v in rotos:
+		v.roto = true
+		(v.nodo as Node3D).visible = false
+	vidrios_rotos += 1
+	_pedazos(punto)
+	return rotos.size()
+
+
+## Rompe el parabrisas (el chofer salió arrancado del volante en un choque).
+func romper_parabrisas() -> void:
+	for v in vidrios:
+		if v.get("parabrisas", false) and not v.roto:
+			v.roto = true
+			(v.nodo as Node3D).visible = false
+			vidrios_rotos += 1
+			_pedazos(PARABRISAS[1])
+
+
+## Los pedazos que saltan (hacia afuera de ese lado) y el sonido del vidrio roto, en el mundo.
+## `punto`: por donde pasó, en coordenadas de la carrocería.
+func _pedazos(punto: Vector3) -> void:
+	var mundo := get_tree().current_scene if get_tree() != null else null
+	if mundo == null:
+		return
+	var centro := global_transform * punto
+	var afuera := global_basis * _afuera_de(punto)
+	var chispas := CPUParticles3D.new()
+	chispas.name = "VidrioRoto"
+	var cuadro := QuadMesh.new()
+	cuadro.size = Vector2(0.11, 0.08)
+	# Los pedazos, más blancos que el vidrio entero, para que se vean volar.
+	var pedazo := _material_vidrio()
+	pedazo.albedo_color = Color(0.85, 0.95, 1.0, 0.8)
+	pedazo.emission_enabled = true
+	pedazo.emission = Color(0.35, 0.45, 0.5)
+	cuadro.material = pedazo
+	chispas.mesh = cuadro
+	chispas.amount = 44
+	chispas.lifetime = 1.6
+	chispas.one_shot = true
+	chispas.explosiveness = 0.95
+	chispas.local_coords = false
+	chispas.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	chispas.emission_box_extents = Vector3(0.3, 0.3, 0.3)
+	chispas.direction = afuera
+	chispas.spread = 55.0
+	chispas.initial_velocity_min = 2.0
+	chispas.initial_velocity_max = 5.5
+	chispas.gravity = Vector3(0, -9.8, 0)
+	chispas.angular_velocity_min = -720.0
+	chispas.angular_velocity_max = 720.0
+	chispas.scale_amount_min = 0.5
+	chispas.scale_amount_max = 1.6
+	mundo.add_child(chispas)
+	chispas.global_transform = Transform3D(global_basis, centro)
+	chispas.emitting = true
+	var sonido := AudioStreamPlayer3D.new()
+	sonido.stream = Sintetizador.vidrio()
+	sonido.unit_size = 8.0
+	mundo.add_child(sonido)
+	sonido.global_position = centro
+	sonido.play()
+	get_tree().create_timer(2.5).timeout.connect(func():
+		chispas.queue_free()
+		sonido.queue_free())
+
+
+## Hacia dónde queda "afuera" de un punto de la carrocería: el costado, el frente o atrás.
+static func _afuera_de(punto: Vector3) -> Vector3:
+	if absf(punto.z) > 3.8:
+		return Vector3(0, 0.3, signf(punto.z))
+	return Vector3(signf(punto.x), 0.3, 0)
+
+
+## Vidrio de las ventanas: transparente, un poco azulado y con brillo, visible por los dos lados.
+static func _material_vidrio() -> StandardMaterial3D:
+	var vidrio := StandardMaterial3D.new()
+	vidrio.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	vidrio.albedo_color = Color(0.62, 0.8, 0.92, 0.22)
+	vidrio.roughness = 0.08
+	vidrio.metallic_specular = 0.9
+	vidrio.rim_enabled = true
+	vidrio.rim = 0.4
+	vidrio.cull_mode = BaseMaterial3D.CULL_DISABLED
+	return vidrio
 
 
 ## Letrero pegado en la pared: un fondo de color y el texto encima, viendo hacia +Z girado `giro`.

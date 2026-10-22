@@ -13,6 +13,8 @@ extends CharacterBody3D
 
 ## El personaje recibió un empujón o golpe suficiente para caer como ragdoll.
 signal pide_desplomarse(empujon: Vector3)
+## Un golpe del camión lo arrancó del asiento (el chofer en un choque): se rompe el parabrisas.
+signal arrancado_del_asiento
 
 const CAPA_PERSONAJES := 8
 const CAPA_OBJETOS := 16
@@ -240,6 +242,7 @@ func _physics_process(delta: float) -> void:
 	if sentado and umbral_salir_del_asiento > 0.0 and not colgado:
 		var tiron := marco.sacudida(global_position + up_direction * altura * 0.5)
 		if tiron.length() >= umbral_salir_del_asiento:
+			arrancado_del_asiento.emit()
 			pide_desplomarse.emit(tiron.limit_length(12.0) * 0.6 + up_direction * 3.0)
 			if desplomado:
 				return

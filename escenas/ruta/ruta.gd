@@ -267,6 +267,8 @@ func _crear_jugador() -> CuerpoPersonaje:
 	cuerpo.configurar(cuerpo.visual.altura, cuerpo.visual.altura_ojos)
 	cuerpo.visual.primera_persona(true)
 	ragdolls.vigilar(cuerpo)
+	# En un choque que lo arranca del volante, se rompe el parabrisas (D61).
+	cuerpo.arrancado_del_asiento.connect(func(): camion.get_node("Carroceria").romper_parabrisas())
 	pasajeros.agregar_jugador(cuerpo)
 	var entrada := EntradaJugador.new()
 	entrada.name = "EntradaJugador"
