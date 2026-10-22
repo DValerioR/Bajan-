@@ -406,6 +406,10 @@ func primera_persona(si: bool) -> void:
 	if _malla == null:
 		return
 	_malla.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY if si else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	# Los párpados son mallas aparte (CaraPersonaje): tampoco se ven al parpadear.
+	var parpados := _esqueleto.get_node_or_null("Parpados") as Node3D
+	if parpados != null:
+		parpados.visible = not si
 	var brazos := _esqueleto.get_node_or_null("SoloBrazos") as MeshInstance3D
 	if si and brazos == null:
 		brazos = MeshInstance3D.new()

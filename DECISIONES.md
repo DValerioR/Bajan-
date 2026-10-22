@@ -550,3 +550,19 @@ Aquí se agregan las decisiones que se tomen durante el desarrollo: la elección
   - **llamar:** platicando.
   - **reírse:** ojos casi cerrados y la boca abriendo y cerrando rápido ("¡ja, ja!").
 - *Secciones:* 3.
+
+**D59. Interior del camión con detalles de pesero; sin párpados en primera persona** (21/10/2026, pedido del dueño)
+- *Contexto:* por dentro el camión eran cajas lisas, con las paredes del mismo verde que el exterior. Además, en primera persona se veían los párpados del propio personaje al parpadear.
+- *Decisión:*
+  - **Detalles nada más visuales** (`DETALLES` en `carroceria_basica.gd`). No chocan: las colisiones siguen saliendo de `PIEZAS`. Son:
+    - forro beige con zoclo en las paredes y rieles de aluminio en las ventanas;
+    - plafón con lámpara y tiras de luz morada en las orillas;
+    - tapete de hule con rayas en el pasillo y orilla amarilla en el escalón;
+    - asientos con base de metal, cojín de vinil y tubo cromado en el respaldo;
+    - agarraderas que cuelgan de los pasamanos;
+    - en el lugar del chofer: retrovisor con rosario, fleco de pompones, virgencita, velocímetro, estéreo con luz, charola de monedas y tubo detrás del asiento;
+    - letreros: "PASAJE EXACTO", "DIOS ES MI COPILOTO", "NO ESCUPIR", "ASIENTO RESERVADO" y "AVISE SU BAJADA CON TIEMPO".
+  - **Tubos:** los pasamanos y el poste de la puerta van cromados y sin contorno (con él se veían gruesos).
+  - **El camión rival** no arma estos detalles (`con_interior = false`).
+  - **Párpados en primera persona:** el jugador también esconde sus párpados, que son mallas aparte.
+- *Secciones:* 3, 4.

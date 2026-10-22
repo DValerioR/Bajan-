@@ -285,6 +285,7 @@ func _crear_rival(evento: Dictionary) -> void:
 	rival.name = "Rival"
 	rival.con_sonido = false
 	rival.get_node("Carroceria").color_principal = COLOR_RIVAL
+	rival.get_node("Carroceria").con_interior = false
 	var camara := rival.get_node("Carroceria/CamaraChofer")
 	camara.get_parent().remove_child(camara)
 	camara.free()

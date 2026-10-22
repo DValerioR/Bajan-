@@ -59,7 +59,7 @@ la 9 (Steam).
 
 - Se avanza etapa por etapa; al terminar cada etapa o cambio importante se corre `pruebas.bat`
   completo y, si todo pasa, se hace commit y push a `main`.
-- Las decisiones van al final de `DECISIONES.md` (la última es D58).
+- Las decisiones van al final de `DECISIONES.md` (la última es D59).
 - Personajes nuevos de Tripo **con rig** (la forma preferida, D53): un personaje por modelo, en pose T
   o A, con los brazos separados y el rig automático de Tripo. El FBX va en `modelos/fuentes/<nombre>/`,
   se agrega una hoja con `rig`, `nombres`, `altura` y `brazos_caidos` en `modelos/personajes.cfg` y
